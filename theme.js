@@ -4,7 +4,7 @@
 ; Author: Professor Krasso (Bellevue University)
 ; Date Created: 16 Jan 2023
 ; Last Updated: 04 Feb 2023
-; Modified By: Chris Gorham
+; Modified By: Red
 ; Description: This code houses JavaScript for the light & dark themes
 ; Sources Used: Bellevue University Web Dev Web 330 HTML, CSS, and JavaScript Requirements Word Document
 ;=====================================

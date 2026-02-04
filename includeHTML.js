@@ -4,7 +4,7 @@
 ; Author: W3 Schools
 ; Date Created: 28 January 2023
 ; Last Updated: 04 February 2023
-; Modified By: Chris Gorham
+; Modified By: Red
 ; Description: This code houses JavaScript for the light & dark themes
 ; Sources Used: W3 Schools How TO - Include HTML, URL: https://www.w3schools.com/howto/howto_html_include.asp
 ;=====================================
