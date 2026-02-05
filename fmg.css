@@ -367,6 +367,71 @@ a.disclaimer-links:visited {color: black;}
 a.disclaimer-links:hover {color: #fe666f;}
 .x-large {font-size: 24px;}
 
+/* Footer legal links row */
+.footer-legal {
+  text-align: center;
+  padding: 10px 0;
+  font-family: 'Lora', serif;
+  font-size: 14px;
+}
+
+.footer-legal a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.footer-legal a:hover {
+  color: var(--link-hover);
+}
+
+.footer-legal-sep {
+  margin: 0 8px;
+  color: var(--text-color);
+}
+
+/* Footer modals (Privacy Policy, Terms of Use, Disclaimers) */
+.footer-modal {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.footer-modal-content {
+  background-color: var(--background-color, #fff);
+  color: var(--text-color, #000);
+  margin: 5% auto;
+  padding: 30px;
+  border-radius: 8px;
+  width: 70%;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  font-family: 'Lora', serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.footer-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  font-size: 32px;
+  font-weight: bold;
+  color: var(--text-color, #000);
+  cursor: pointer;
+}
+
+.footer-modal-close:hover {
+  color: var(--link-hover);
+}
+
 /* About page portrait image */
 .about-portrait {
   width: 25%;
@@ -484,6 +549,12 @@ a.disclaimer-links:hover {color: #fe666f;}
   .footer a {
     display: block;
     padding: 8px 16px;
+  }
+
+  .footer-modal-content {
+    width: 90%;
+    margin: 10% auto;
+    padding: 20px;
   }
 }
 
