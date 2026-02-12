@@ -44,7 +44,7 @@ async function handleCreateCheckoutSession(request, env) {
 
   const form = new URLSearchParams();
   form.set("mode", "payment");
-  form.set("success_url", env.SUCCESS_URL || "https://www.florencemaegifts.com/shop.html?checkout=success");
+  form.set("success_url", "https://www.florencemaegifts.com/index.html?checkout=success");
   form.set("cancel_url", "https://www.florencemaegifts.com/index.html");
   form.set("line_items[0][price]", priceId);
   form.set("line_items[0][quantity]", "1");
