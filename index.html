@@ -60,6 +60,29 @@
       opacity: 0.9;
     }
 
+    .shop-category-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 6px;
+    }
+
+    .shop-category-tab {
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 999px;
+      padding: 7px 12px;
+      cursor: pointer;
+      font-family: 'Lora', serif;
+      font-size: 14px;
+    }
+
+    .shop-category-tab.active {
+      background: #FE6666;
+      color: #fff;
+      border-color: #FE6666;
+    }
+
     .shop-listing {
       display: flex;
       gap: 12px;
@@ -480,6 +503,12 @@ function hydratePriorityShipping(scopeNode) {
   if (!orderButton) return;
   if (scopeNode.querySelector(".toggle-priority-shipping")) return;
 
+  const itemName = (orderButton.getAttribute("data-item-name") || "").toLowerCase();
+  if (itemName.includes("pdf download")) {
+    orderButton.setAttribute("data-priority-shipping", "false");
+    return;
+  }
+
   orderButton.setAttribute("data-priority-shipping", "false");
 
   const priorityButton = document.createElement("button");
@@ -500,7 +529,37 @@ function hydratePriorityShipping(scopeNode) {
   orderButton.parentElement.parentElement.insertBefore(priorityButton, orderButton.parentElement.nextSibling);
 }
 
+function listingMatchesCategory(title, category) {
+  const t = (title || "").toLowerCase();
+  const isPattern = t.includes("pdf download");
+  const isBabySet = t.includes("baby set") || t.includes("diaper cover");
+  const isHat = t.includes("hat") || t.includes("beanie");
+
+  if (category === "patterns") return isPattern;
+  if (category === "baby-sets") return isBabySet && !isPattern;
+  if (category === "hats") return isHat && !isPattern;
+  return true;
+}
+
+function applyShopCategoryFilter(category) {
+  const listings = document.querySelectorAll(".shop-listing");
+  listings.forEach((listing) => {
+    const title = listing.querySelector(".open-listing-modal")?.textContent?.trim() || "";
+    listing.style.display = listingMatchesCategory(title, category) ? "flex" : "none";
+  });
+}
+
 document.addEventListener("click", function(event) {
+  const categoryTab = event.target.closest(".shop-category-tab");
+  if (categoryTab) {
+    event.preventDefault();
+    const category = categoryTab.getAttribute("data-category") || "all";
+    document.querySelectorAll(".shop-category-tab").forEach((tab) => tab.classList.remove("active"));
+    categoryTab.classList.add("active");
+    applyShopCategoryFilter(category);
+    return;
+  }
+
   const trigger = event.target.closest(".open-listing-modal");
 
   if (trigger) {
