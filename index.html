@@ -683,6 +683,19 @@ document.addEventListener("click", function(event) {
   if (stripeOrderButton) {
     event.preventDefault();
 
+    const itemName = stripeOrderButton.getAttribute("data-item-name") || "Custom Item";
+    const isPdfOnly = [
+      "Four Star Ball Crochet Baby Hat Pattern - Beginner Level (PDF Download Only)",
+      "Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)"
+    ].includes(itemName);
+
+    if (isPdfOnly) {
+      const confirmed = window.confirm(
+        "Digital item confirmation: You are purchasing a digital item only. This order includes a PDF file only, and no physical item will be shipped. Continue?"
+      );
+      if (!confirmed) return;
+    }
+
     const paymentLink = stripeOrderButton.getAttribute("data-payment-link");
 
     if (paymentLink && paymentLink.startsWith("https://buy.stripe.com/")) {
@@ -690,7 +703,6 @@ document.addEventListener("click", function(event) {
       return;
     }
 
-    const itemName = stripeOrderButton.getAttribute("data-item-name") || "Custom Item";
     const priceId = stripeOrderButton.getAttribute("data-price-id") || "";
 
     if (priceId && priceId.startsWith("price_")) {
