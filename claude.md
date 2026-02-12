@@ -101,3 +101,87 @@ The site uses a **client-side HTML include pattern** via `includeHTML.js`. Commo
 ## Footer Update
 
 The `footer.html` contains a visible "Last Updated" date that should be updated whenever site content changes. This is separate from the header comment `Last Updated` field.
+
+---
+
+## Session Update — 2026-02-12 (Stripe + Shop + Cloudflare)
+
+### What was implemented
+
+- Added dedicated shop architecture:
+  - `shop.html` (Shop page)
+  - `shopleftcolumn.html` (listing content)
+  - nav update in `topnav.html` (Shop after Home)
+- Synced Etsy listings one-time into local listing cards + modal detail blocks.
+- Added modal gallery behavior:
+  - per-listing thumbnails
+  - click thumbnail swaps main image in modal
+- Added Stripe test checkout integration:
+  - fixed-price items use Stripe Payment Links (`buy.stripe.com`)
+  - variable-price/size items use API checkout session creation via `price_...` IDs
+- Added size-aware ordering UX:
+  - size options extracted from Etsy listing variation dropdowns
+  - modal shows dynamic size selector on variable items
+  - selected size updates displayed price + selected Stripe `priceId`
+- Added checkout outcome UX:
+  - `?checkout=success` and `?checkout=cancel` now show a large dismissible confirmation modal
+  - success copy includes: "Thank you for your order! ... Order details will be emailed to you shortly."
+- Listing content refinements:
+  - removed "Listed:" date/time rows from listing modals
+  - added per-item Etsy review link in each modal opening in a separate window (`#reviews`)
+
+### Backend/API (Cloudflare Worker)
+
+New folder:
+
+- `cloudflare/wrangler.toml`
+- `cloudflare/src/worker.js`
+- `cloudflare/README.md`
+
+Endpoints:
+
+- `GET /api/health`
+- `POST /api/create-checkout-session`
+- `POST /api/stripe-webhook`
+
+Key behavior:
+
+- Checkout session creation supports item + selected `priceId`.
+- Webhook signature verification implemented in-worker using Stripe `t`/`v1` HMAC SHA-256 verification.
+- Shipping address collection enabled in checkout session creation (`US` allowed countries).
+
+### Deployment notes
+
+- Worker deployed to `*.workers.dev` and routed via Cloudflare to:
+  - `https://www.florencemaegifts.com/api/*`
+- DNS must be Cloudflare proxied (orange cloud) for Worker routes to execute.
+- Verified health endpoint and webhook delivery with 200 responses.
+
+### Current checkout behavior
+
+- Fixed-price items: direct Payment Link checkout.
+- Size/variation items: create checkout session via `/api/create-checkout-session`, then redirect to Stripe-hosted checkout.
+- Success/cancel redirect back to Shop with modal confirmation.
+
+### Important operational notes
+
+- This project remains static-site frontend on GitHub Pages, with runtime API handled by Cloudflare Worker.
+- Stripe built-in email notifications are recommended for production alerts; test mode primarily uses events/logs/webhook delivery testing.
+- Local helper files used for mapping were intentionally kept uncommitted:
+  - `.stripe-price-map.json`
+  - `.stripe-size-price-map.json`
+
+### Key commits during this session
+
+- `77ca077` — Add modal gallery thumbnails from Etsy listing images
+- `7285ebb` — Wire Stripe payment links in shop modals and reorder nav
+- `33ce212` — Polish shop UX, fix Stripe button markup, add Cloudflare webhook worker
+- `839740a` — Fix shop listing prices to mapped Stripe values
+- `afc30cd` — Add size-based pricing selectors and footer date update
+- `1bd0417` — Fix modal title sizing selector for injected modal content
+- `a8cf5af` — Remove listed dates + add Etsy review links per modal
+- `5b0bffb` — Route size-based orders through checkout session API
+- `d63d017` — Require shipping address collection in Stripe checkout sessions
+- `e5aa6e6` — Add large dismissible checkout success/cancel modal
+- `542b65b` — Refine shop copy and confirmation wording
+
