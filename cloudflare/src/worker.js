@@ -48,6 +48,7 @@ async function handleCreateCheckoutSession(request, env) {
   form.set("cancel_url", "https://www.florencemaegifts.com/index.html");
   form.set("line_items[0][price]", priceId);
   form.set("line_items[0][quantity]", "1");
+  form.set("custom_text[submit][message]", "Standard processing is 3–5 calendar days unless Rush Processing is selected.");
 
   // Collect shipping details and offer shipping choices for physical items.
   if (!isDigitalItem) {
