@@ -239,6 +239,14 @@ document.addEventListener("click", function(event) {
 
   if (stripeOrderButton) {
     event.preventDefault();
+
+    const paymentLink = stripeOrderButton.getAttribute("data-payment-link");
+
+    if (paymentLink && paymentLink.startsWith("https://buy.stripe.com/")) {
+      window.location.href = paymentLink;
+      return;
+    }
+
     const itemName = stripeOrderButton.getAttribute("data-item-name") || "Custom Item";
     const priceId = stripeOrderButton.getAttribute("data-price-id") || "price_PLACEHOLDER";
     const priceDisplay = stripeOrderButton.getAttribute("data-price-display") || "PRICE_PLACEHOLDER";
