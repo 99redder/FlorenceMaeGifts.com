@@ -14,6 +14,10 @@ export default {
       return handleCreateCheckoutSession(request, env);
     }
 
+    if (url.pathname === "/api/checkout-session-details" && request.method === "GET") {
+      return handleCheckoutSessionDetails(request, env);
+    }
+
     if (url.pathname === "/api/stripe-webhook" && request.method === "POST") {
       return handleStripeWebhook(request, env);
     }
@@ -44,7 +48,7 @@ async function handleCreateCheckoutSession(request, env) {
 
   const form = new URLSearchParams();
   form.set("mode", "payment");
-  form.set("success_url", "https://www.florencemaegifts.com/index.html?checkout=success");
+  form.set("success_url", "https://www.florencemaegifts.com/index.html?checkout=success&session_id={CHECKOUT_SESSION_ID}");
   form.set("cancel_url", "https://www.florencemaegifts.com/index.html");
   form.set("line_items[0][price]", priceId);
   form.set("line_items[0][quantity]", "1");
@@ -89,6 +93,39 @@ async function handleCreateCheckoutSession(request, env) {
   if (!stripeRes.ok) return json({ error: stripeJson.error?.message || "Stripe error" }, 400, env);
 
   return json({ id: stripeJson.id, url: stripeJson.url }, 200, env);
+}
+
+async function handleCheckoutSessionDetails(request, env) {
+  if (!env.STRIPE_SECRET_KEY) return json({ error: "Missing STRIPE_SECRET_KEY" }, 500, env);
+
+  const url = new URL(request.url);
+  const sessionId = (url.searchParams.get("session_id") || "").trim();
+  if (!sessionId || !sessionId.startsWith("cs_")) {
+    return json({ error: "Missing or invalid session_id" }, 400, env);
+  }
+
+  const stripeRes = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+  });
+
+  const stripeJson = await stripeRes.json();
+  if (!stripeRes.ok) return json({ error: stripeJson.error?.message || "Stripe error" }, 400, env);
+
+  const itemName = (stripeJson.metadata?.selected_item_name || "").trim();
+  const isDigital = itemName.toLowerCase().includes("pdf download");
+  const downloadUrl = isDigital ? resolveDownloadUrl(itemName, env) : "";
+
+  return json(
+    {
+      paid: stripeJson.payment_status === "paid",
+      itemName,
+      isDigital,
+      downloadUrl,
+    },
+    200,
+    env
+  );
 }
 
 async function handleStripeWebhook(request, env) {
@@ -182,6 +219,16 @@ function resolvePriceId(incomingPriceId, selectedItemName, env) {
   if (!env.ITEM_PRICE_MAP || !selectedItemName) return "";
   try {
     const map = JSON.parse(env.ITEM_PRICE_MAP);
+    return map[selectedItemName] || "";
+  } catch {
+    return "";
+  }
+}
+
+function resolveDownloadUrl(selectedItemName, env) {
+  if (!selectedItemName || !env.DOWNLOAD_LINK_MAP) return "";
+  try {
+    const map = JSON.parse(env.DOWNLOAD_LINK_MAP);
     return map[selectedItemName] || "";
   } catch {
     return "";

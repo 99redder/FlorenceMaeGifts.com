@@ -4,8 +4,10 @@ compatibility_date = "2026-02-12"
 
 [vars]
 ALLOWED_ORIGIN = "https://www.florencemaegifts.com"
-SUCCESS_URL = "https://www.florencemaegifts.com/shop.html?checkout=success"
-CANCEL_URL = "https://www.florencemaegifts.com/shop.html?checkout=cancel"
+SUCCESS_URL = "https://www.florencemaegifts.com/index.html?checkout=success"
+CANCEL_URL = "https://www.florencemaegifts.com/index.html"
 
 # Optional: map item names to fallback price ids if client doesn't send one.
 # ITEM_PRICE_MAP = '{"Example Item":"price_..."}'
+# Map digital item names to hosted download URLs shown on success modal.
+DOWNLOAD_LINK_MAP = '{"Four Star Ball Crochet Baby Hat Pattern - Beginner Level (PDF Download Only)":"https://www.florencemaegifts.com/downloads/four-star-ball-crochet-baby-hat-pattern.pdf","Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)":"https://www.florencemaegifts.com/downloads/crochet-baby-hat-pattern-five-point-design.pdf"}'

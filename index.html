@@ -475,7 +475,7 @@ const checkoutStatusClose = document.getElementById("checkout-status-close");
 const checkoutStatusTitle = document.getElementById("checkout-status-title");
 const checkoutStatusText = document.getElementById("checkout-status-text");
 
-(function showCheckoutStatusFromQuery() {
+(async function showCheckoutStatusFromQuery() {
   if (!checkoutStatusModal || !checkoutStatusTitle || !checkoutStatusText) return;
 
   const params = new URLSearchParams(window.location.search);
@@ -483,10 +483,25 @@ const checkoutStatusText = document.getElementById("checkout-status-text");
 
   if (checkoutStatus === "success") {
     checkoutStatusTitle.textContent = "Order Confirmed";
-    checkoutStatusText.textContent = "Thank you for your order! Your checkout was completed successfully. Order details will be emailed to you shortly.";
+    checkoutStatusText.innerHTML = "Thank you for your order! Your checkout was completed successfully.";
+
+    const sessionId = params.get("session_id");
+    if (sessionId) {
+      try {
+        const detailsRes = await fetch(`/api/checkout-session-details?session_id=${encodeURIComponent(sessionId)}`);
+        const details = await detailsRes.json();
+        if (detailsRes.ok && details?.isDigital && details?.downloadUrl) {
+          checkoutStatusText.innerHTML += `<br><br><strong>Your digital download is ready:</strong><br><a href="${details.downloadUrl}" target="_blank" rel="noopener noreferrer">Download your PDF file</a>`;
+        }
+      } catch {
+        // keep default success message
+      }
+    }
+
     checkoutStatusModal.style.display = "block";
     checkoutStatusModal.setAttribute("aria-hidden", "false");
     params.delete("checkout");
+    params.delete("session_id");
     const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
     window.history.replaceState({}, "", next);
     return;
