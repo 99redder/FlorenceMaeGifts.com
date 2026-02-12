@@ -143,6 +143,31 @@
       word-break: break-word;
     }
 
+    .listing-modal-top {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .listing-modal-actions {
+      border: 1px solid #e6e6e6;
+      border-radius: 10px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .dark-theme .listing-modal-actions {
+      background: #2a2a2a;
+      border-color: #3a3a3a;
+    }
+
+    @media (max-width: 900px) {
+      .listing-modal-top {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .shop-thumb {
       width: 88px;
       height: 88px;
@@ -543,6 +568,40 @@ function hydrateSizeSelector(scopeNode) {
   orderButton.parentElement.parentElement.insertBefore(wrap, orderButton.parentElement);
 }
 
+function layoutListingModal(scopeNode) {
+  if (!scopeNode) return;
+  if (scopeNode.querySelector(".listing-modal-top")) return;
+
+  const mainImageWrap = scopeNode.querySelector(".listing-main-image-wrap");
+  const orderButton = scopeNode.querySelector(".start-stripe-order");
+  const sizeWrap = scopeNode.querySelector(".shop-size-wrap");
+  if (!mainImageWrap || !orderButton) return;
+
+  const orderRow = orderButton.closest("p");
+  const priceRow = scopeNode.querySelector("p strong")?.parentElement || null;
+
+  const top = document.createElement("div");
+  top.className = "listing-modal-top";
+
+  const actions = document.createElement("div");
+  actions.className = "listing-modal-actions";
+
+  top.appendChild(mainImageWrap);
+
+  if (priceRow) actions.appendChild(priceRow);
+  if (sizeWrap) actions.appendChild(sizeWrap);
+  if (orderRow) actions.appendChild(orderRow);
+
+  top.appendChild(actions);
+
+  const heading = scopeNode.querySelector("h3");
+  if (heading) {
+    heading.insertAdjacentElement("afterend", top);
+  } else {
+    scopeNode.prepend(top);
+  }
+}
+
 function listingMatchesCategory(title, category) {
   const t = (title || "").toLowerCase();
   const isPattern = t.includes("pdf download");
@@ -591,6 +650,7 @@ document.addEventListener("click", function(event) {
     if (detailsNode && listingModal && listingModalBody) {
       listingModalBody.innerHTML = detailsNode.innerHTML;
       hydrateSizeSelector(listingModalBody);
+      layoutListingModal(listingModalBody);
       listingModal.style.display = "block";
       listingModal.setAttribute("aria-hidden", "false");
     }
