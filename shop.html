@@ -138,6 +138,32 @@
       line-height: 1;
     }
 
+    .shop-listing-details h3 {
+      font-size: 36px;
+      margin: 0 0 8px;
+      line-height: 1.15;
+    }
+
+    .shop-size-wrap {
+      margin: 10px 0 14px;
+    }
+
+    .shop-size-label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .shop-size-select {
+      width: 100%;
+      max-width: 340px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-family: 'Lora', serif;
+      font-size: 15px;
+    }
+
     .listing-main-image-wrap {
       margin: 12px 0;
     }
@@ -187,6 +213,10 @@
         margin: 8px auto;
         padding: 14px;
         border-radius: 8px;
+      }
+
+      .shop-listing-details h3 {
+        font-size: 28px;
       }
 
       .listing-main-image {
@@ -292,6 +322,81 @@ const shopStatus = document.getElementById("shop-status");
   }
 })();
 
+function parsePriceFromOptionText(text) {
+  const match = (text || "").match(/\(\$\d+(?:\.\d{2})?\)/);
+  return match ? `${match[0].replace(/[()]/g, "")} USD` : "";
+}
+
+function hydrateSizeSelector(scopeNode) {
+  const orderButton = scopeNode ? scopeNode.querySelector(".start-stripe-order") : null;
+  if (!orderButton) return;
+
+  const mapRaw = orderButton.getAttribute("data-size-price-map");
+  if (!mapRaw) return;
+
+  let sizeMap;
+  try {
+    sizeMap = JSON.parse(mapRaw);
+  } catch {
+    return;
+  }
+
+  const sizeOptions = Object.keys(sizeMap);
+  if (!sizeOptions.length) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "shop-size-wrap";
+
+  const label = document.createElement("label");
+  label.className = "shop-size-label";
+  label.textContent = "Choose size";
+
+  const select = document.createElement("select");
+  select.className = "shop-size-select";
+
+  const decoder = document.createElement("textarea");
+
+  sizeOptions.forEach((optionText, idx) => {
+    const option = document.createElement("option");
+    option.value = sizeMap[optionText];
+    decoder.innerHTML = optionText;
+    option.textContent = decoder.value;
+    if (idx === 0) option.selected = true;
+    select.appendChild(option);
+  });
+
+  const startingText = select.options[0]?.textContent || "";
+  const startingPrice = parsePriceFromOptionText(startingText);
+  if (startingPrice) {
+    orderButton.setAttribute("data-price-display", startingPrice);
+  }
+
+  const priceText = scopeNode.querySelector("p strong");
+  if (priceText && startingPrice) {
+    if (priceText.textContent.trim().toLowerCase() === "price:") {
+      priceText.parentElement.innerHTML = `<strong>Price:</strong> ${startingPrice}`;
+    }
+  }
+
+  select.addEventListener("change", () => {
+    const selectedOptionText = select.options[select.selectedIndex]?.textContent || "";
+    const selectedPrice = parsePriceFromOptionText(selectedOptionText);
+    if (selectedPrice) {
+      orderButton.setAttribute("data-price-display", selectedPrice);
+      const detailPrice = scopeNode.querySelector("p strong");
+      if (detailPrice && detailPrice.textContent.trim().toLowerCase() === "price:") {
+        detailPrice.parentElement.innerHTML = `<strong>Price:</strong> ${selectedPrice}`;
+      }
+    }
+    orderButton.setAttribute("data-price-id", select.value);
+  });
+
+  orderButton.setAttribute("data-price-id", select.value);
+  wrap.appendChild(label);
+  wrap.appendChild(select);
+  orderButton.parentElement.parentElement.insertBefore(wrap, orderButton.parentElement);
+}
+
 document.addEventListener("click", function(event) {
   const trigger = event.target.closest(".open-listing-modal");
 
@@ -302,6 +407,7 @@ document.addEventListener("click", function(event) {
 
     if (detailsNode && listingModal && listingModalBody) {
       listingModalBody.innerHTML = detailsNode.innerHTML;
+      hydrateSizeSelector(listingModalBody);
       listingModal.style.display = "block";
       listingModal.setAttribute("aria-hidden", "false");
     }
