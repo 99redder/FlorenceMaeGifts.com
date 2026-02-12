@@ -1,10 +1,10 @@
 <!----
   ======================================
-; Title: shop.html 
+; Title: index.html 
 ; Author: Red
-; Date Created: 12 February 2026
-; Last Updated: 12 February 2026
-; Description: Florence Mae Gifts shop page with one-time synced Etsy listings
+; Date Created: 11 January 2023
+; Last Updated: 02 June 2024
+; Description: The code for the Florence Mae Gifts Landing Page (index.html)
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
 ----->
@@ -12,12 +12,11 @@
 
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    
-  <title>Shop - Florence Mae Gifts - Premium Handmade Crochet Items</title>
+
+  <title>Florence Mae Gifts - Premium Handmade Crochet Items</title>
   
-  <meta name="description" content="Browse Florence Mae Gifts shop listings synced from Etsy.">
+  <meta name="description" content="Florence Mae Gifts makes premium, handmade  items and gifts such as Amigurumi dolls, crochet baby diaper sets, items inspired by pop culture, and more!">
   <meta http-equiv="author" content ="Red">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -44,557 +43,595 @@
   <!---The JavaScript source code for the include HTML function-->
   <script src="includeHTML.js"></script>
 
-  <style>
-    .start-stripe-order {
-      background-color: #FE6666;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 14px;
-      cursor: pointer;
-      font-family: 'Lora', serif;
-      font-size: 15px;
-    }
-
-    .start-stripe-order:hover {
-      opacity: 0.9;
-    }
-
-    .shop-listing {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #e5e5e5;
-    }
-
-    .shop-listing a {
-      font-weight: 700;
-      line-height: 1.3;
-      word-break: break-word;
-    }
-
-    .shop-thumb {
-      width: 88px;
-      height: 88px;
-      object-fit: cover;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-      flex-shrink: 0;
-    }
-
-    .shop-status {
-      display: none;
-    }
-
-    .checkout-modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 10001;
-      background: rgba(0, 0, 0, 0.75);
-      padding: 18px;
-      overflow-y: auto;
-    }
-
-    .checkout-modal-content {
-      max-width: 560px;
-      margin: 10vh auto;
-      border-radius: 12px;
-      padding: 22px 20px;
-      background: #fff;
-      color: #111;
-      box-shadow: 0 14px 40px rgba(0,0,0,0.35);
-      position: relative;
-      text-align: left;
-    }
-
-    .dark-theme .checkout-modal-content {
-      background: #222;
-      color: #fff;
-    }
-
-    .checkout-modal-title {
-      font-size: 28px;
-      margin: 0 0 10px;
-      line-height: 1.2;
-    }
-
-    .checkout-modal-text {
-      font-size: 17px;
-      margin: 0;
-      line-height: 1.45;
-    }
-
-    .checkout-modal-close {
-      position: absolute;
-      top: 10px;
-      right: 14px;
-      font-size: 28px;
-      line-height: 1;
-      cursor: pointer;
-      border: 0;
-      background: transparent;
-      color: inherit;
-    }
-
-    .shop-modal {
-      display: none;
-      position: fixed;
-      z-index: 9999;
-      inset: 0;
-      background: rgba(0,0,0,0.7);
-      padding: 24px;
-      overflow-y: auto;
-    }
-
-    .shop-modal-content {
-      background: #fff;
-      color: #111;
-      margin: 40px auto;
-      padding: 20px;
-      border-radius: 10px;
-      max-width: 700px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-    }
-
-    .dark-theme .shop-modal-content {
-      background: #222;
-      color: #fff;
-    }
-
-    .shop-modal-close {
-      float: right;
-      cursor: pointer;
-      font-size: 26px;
-      line-height: 1;
-    }
-
-    #shop-modal-body h3 {
-      font-size: 18px;
-      margin: 0 0 8px;
-      line-height: 1.25;
-    }
-
-    .shop-listing-details p {
-      font-size: 15px;
-      line-height: 1.45;
-      margin: 0 0 10px;
-    }
-
-    .shop-size-wrap {
-      margin: 10px 0 14px;
-    }
-
-    .shop-size-label {
-      display: block;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .shop-size-select {
-      width: 100%;
-      max-width: 340px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-family: 'Lora', serif;
-      font-size: 15px;
-    }
-
-    .listing-main-image-wrap {
-      margin: 12px 0;
-    }
-
-    .listing-main-image {
-      width: 100%;
-      max-width: 360px;
-      border-radius: 10px;
-      border: 1px solid #ddd;
-    }
-
-    .listing-image-gallery {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-
-    .listing-gallery-thumb {
-      width: 64px;
-      height: 64px;
-      object-fit: cover;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-      cursor: pointer;
-    }
-
-    .listing-gallery-thumb:hover {
-      opacity: 0.85;
-    }
-
-    @media screen and (max-width: 800px) {
-      .shop-listing {
-        align-items: flex-start;
-      }
-
-      .shop-thumb {
-        width: 72px;
-        height: 72px;
-      }
-
-      .shop-modal {
-        padding: 10px;
-      }
-
-      .checkout-modal-content {
-        margin: 5vh auto;
-        padding: 18px 14px;
-      }
-
-      .checkout-modal-title {
-        font-size: 22px;
-      }
-
-      .checkout-modal-text {
-        font-size: 15px;
-      }
-
-      .shop-modal-content {
-        margin: 8px auto;
-        padding: 14px;
-        border-radius: 8px;
-      }
-
-      #shop-modal-body h3 {
-        font-size: 16px;
-      }
-
-      .shop-listing-details p {
-        font-size: 14px;
-      }
-
-      .listing-main-image {
-        max-width: 100%;
-      }
-
-      .listing-gallery-thumb {
-        width: 56px;
-        height: 56px;
-      }
-
-      .start-stripe-order {
-        width: 100%;
-      }
-    }
-  </style>
 
 </head>
 
 <body class="light-theme">
 
-<!-- Creates the icon and adds the onclick functionality for changing between themes-->
-<i onclick="toggleMode(this)" id="icon-mode" class="fa fa-toggle-off pull-right" style="font-size: 20px;"><span id="icon-text" class="toggle"></span></i><br><br>
+  <!-- Creates the icon and adds the onclick functionality for changing between themes-->
+  <i onclick="toggleMode(this)" id="icon-mode" class="fa fa-toggle-off pull-right" style="font-size: 20px;"><span id="icon-text" class="toggle"></span></i><br><br>
 
-<div w3-include-html="header.html" class="header"></div>
 
-<div w3-include-html="topnav.html" class="topnav"></div>
+  <div w3-include-html="header.html" class="header"></div>
 
-<div id="shop-status" class="shop-status" role="status" aria-live="polite"></div>
+  <div w3-include-html="topnav.html" class="topnav"></div>
+   
 
 <div class="row">
+    <div class="leftcolumn">
+              
+              <div class="row">
+                <div class="column">
 
-  <div w3-include-html="shopleftcolumn.html" class="leftcolumn"></div>
-                  
-  <div w3-include-html="rightcolumn.html" class="rightcolumn hidden-mobile"></div>
+                  <img class="examples" id="example1" src="images/example1.jpeg" alt="Slowking from Pokémon Amigurumi Doll">
 
-  <!---Closes all other divs and allows the disclaimer note to be the Footer-->          
-  </div>
+                      <!-- The Modal -->
+                      <div id="myModal" class="modal">
+                      <span class="close">&times;</span>
   
-  <div id="shop-listing-modal" class="shop-modal" aria-hidden="true">
-    <div class="shop-modal-content">
-      <span id="shop-modal-close" class="shop-modal-close" aria-label="Close">&times;</span>
-      <div id="shop-modal-body"></div>
-    </div>
-  </div>
+                      <img class="modal-content" id="img01">
+                      <div id="caption"></div>
+                      </div>
 
-  <div id="checkout-status-modal" class="checkout-modal" aria-hidden="true">
-    <div class="checkout-modal-content">
-      <button id="checkout-status-close" class="checkout-modal-close" aria-label="Close">&times;</button>
-      <h2 id="checkout-status-title" class="checkout-modal-title"></h2>
-      <p id="checkout-status-text" class="checkout-modal-text"></p>
-    </div>
-  </div>
+                      <script>
+                      // Get the modal
+                      var modal = document.getElementById("myModal");
 
-  <!---Footer-->
-  <div w3-include-html="footer.html" class="stuff-centered"></div>  
+                      // Get the image and insert it inside the modal - use its "alt" text as a caption
+                      var img = document.getElementById("example1");
+                      var modalImg = document.getElementById("img01");
+                      var captionText = document.getElementById("caption");
+                      img.onclick = function(){
+                        modal.style.display = "block";
+                        modalImg.src = this.src;
+                        captionText.innerHTML = this.alt;
+                      }
 
+                      // Get the <span> element that closes the modal
+                      var span = document.getElementsByClassName("close")[0];
+
+                      // When the user clicks on <span> (x), close the modal
+                      span.onclick = function() { 
+                        modal.style.display = "none";
+                      }
+                      </script>
+
+
+                  <img class="examples" id="example5" class="examples" src="images/example5.png" alt="Dumbo Crochet Baby Set (Beanie and Diaper Cover)">
+
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
+
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example5");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
+
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
+
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
+
+                  <img class="examples" id="example18" src="images/example18.png" alt="Rainbow Axolotl Amigurumi Doll">
+
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
+
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example18");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
+
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
+
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
+
+
+                  <img class="examples" id="example12" src="images/example12.png" alt="Squirt from Finding Nemo Amigurumi Doll">
+                    
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
+
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example12");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
+
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
+
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
+
+                </div>
+                <div class="column">
+
+                  <img class="examples" id="example30" src="images/example30.jpg" alt="Dragonball Z Inspired Kid Gohan Crochet Baby Hat">
+
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
+
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example30");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
+
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
+
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
+
+                    <img class="examples" id="example99" src="images/luffy.png" alt="One Piece Inspired Luffy Straw Hat">
+
+                    <script>
+                      // Get the modal
+                      var modal = document.getElementById("myModal");
   
-<script>
-  // sets a default theme; this code needs to be first
-  setDefaultTheme();
+                      // Get the image and insert it inside the modal - use its "alt" text as a caption
+                      var img = document.getElementById("example99");
+                      var modalImg = document.getElementById("img01");
+                      var captionText = document.getElementById("caption");
+                      img.onclick = function(){
+                        modal.style.display = "block";
+                        modalImg.src = this.src;
+                        captionText.innerHTML = this.alt;
+                      }
+  
+                      // Get the <span> element that closes the modal
+                      var span = document.getElementsByClassName("close")[0];
+  
+                      // When the user clicks on <span> (x), close the modal
+                      span.onclick = function() { 
+                        modal.style.display = "none";
+                      }
+                      </script>
 
-  // the function which will toggle between the two different themes
-  function toggleMode(x)
-  {
-      let colorTheme = document.body.classList; // establishes the variable that holds the body CSS class
-      let iconMode = x.classList; // gets the classes 
+                  <img class="examples" id="example7" src="images/example7.png" alt="Deku Link from Legend of Zelda: Majoras' Mask Amigurumi Doll">
 
-      // if the value shows light, update the preference in storage
-      if (colorTheme.value === "light-theme")
-      {
-          localStorage.clear();
-          localStorage.setItem("mode", "dark-theme");
-          localStorage.setItem("iconMode", "fa-toggle-on");
-          localStorage.setItem("iconText", "Dark Mode");
-      }
-      
-      else
-      {
-          localStorage.clear();
-          localStorage.setItem("mode", "light-theme");
-          localStorage.setItem("iconMode", "fa-toggle-off");
-          localStorage.setItem("iconText", "Light Mode");
-      }
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
 
-      // applies the updated selection
-      colorTheme.value = localStorage.getItem("mode");
-      iconMode.value = `fa ${localStorage.getItem("iconMode")} pull-right`;
-      document.getElementById("icon-text").innerHTML = localStorage.getItem("iconText");
-  }
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example7");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
 
-const listingModal = document.getElementById("shop-listing-modal");
-const listingModalBody = document.getElementById("shop-modal-body");
-const listingModalClose = document.getElementById("shop-modal-close");
-const checkoutStatusModal = document.getElementById("checkout-status-modal");
-const checkoutStatusClose = document.getElementById("checkout-status-close");
-const checkoutStatusTitle = document.getElementById("checkout-status-title");
-const checkoutStatusText = document.getElementById("checkout-status-text");
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
 
-(function showCheckoutStatusFromQuery() {
-  if (!checkoutStatusModal || !checkoutStatusTitle || !checkoutStatusText) return;
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
 
-  const params = new URLSearchParams(window.location.search);
-  const checkoutStatus = params.get("checkout");
+                    <img class="examples" id="example32" src="images/example32.jpeg" alt="Winnie the Pooh Inspired Crochet Baby Set" width="70%">
+                                      
+                    <script>
+                      // Get the modal
+                      var modal = document.getElementById("myModal");
 
-  if (checkoutStatus === "success") {
-    checkoutStatusTitle.textContent = "Order Confirmed";
-    checkoutStatusText.textContent = "Thank you for your order! Your checkout was completed successfully. Order details will be emailed to you shortly.";
-    checkoutStatusModal.style.display = "block";
-    checkoutStatusModal.setAttribute("aria-hidden", "false");
-    params.delete("checkout");
-    const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
-    window.history.replaceState({}, "", next);
-    return;
-  }
+                      // Get the image and insert it inside the modal - use its "alt" text as a caption
+                      var img = document.getElementById("example32");
+                      var modalImg = document.getElementById("img01");
+                      var captionText = document.getElementById("caption");
+                      img.onclick = function(){
+                        modal.style.display = "block";
+                        modalImg.src = this.src;
+                        captionText.innerHTML = this.alt;
+                      }
 
-  if (checkoutStatus === "cancel") {
-    checkoutStatusTitle.textContent = "Checkout Canceled";
-    checkoutStatusText.textContent = "No problem — your order was not completed. You can try again anytime.";
-    checkoutStatusModal.style.display = "block";
-    checkoutStatusModal.setAttribute("aria-hidden", "false");
-    params.delete("checkout");
-    const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
-    window.history.replaceState({}, "", next);
-  }
-})();
+                      // Get the <span> element that closes the modal
+                      var span = document.getElementsByClassName("close")[0];
 
-function parsePriceFromOptionText(text) {
-  const match = (text || "").match(/\(\$\d+(?:\.\d{2})?\)/);
-  return match ? `${match[0].replace(/[()]/g, "")} USD` : "";
-}
+                      // When the user clicks on <span> (x), close the modal
+                      span.onclick = function() { 
+                        modal.style.display = "none";
+                      }
+                      </script>
 
-function hydrateSizeSelector(scopeNode) {
-  const orderButton = scopeNode ? scopeNode.querySelector(".start-stripe-order") : null;
-  if (!orderButton) return;
+                    <img id="example20" src="images/example20.png" alt="Custom Made Cthulhu with Roller Skates Amigurumi Doll">
 
-  const mapRaw = orderButton.getAttribute("data-size-price-map");
-  if (!mapRaw) return;
+                    <script>
+                      // Get the modal
+                      var modal = document.getElementById("myModal");
 
-  let sizeMap;
-  try {
-    sizeMap = JSON.parse(mapRaw);
-  } catch {
-    return;
-  }
+                      // Get the image and insert it inside the modal - use its "alt" text as a caption
+                      var img = document.getElementById("example20");
+                      var modalImg = document.getElementById("img01");
+                      var captionText = document.getElementById("caption");
+                      img.onclick = function(){
+                        modal.style.display = "block";
+                        modalImg.src = this.src;
+                        captionText.innerHTML = this.alt;
+                      }
 
-  const sizeOptions = Object.keys(sizeMap);
-  if (!sizeOptions.length) return;
+                      // Get the <span> element that closes the modal
+                      var span = document.getElementsByClassName("close")[0];
 
-  const wrap = document.createElement("div");
-  wrap.className = "shop-size-wrap";
+                      // When the user clicks on <span> (x), close the modal
+                      span.onclick = function() { 
+                        modal.style.display = "none";
+                      }
+                      </script>
 
-  const label = document.createElement("label");
-  label.className = "shop-size-label";
-  label.textContent = "Choose size";
+                      <img class="examples" id="example3" src="images/example3.png" alt="Dory from Finding Nemo Amigurumi Doll">
+                                        
+                      <script>
+                        // Get the modal
+                        var modal = document.getElementById("myModal");
 
-  const select = document.createElement("select");
-  select.className = "shop-size-select";
+                        // Get the image and insert it inside the modal - use its "alt" text as a caption
+                        var img = document.getElementById("example3");
+                        var modalImg = document.getElementById("img01");
+                        var captionText = document.getElementById("caption");
+                        img.onclick = function(){
+                          modal.style.display = "block";
+                          modalImg.src = this.src;
+                          captionText.innerHTML = this.alt;
+                        }
 
-  const decoder = document.createElement("textarea");
+                        // Get the <span> element that closes the modal
+                        var span = document.getElementsByClassName("close")[0];
 
-  sizeOptions.forEach((optionText, idx) => {
-    const option = document.createElement("option");
-    option.value = sizeMap[optionText];
-    decoder.innerHTML = optionText;
-    option.textContent = decoder.value;
-    if (idx === 0) option.selected = true;
-    select.appendChild(option);
-  });
+                        // When the user clicks on <span> (x), close the modal
+                        span.onclick = function() { 
+                          modal.style.display = "none";
+                        }
+                        </script>
 
-  const startingText = select.options[0]?.textContent || "";
-  const startingPrice = parsePriceFromOptionText(startingText);
-  if (startingPrice) {
-    orderButton.setAttribute("data-price-display", startingPrice);
-  }
+                </div>
+                <div class="column">
 
-  const priceText = scopeNode.querySelector("p strong");
-  if (priceText && startingPrice) {
-    if (priceText.textContent.trim().toLowerCase() === "price:") {
-      priceText.parentElement.innerHTML = `<strong>Price:</strong> ${startingPrice}`;
-    }
-  }
+                  <img class="examples" id="example16" src="images/example16.png" alt="Baby Donald Duck Amigurumi Doll">
 
-  select.addEventListener("change", () => {
-    const selectedOptionText = select.options[select.selectedIndex]?.textContent || "";
-    const selectedPrice = parsePriceFromOptionText(selectedOptionText);
-    if (selectedPrice) {
-      orderButton.setAttribute("data-price-display", selectedPrice);
-      const detailPrice = scopeNode.querySelector("p strong");
-      if (detailPrice && detailPrice.textContent.trim().toLowerCase() === "price:") {
-        detailPrice.parentElement.innerHTML = `<strong>Price:</strong> ${selectedPrice}`;
-      }
-    }
-    orderButton.setAttribute("data-price-id", select.value);
-  });
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
 
-  orderButton.setAttribute("data-price-id", select.value);
-  wrap.appendChild(label);
-  wrap.appendChild(select);
-  orderButton.parentElement.parentElement.insertBefore(wrap, orderButton.parentElement);
-}
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example16");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
 
-document.addEventListener("click", function(event) {
-  const trigger = event.target.closest(".open-listing-modal");
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
 
-  if (trigger) {
-    event.preventDefault();
-    const targetId = trigger.getAttribute("data-modal-target");
-    const detailsNode = document.getElementById(targetId);
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
 
-    if (detailsNode && listingModal && listingModalBody) {
-      listingModalBody.innerHTML = detailsNode.innerHTML;
-      hydrateSizeSelector(listingModalBody);
-      listingModal.style.display = "block";
-      listingModal.setAttribute("aria-hidden", "false");
-    }
-  }
+                  <img class="examples" id="example2" src="images/example2.jpeg" alt="An Original Character Creation - Gordie the Giraffe Amigurumi Doll">
 
-  const selectedThumb = event.target.closest(".listing-gallery-thumb");
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
 
-  if (selectedThumb) {
-    const fullSrc = selectedThumb.getAttribute("data-full-src") || selectedThumb.getAttribute("src");
-    const modalMainImage = listingModalBody ? listingModalBody.querySelector(".listing-main-image") : null;
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example2");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
 
-    if (modalMainImage && fullSrc) {
-      modalMainImage.setAttribute("src", fullSrc);
-    }
-    return;
-  }
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
 
-  const stripeOrderButton = event.target.closest(".start-stripe-order");
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
 
-  if (stripeOrderButton) {
-    event.preventDefault();
+                  <img class="examples" id="example17" src="images/example17.png" alt="Charmander from Pokémon with attached Poké Ball Amigurumi Doll">
 
-    const paymentLink = stripeOrderButton.getAttribute("data-payment-link");
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
 
-    if (paymentLink && paymentLink.startsWith("https://buy.stripe.com/")) {
-      window.location.href = paymentLink;
-      return;
-    }
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example17");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
 
-    const itemName = stripeOrderButton.getAttribute("data-item-name") || "Custom Item";
-    const priceId = stripeOrderButton.getAttribute("data-price-id") || "";
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
 
-    if (priceId && priceId.startsWith("price_")) {
-      stripeOrderButton.disabled = true;
-      stripeOrderButton.textContent = "Redirecting to secure checkout...";
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
 
-      fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selectedItemName: itemName,
-          priceId
-        })
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.url) {
-            window.location.href = data.url;
-            return;
-          }
-          throw new Error(data?.error || "Could not create checkout session.");
-        })
-        .catch((err) => {
-          alert(err.message || "Checkout failed. Please try again.");
-          stripeOrderButton.disabled = false;
-          stripeOrderButton.textContent = "Order this item with secure checkout";
-        });
-      return;
-    }
+                  <img class="examples" id="example4" src="images/example4.jpeg" alt="An Original Character Creation - Maurice the Mallard Amigurumi Doll">
 
-    window.location.href = "request.html";
-    return;
-  }
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
 
-  if (event.target === listingModal) {
-    listingModal.style.display = "none";
-    listingModal.setAttribute("aria-hidden", "true");
-  }
-});
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example4");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
 
-if (listingModalClose) {
-  listingModalClose.addEventListener("click", function() {
-    listingModal.style.display = "none";
-    listingModal.setAttribute("aria-hidden", "true");
-  });
-}
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
 
-if (checkoutStatusClose && checkoutStatusModal) {
-  checkoutStatusClose.addEventListener("click", function() {
-    checkoutStatusModal.style.display = "none";
-    checkoutStatusModal.setAttribute("aria-hidden", "true");
-  });
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
 
-  checkoutStatusModal.addEventListener("click", function(event) {
-    if (event.target === checkoutStatusModal) {
-      checkoutStatusModal.style.display = "none";
-      checkoutStatusModal.setAttribute("aria-hidden", "true");
-    }
-  });
-}
+                  <img class="examples" id="example15" src="images/example15.png" alt="Vileplume from Pokémon Amigurumi Doll">
 
-document.addEventListener("keydown", function(event) {
-  if (event.key === "Escape" && listingModal && listingModal.style.display === "block") {
-    listingModal.style.display = "none";
-    listingModal.setAttribute("aria-hidden", "true");
-  }
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
 
-  if (event.key === "Escape" && checkoutStatusModal && checkoutStatusModal.style.display === "block") {
-    checkoutStatusModal.style.display = "none";
-    checkoutStatusModal.setAttribute("aria-hidden", "true");
-  }
-});
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example15");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
+
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
+
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
+
+                </div>
+                <div class="column">
+
+                  <img class="examples" id="example31" src="images/example31.jpeg" alt="Baby Santa Crochet Diaper Cover Set">
+
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
+
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example31");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
+
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
+
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
+
+                  <img class="examples" id="example19" src="images/example19.jpeg" alt="An Original Character Creation - Edmund the Elephant Amigurumi Doll">
+
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
+
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example19");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
+
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
+
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
+
+                    <img class="examples" id="example33" src="images/example33.jpeg" alt="Baby Trunks Diaper Set">
+
+                    <script>
+                      // Get the modal
+                      var modal = document.getElementById("myModal");
+  
+                      // Get the image and insert it inside the modal - use its "alt" text as a caption
+                      var img = document.getElementById("example33");
+                      var modalImg = document.getElementById("img01");
+                      var captionText = document.getElementById("caption");
+                      img.onclick = function(){
+                        modal.style.display = "block";
+                        modalImg.src = this.src;
+                        captionText.innerHTML = this.alt;
+                      }
+  
+                      // Get the <span> element that closes the modal
+                      var span = document.getElementsByClassName("close")[0];
+  
+                      // When the user clicks on <span> (x), close the modal
+                      span.onclick = function() { 
+                        modal.style.display = "none";
+                      }
+                    </script>
+
+                  <img class="examples" id="example6" src="images/example6.png" alt="Stitch from Lilo and Stitch Amigurumi Doll">
+
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
+
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example6");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
+
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
+
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
+
+                  <img class="examples" id="example10" src="images/example10.png" alt="Master Roshi from Dragonball Z Amigurumi Doll">
+
+                  <script>
+                    // Get the modal
+                    var modal = document.getElementById("myModal");
+
+                    // Get the image and insert it inside the modal - use its "alt" text as a caption
+                    var img = document.getElementById("example10");
+                    var modalImg = document.getElementById("img01");
+                    var captionText = document.getElementById("caption");
+                    img.onclick = function(){
+                      modal.style.display = "block";
+                      modalImg.src = this.src;
+                      captionText.innerHTML = this.alt;
+                    }
+
+                    // Get the <span> element that closes the modal
+                    var span = document.getElementsByClassName("close")[0];
+
+                    // When the user clicks on <span> (x), close the modal
+                    span.onclick = function() { 
+                      modal.style.display = "none";
+                    }
+                    </script>
+                </div>
+              </div>
+          </div>
+            
+          <div w3-include-html="rightcolumn.html" class="rightcolumn hidden-mobile"></div>
+
+<!---Closes all other divs and allows the disclaimer note to be the Footer-->          
+</div>
+
+<!---Footer-->
+<div w3-include-html="footer.html" class="stuff-centered"></div>  
+
+
+          <script>
+            // start of the code for the light / dark theme
+            // sets a default theme; this code needs to be first
+            setDefaultTheme();
+    
+            // the function which will toggle between the two different themes
+            function toggleMode(x)
+            {
+                let colorTheme = document.body.classList; // establishes the variable that holds the body CSS class
+                let iconMode = x.classList; // gets the classes 
+    
+                // if the value shows light, update the preference in storage
+                if (colorTheme.value === "light-theme")
+                {
+                    localStorage.clear();
+                    localStorage.setItem("mode", "dark-theme");
+                    localStorage.setItem("iconMode", "fa-toggle-on");
+                    localStorage.setItem("iconText", "Dark Mode");
+                }
+                
+                else
+                {
+                    localStorage.clear();
+                    localStorage.setItem("mode", "light-theme");
+                    localStorage.setItem("iconMode", "fa-toggle-off");
+                    localStorage.setItem("iconText", "Light Mode");
+                }
+    
+                // applies the updated selection
+                colorTheme.value = localStorage.getItem("mode");
+                iconMode.value = `fa ${localStorage.getItem("iconMode")} pull-right`;
+                document.getElementById("icon-text").innerHTML = localStorage.getItem("iconText");
+            }
 
 // allows for the import of the html files
 includeHTML();
 
-</script>
-
-
+        </script>
 
 </body>
 </html>

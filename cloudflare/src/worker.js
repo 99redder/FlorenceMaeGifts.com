@@ -37,6 +37,7 @@ async function handleCreateCheckoutSession(request, env) {
   const selectedItemName = (payload.selectedItemName || "").trim();
   const orderNotes = (payload.orderNotes || "").trim();
   const incomingPriceId = (payload.priceId || "").trim();
+  const priorityShipping = payload.priorityShipping === true;
 
   const priceId = resolvePriceId(incomingPriceId, selectedItemName, env);
   if (!priceId) return json({ error: "Missing Stripe price id" }, 400, env);
@@ -48,6 +49,13 @@ async function handleCreateCheckoutSession(request, env) {
   form.set("line_items[0][price]", priceId);
   form.set("line_items[0][quantity]", "1");
 
+  if (priorityShipping) {
+    form.set("line_items[1][price_data][currency]", "usd");
+    form.set("line_items[1][price_data][unit_amount]", "499");
+    form.set("line_items[1][price_data][product_data][name]", "Priority Shipping Upgrade");
+    form.set("line_items[1][quantity]", "1");
+  }
+
   // Collect shipping details for physical items.
   form.set("shipping_address_collection[allowed_countries][0]", "US");
 
@@ -55,6 +63,7 @@ async function handleCreateCheckoutSession(request, env) {
 
   if (customerName) form.set("metadata[customer_name]", customerName);
   if (selectedItemName) form.set("metadata[selected_item_name]", selectedItemName);
+  if (priorityShipping) form.set("metadata[priority_shipping]", "true");
   if (orderNotes) form.set("metadata[order_notes]", orderNotes.slice(0, 450));
 
   const stripeRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
