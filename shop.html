@@ -107,6 +107,37 @@
       font-size: 26px;
       line-height: 1;
     }
+
+    .listing-main-image-wrap {
+      margin: 12px 0;
+    }
+
+    .listing-main-image {
+      width: 100%;
+      max-width: 360px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+
+    .listing-image-gallery {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .listing-gallery-thumb {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      cursor: pointer;
+    }
+
+    .listing-gallery-thumb:hover {
+      opacity: 0.85;
+    }
   </style>
 
 </head>
@@ -190,6 +221,18 @@ document.addEventListener("click", function(event) {
       listingModal.style.display = "block";
       listingModal.setAttribute("aria-hidden", "false");
     }
+  }
+
+  const selectedThumb = event.target.closest(".listing-gallery-thumb");
+
+  if (selectedThumb) {
+    const fullSrc = selectedThumb.getAttribute("data-full-src") || selectedThumb.getAttribute("src");
+    const modalMainImage = listingModalBody ? listingModalBody.querySelector(".listing-main-image") : null;
+
+    if (modalMainImage && fullSrc) {
+      modalMainImage.setAttribute("src", fullSrc);
+    }
+    return;
   }
 
   const stripeOrderButton = event.target.closest(".start-stripe-order");
