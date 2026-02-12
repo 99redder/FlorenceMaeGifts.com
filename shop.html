@@ -44,6 +44,57 @@
   <!---The JavaScript source code for the include HTML function-->
   <script src="includeHTML.js"></script>
 
+  <style>
+    .shop-listing {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .shop-thumb {
+      width: 88px;
+      height: 88px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      flex-shrink: 0;
+    }
+
+    .shop-modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .shop-modal-content {
+      background: #fff;
+      color: #111;
+      margin: 40px auto;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 700px;
+    }
+
+    .dark-theme .shop-modal-content {
+      background: #222;
+      color: #fff;
+    }
+
+    .shop-modal-close {
+      float: right;
+      cursor: pointer;
+      font-size: 26px;
+      line-height: 1;
+    }
+  </style>
+
 </head>
 
 <body class="light-theme">
@@ -64,6 +115,13 @@
   <!---Closes all other divs and allows the disclaimer note to be the Footer-->          
   </div>
   
+  <div id="shop-listing-modal" class="shop-modal" aria-hidden="true">
+    <div class="shop-modal-content">
+      <span id="shop-modal-close" class="shop-modal-close" aria-label="Close">&times;</span>
+      <div id="shop-modal-body"></div>
+    </div>
+  </div>
+
   <!---Footer-->
   <div w3-include-html="footer.html" class="stuff-centered"></div>  
 
@@ -100,6 +158,45 @@
       iconMode.value = `fa ${localStorage.getItem("iconMode")} pull-right`;
       document.getElementById("icon-text").innerHTML = localStorage.getItem("iconText");
   }
+
+const listingModal = document.getElementById("shop-listing-modal");
+const listingModalBody = document.getElementById("shop-modal-body");
+const listingModalClose = document.getElementById("shop-modal-close");
+
+document.addEventListener("click", function(event) {
+  const trigger = event.target.closest(".open-listing-modal");
+
+  if (trigger) {
+    event.preventDefault();
+    const targetId = trigger.getAttribute("data-modal-target");
+    const detailsNode = document.getElementById(targetId);
+
+    if (detailsNode && listingModal && listingModalBody) {
+      listingModalBody.innerHTML = detailsNode.innerHTML;
+      listingModal.style.display = "block";
+      listingModal.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  if (event.target === listingModal) {
+    listingModal.style.display = "none";
+    listingModal.setAttribute("aria-hidden", "true");
+  }
+});
+
+if (listingModalClose) {
+  listingModalClose.addEventListener("click", function() {
+    listingModal.style.display = "none";
+    listingModal.setAttribute("aria-hidden", "true");
+  });
+}
+
+document.addEventListener("keydown", function(event) {
+  if (event.key === "Escape" && listingModal && listingModal.style.display === "block") {
+    listingModal.style.display = "none";
+    listingModal.setAttribute("aria-hidden", "true");
+  }
+});
 
 // allows for the import of the html files
 includeHTML();
