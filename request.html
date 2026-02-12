@@ -65,6 +65,7 @@
       <h2>Request a Custom Piece</h2>
       <p>Submit your custom request below. We’ll review details and follow up with final pricing.</p>
       <p id="selected-item-banner" style="display:none;"></p>
+      <p id="digital-item-warning" style="display:none; background:#fff7e6; border:1px solid #f0c36d; padding:10px 12px; border-radius:8px; margin:8px 0 14px;"></p>
 
       <form id="custom-order-form">
         <input id="selected-item-name" name="selectedItemName" type="hidden" value="">
@@ -153,6 +154,7 @@ const CHECKOUT_ENDPOINT = "/api/create-checkout-session";
 const customOrderForm = document.getElementById("custom-order-form");
 const checkoutStatus = document.getElementById("checkout-status");
 const selectedItemBanner = document.getElementById("selected-item-banner");
+const digitalItemWarning = document.getElementById("digital-item-warning");
 const selectedItemNameInput = document.getElementById("selected-item-name");
 const selectedItemPriceIdInput = document.getElementById("selected-item-price-id");
 const priorityShippingEnabledInput = document.getElementById("priority-shipping-enabled");
@@ -203,6 +205,11 @@ if (priorityShippingCheckbox && priorityShippingEnabledInput) {
     priorityShippingEnabledInput.value = "false";
     const wrapper = priorityShippingCheckbox.closest("label");
     if (wrapper) wrapper.style.opacity = "0.5";
+
+    if (digitalItemWarning) {
+      digitalItemWarning.style.display = "block";
+      digitalItemWarning.innerHTML = "<strong>Digital item notice:</strong> This listing is delivered as a PDF file only. After checkout, the file will be sent to your email address. No physical product will be shipped.";
+    }
   }
 
   priorityShippingCheckbox.addEventListener("change", () => {
