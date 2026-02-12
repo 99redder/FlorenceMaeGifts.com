@@ -3,7 +3,7 @@
 ; Title: request.html 
 ; Author: Red
 ; Date Created: 11 January 2023
-; Last Updated: 11 February 2023
+; Last Updated: 12 February 2026
 ; Description: The code for the Florence Mae Gifts Request A Custom Piece Page (request.html)
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
@@ -44,6 +44,9 @@
     <!---The JavaScript source code for the include HTML function-->
     <script src="includeHTML.js"></script>
 
+    <!-- Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+
 </head>
 
 <body class="light-theme">
@@ -59,7 +62,30 @@
 
     <div class="leftcolumn">
 
-      <script src="https://www.cognitoforms.com/f/seamless.js" data-key="1AQQgH-YkECjnHI7fKBekg" data-form="1"></script>
+      <h2>Request a Custom Piece</h2>
+      <p>Submit your custom request below. We’ll review details and follow up with final pricing.</p>
+
+      <form id="custom-order-form">
+        <label for="customer-name">Name</label><br>
+        <input id="customer-name" name="customerName" type="text" required><br><br>
+
+        <label for="customer-email">Email</label><br>
+        <input id="customer-email" name="customerEmail" type="email" required><br><br>
+
+        <label for="order-notes">What would you like made?</label><br>
+        <textarea id="order-notes" name="orderNotes" rows="6" required></textarea><br><br>
+
+        <button id="start-checkout-btn" type="submit">Continue to Secure Checkout</button>
+      </form>
+
+      <p id="checkout-status" style="margin-top: 12px;"></p>
+
+      <!--
+        Stripe placeholders (replace later):
+        - STRIPE_PUBLISHABLE_KEY_PLACEHOLDER
+        - STRIPE_PRICE_ID_PLACEHOLDER
+        - /api/create-checkout-session endpoint
+      -->
 
     </div>
                     
@@ -108,6 +134,59 @@
       iconMode.value = `fa ${localStorage.getItem("iconMode")} pull-right`;
       document.getElementById("icon-text").innerHTML = localStorage.getItem("iconText");
   }
+
+// Stripe placeholder config
+const STRIPE_PUBLISHABLE_KEY = "pk_test_PLACEHOLDER";
+const STRIPE_PRICE_ID = "price_PLACEHOLDER";
+const CHECKOUT_ENDPOINT = "/api/create-checkout-session";
+
+const customOrderForm = document.getElementById("custom-order-form");
+const checkoutStatus = document.getElementById("checkout-status");
+const stripe = window.Stripe ? Stripe(STRIPE_PUBLISHABLE_KEY) : null;
+
+if (customOrderForm) {
+  customOrderForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const customerName = document.getElementById("customer-name").value.trim();
+    const customerEmail = document.getElementById("customer-email").value.trim();
+    const orderNotes = document.getElementById("order-notes").value.trim();
+
+    checkoutStatus.textContent = "Preparing secure checkout...";
+
+    if (!stripe || STRIPE_PUBLISHABLE_KEY.includes("PLACEHOLDER")) {
+      checkoutStatus.textContent = "Stripe is in placeholder mode. Add live Stripe keys + backend session endpoint to enable checkout.";
+      return;
+    }
+
+    try {
+      const response = await fetch(CHECKOUT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName,
+          customerEmail,
+          orderNotes,
+          priceId: STRIPE_PRICE_ID
+        })
+      });
+
+      if (!response.ok) throw new Error("Checkout session request failed");
+
+      const data = await response.json();
+
+      if (!data || !data.id) throw new Error("Missing Stripe session id");
+
+      const stripeResult = await stripe.redirectToCheckout({ sessionId: data.id });
+
+      if (stripeResult.error) {
+        checkoutStatus.textContent = stripeResult.error.message;
+      }
+    } catch (error) {
+      checkoutStatus.textContent = "Checkout is not live yet (placeholder backend).";
+    }
+  });
+}
 
 // allows for the import of the html files
 includeHTML();

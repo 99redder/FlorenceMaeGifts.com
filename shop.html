@@ -1,0 +1,112 @@
+<!----
+  ======================================
+; Title: shop.html 
+; Author: Red
+; Date Created: 12 February 2026
+; Last Updated: 12 February 2026
+; Description: Florence Mae Gifts shop page with one-time synced Etsy listings
+; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
+;=====================================
+----->
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    
+  <title>Shop - Florence Mae Gifts - Premium Handmade Crochet Items</title>
+  
+  <meta name="description" content="Browse Florence Mae Gifts shop listings synced from Etsy.">
+  <meta http-equiv="author" content ="Red">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!--Fonts-->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora&family=Varela+Round&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@100&display=swap" rel="stylesheet">
+
+  <!--Style Sheets-->
+  <link href="fmg.css" type="text/css" rel="stylesheet">
+  <link href="logo-font/logo-font.css" type="text/css" rel="stylesheet">
+
+  <!--Favorites Icon-->
+  <link rel="icon" href="images/favicon.png">
+  
+  <!---Font Awesome Script-->
+  <script src="https://kit.fontawesome.com/aeba1ec76b.js" crossorigin="anonymous"></script>
+
+  <!---The JavaScript source doe for the theme functions setDefaultTheme and setSelectedTheme-->
+  <script src="theme.js"></script>
+  
+  <!---The JavaScript source code for the include HTML function-->
+  <script src="includeHTML.js"></script>
+
+</head>
+
+<body class="light-theme">
+
+<!-- Creates the icon and adds the onclick functionality for changing between themes-->
+<i onclick="toggleMode(this)" id="icon-mode" class="fa fa-toggle-off pull-right" style="font-size: 20px;"><span id="icon-text" class="toggle"></span></i><br><br>
+
+<div w3-include-html="header.html" class="header"></div>
+
+<div w3-include-html="topnav.html" class="topnav"></div>
+
+<div class="row">
+
+  <div w3-include-html="shopleftcolumn.html" class="leftcolumn"></div>
+                  
+  <div w3-include-html="rightcolumn.html" class="rightcolumn hidden-mobile"></div>
+
+  <!---Closes all other divs and allows the disclaimer note to be the Footer-->          
+  </div>
+  
+  <!---Footer-->
+  <div w3-include-html="footer.html" class="stuff-centered"></div>  
+
+  
+<script>
+  // sets a default theme; this code needs to be first
+  setDefaultTheme();
+
+  // the function which will toggle between the two different themes
+  function toggleMode(x)
+  {
+      let colorTheme = document.body.classList; // establishes the variable that holds the body CSS class
+      let iconMode = x.classList; // gets the classes 
+
+      // if the value shows light, update the preference in storage
+      if (colorTheme.value === "light-theme")
+      {
+          localStorage.clear();
+          localStorage.setItem("mode", "dark-theme");
+          localStorage.setItem("iconMode", "fa-toggle-on");
+          localStorage.setItem("iconText", "Dark Mode");
+      }
+      
+      else
+      {
+          localStorage.clear();
+          localStorage.setItem("mode", "light-theme");
+          localStorage.setItem("iconMode", "fa-toggle-off");
+          localStorage.setItem("iconText", "Light Mode");
+      }
+
+      // applies the updated selection
+      colorTheme.value = localStorage.getItem("mode");
+      iconMode.value = `fa ${localStorage.getItem("iconMode")} pull-right`;
+      document.getElementById("icon-text").innerHTML = localStorage.getItem("iconText");
+  }
+
+// allows for the import of the html files
+includeHTML();
+
+</script>
+
+
+
+</body>
+</html>

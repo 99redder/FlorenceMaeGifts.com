@@ -1,0 +1,13 @@
+{
+  "notes": "Placeholder response shape for Stripe checkout session endpoint",
+  "endpoint": "/api/create-checkout-session",
+  "request_example": {
+    "customerName": "CUSTOMER_NAME_PLACEHOLDER",
+    "customerEmail": "CUSTOMER_EMAIL_PLACEHOLDER",
+    "orderNotes": "ORDER_DETAILS_PLACEHOLDER",
+    "priceId": "price_PLACEHOLDER"
+  },
+  "response_example": {
+    "id": "cs_test_PLACEHOLDER"
+  }
+}
