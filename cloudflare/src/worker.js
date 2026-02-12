@@ -61,12 +61,12 @@ async function handleCreateCheckoutSession(request, env) {
     form.set("shipping_options[1][shipping_rate_data][type]", "fixed_amount");
     form.set("shipping_options[1][shipping_rate_data][fixed_amount][amount]", "499");
     form.set("shipping_options[1][shipping_rate_data][fixed_amount][currency]", "usd");
-    form.set("shipping_options[1][shipping_rate_data][display_name]", "Priority Shipping");
+    form.set("shipping_options[1][shipping_rate_data][display_name]", "Priority Shipping (2-3 business days)");
 
     form.set("shipping_options[2][shipping_rate_data][type]", "fixed_amount");
-    form.set("shipping_options[2][shipping_rate_data][fixed_amount][amount]", "1499");
+    form.set("shipping_options[2][shipping_rate_data][fixed_amount][amount]", "1999");
     form.set("shipping_options[2][shipping_rate_data][fixed_amount][currency]", "usd");
-    form.set("shipping_options[2][shipping_rate_data][display_name]", "Rush Processing (next day) + Priority Shipping");
+    form.set("shipping_options[2][shipping_rate_data][display_name]", "Rush Processing (24 hours) + Priority Shipping");
   }
 
   if (customerEmail) form.set("customer_email", customerEmail);
