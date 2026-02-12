@@ -45,6 +45,20 @@
   <script src="includeHTML.js"></script>
 
   <style>
+    .start-stripe-order {
+      background-color: #FE6666;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-family: 'Lora', serif;
+    }
+
+    .start-stripe-order:hover {
+      opacity: 0.9;
+    }
+
     .shop-listing {
       display: flex;
       gap: 12px;
@@ -176,6 +190,24 @@ document.addEventListener("click", function(event) {
       listingModal.style.display = "block";
       listingModal.setAttribute("aria-hidden", "false");
     }
+  }
+
+  const stripeOrderButton = event.target.closest(".start-stripe-order");
+
+  if (stripeOrderButton) {
+    event.preventDefault();
+    const itemName = stripeOrderButton.getAttribute("data-item-name") || "Custom Item";
+    const priceId = stripeOrderButton.getAttribute("data-price-id") || "price_PLACEHOLDER";
+    const priceDisplay = stripeOrderButton.getAttribute("data-price-display") || "PRICE_PLACEHOLDER";
+
+    const params = new URLSearchParams({
+      item: itemName,
+      priceId,
+      priceDisplay
+    });
+
+    window.location.href = `request.html?${params.toString()}`;
+    return;
   }
 
   if (event.target === listingModal) {

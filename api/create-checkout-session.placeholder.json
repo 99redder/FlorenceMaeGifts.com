@@ -4,6 +4,7 @@
   "request_example": {
     "customerName": "CUSTOMER_NAME_PLACEHOLDER",
     "customerEmail": "CUSTOMER_EMAIL_PLACEHOLDER",
+    "selectedItemName": "ITEM_NAME_PLACEHOLDER",
     "orderNotes": "ORDER_DETAILS_PLACEHOLDER",
     "priceId": "price_PLACEHOLDER"
   },

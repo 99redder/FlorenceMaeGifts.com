@@ -64,8 +64,12 @@
 
       <h2>Request a Custom Piece</h2>
       <p>Submit your custom request below. We’ll review details and follow up with final pricing.</p>
+      <p id="selected-item-banner" style="display:none;"></p>
 
       <form id="custom-order-form">
+        <input id="selected-item-name" name="selectedItemName" type="hidden" value="">
+        <input id="selected-item-price-id" name="selectedItemPriceId" type="hidden" value="price_PLACEHOLDER">
+
         <label for="customer-name">Name</label><br>
         <input id="customer-name" name="customerName" type="text" required><br><br>
 
@@ -137,12 +141,35 @@
 
 // Stripe placeholder config
 const STRIPE_PUBLISHABLE_KEY = "pk_test_PLACEHOLDER";
-const STRIPE_PRICE_ID = "price_PLACEHOLDER";
+const DEFAULT_STRIPE_PRICE_ID = "price_PLACEHOLDER";
 const CHECKOUT_ENDPOINT = "/api/create-checkout-session";
 
 const customOrderForm = document.getElementById("custom-order-form");
 const checkoutStatus = document.getElementById("checkout-status");
+const selectedItemBanner = document.getElementById("selected-item-banner");
+const selectedItemNameInput = document.getElementById("selected-item-name");
+const selectedItemPriceIdInput = document.getElementById("selected-item-price-id");
+const orderNotesInput = document.getElementById("order-notes");
 const stripe = window.Stripe ? Stripe(STRIPE_PUBLISHABLE_KEY) : null;
+
+const queryParams = new URLSearchParams(window.location.search);
+const selectedItemName = queryParams.get("item");
+const selectedPriceId = queryParams.get("priceId");
+const selectedPriceDisplay = queryParams.get("priceDisplay");
+
+if (selectedItemName && selectedItemBanner) {
+  selectedItemBanner.style.display = "block";
+  selectedItemBanner.innerHTML = `<strong>Ordering:</strong> ${selectedItemName}${selectedPriceDisplay ? ` (${selectedPriceDisplay})` : ""}`;
+
+  if (selectedItemNameInput) selectedItemNameInput.value = selectedItemName;
+  if (selectedItemPriceIdInput) selectedItemPriceIdInput.value = selectedPriceId || DEFAULT_STRIPE_PRICE_ID;
+
+  if (orderNotesInput && !orderNotesInput.value.trim()) {
+    orderNotesInput.value = `Item: ${selectedItemName}${selectedPriceDisplay ? `\nPrice: ${selectedPriceDisplay}` : ""}\n\nAdditional customization details:`;
+  }
+} else {
+  if (selectedItemPriceIdInput) selectedItemPriceIdInput.value = DEFAULT_STRIPE_PRICE_ID;
+}
 
 if (customOrderForm) {
   customOrderForm.addEventListener("submit", async function (event) {
@@ -167,7 +194,8 @@ if (customOrderForm) {
           customerName,
           customerEmail,
           orderNotes,
-          priceId: STRIPE_PRICE_ID
+          selectedItemName: selectedItemNameInput ? selectedItemNameInput.value : "",
+          priceId: selectedItemPriceIdInput ? selectedItemPriceIdInput.value : DEFAULT_STRIPE_PRICE_ID
         })
       });
 
