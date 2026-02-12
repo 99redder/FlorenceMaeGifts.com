@@ -48,6 +48,9 @@ async function handleCreateCheckoutSession(request, env) {
   form.set("line_items[0][price]", priceId);
   form.set("line_items[0][quantity]", "1");
 
+  // Collect shipping details for physical items.
+  form.set("shipping_address_collection[allowed_countries][0]", "US");
+
   if (customerEmail) form.set("customer_email", customerEmail);
 
   if (customerName) form.set("metadata[customer_name]", customerName);
