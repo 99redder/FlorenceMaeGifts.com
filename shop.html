@@ -53,6 +53,7 @@
       padding: 10px 14px;
       cursor: pointer;
       font-family: 'Lora', serif;
+      font-size: 15px;
     }
 
     .start-stripe-order:hover {
@@ -68,6 +69,12 @@
       border-bottom: 1px solid #e5e5e5;
     }
 
+    .shop-listing a {
+      font-weight: 700;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
     .shop-thumb {
       width: 88px;
       height: 88px;
@@ -75,6 +82,28 @@
       border-radius: 8px;
       border: 1px solid #ddd;
       flex-shrink: 0;
+    }
+
+    .shop-status {
+      margin: 12px 0 18px;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 15px;
+      display: none;
+    }
+
+    .shop-status.success {
+      display: block;
+      background: #e9f9ee;
+      color: #145a2f;
+      border: 1px solid #9bd3ac;
+    }
+
+    .shop-status.cancel {
+      display: block;
+      background: #fff3f3;
+      color: #7d1f1f;
+      border: 1px solid #f0b0b0;
     }
 
     .shop-modal {
@@ -94,6 +123,7 @@
       padding: 20px;
       border-radius: 10px;
       max-width: 700px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
     }
 
     .dark-theme .shop-modal-content {
@@ -138,6 +168,40 @@
     .listing-gallery-thumb:hover {
       opacity: 0.85;
     }
+
+    @media screen and (max-width: 800px) {
+      .shop-listing {
+        align-items: flex-start;
+      }
+
+      .shop-thumb {
+        width: 72px;
+        height: 72px;
+      }
+
+      .shop-modal {
+        padding: 10px;
+      }
+
+      .shop-modal-content {
+        margin: 8px auto;
+        padding: 14px;
+        border-radius: 8px;
+      }
+
+      .listing-main-image {
+        max-width: 100%;
+      }
+
+      .listing-gallery-thumb {
+        width: 56px;
+        height: 56px;
+      }
+
+      .start-stripe-order {
+        width: 100%;
+      }
+    }
   </style>
 
 </head>
@@ -150,6 +214,8 @@
 <div w3-include-html="header.html" class="header"></div>
 
 <div w3-include-html="topnav.html" class="topnav"></div>
+
+<div id="shop-status" class="shop-status" role="status" aria-live="polite"></div>
 
 <div class="row">
 
@@ -207,6 +273,24 @@
 const listingModal = document.getElementById("shop-listing-modal");
 const listingModalBody = document.getElementById("shop-modal-body");
 const listingModalClose = document.getElementById("shop-modal-close");
+const shopStatus = document.getElementById("shop-status");
+
+(function showCheckoutStatusFromQuery() {
+  if (!shopStatus) return;
+
+  const checkoutStatus = new URLSearchParams(window.location.search).get("checkout");
+
+  if (checkoutStatus === "success") {
+    shopStatus.classList.add("success");
+    shopStatus.textContent = "Thanks! Your checkout was completed successfully.";
+    return;
+  }
+
+  if (checkoutStatus === "cancel") {
+    shopStatus.classList.add("cancel");
+    shopStatus.textContent = "Checkout was canceled. You can try again anytime.";
+  }
+})();
 
 document.addEventListener("click", function(event) {
   const trigger = event.target.closest(".open-listing-modal");

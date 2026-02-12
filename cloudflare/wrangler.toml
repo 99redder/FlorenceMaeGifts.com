@@ -1,0 +1,11 @@
+name = "fmg-stripe-api"
+main = "src/worker.js"
+compatibility_date = "2026-02-12"
+
+[vars]
+ALLOWED_ORIGIN = "https://www.florencemaegifts.com"
+SUCCESS_URL = "https://www.florencemaegifts.com/shop.html?checkout=success"
+CANCEL_URL = "https://www.florencemaegifts.com/shop.html?checkout=cancel"
+
+# Optional: map item names to fallback price ids if client doesn't send one.
+# ITEM_PRICE_MAP = '{"Example Item":"price_..."}'
