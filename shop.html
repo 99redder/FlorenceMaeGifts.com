@@ -380,7 +380,7 @@ const checkoutStatusText = document.getElementById("checkout-status-text");
 
   if (checkoutStatus === "success") {
     checkoutStatusTitle.textContent = "Order Confirmed";
-    checkoutStatusText.textContent = "Thanks! Your checkout was completed successfully.";
+    checkoutStatusText.textContent = "Thank you for your order! Your checkout was completed successfully. Order details will be emailed to you shortly.";
     checkoutStatusModal.style.display = "block";
     checkoutStatusModal.setAttribute("aria-hidden", "false");
     params.delete("checkout");
