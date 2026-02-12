@@ -543,6 +543,33 @@ function hydrateSizeSelector(scopeNode) {
   orderButton.parentElement.parentElement.insertBefore(wrap, orderButton.parentElement);
 }
 
+function listingMatchesCategory(title, category) {
+  const t = (title || "").toLowerCase();
+  const isPattern = t.includes("pdf download");
+  const forceBabySet =
+    t === "crochet goku inspired costume with baby onesie and hat (multiple sizes available)" ||
+    t === "shenron shenlong gohan inspired four star hat photo set (multiple sizes available)";
+  const isBabySet = t.includes("baby set") || t.includes("diaper cover") || forceBabySet;
+  const isHat = t.includes("hat") || t.includes("beanie");
+  const excludeFromHats =
+    t === "crochet baby trunks inspired beanie diaper cover photo set costume (multiple sizes available)" ||
+    t === "crochet goku inspired costume with baby onesie and hat (multiple sizes available)" ||
+    t === "shenron shenlong gohan inspired four star hat photo set (multiple sizes available)";
+
+  if (category === "patterns") return isPattern;
+  if (category === "baby-sets") return isBabySet && !isPattern;
+  if (category === "hats") return isHat && !isPattern && !excludeFromHats;
+  return true;
+}
+
+function applyShopCategoryFilter(category) {
+  const listings = document.querySelectorAll(".shop-listing");
+  listings.forEach((listing) => {
+    const title = listing.querySelector(".open-listing-modal")?.textContent?.trim() || "";
+    listing.style.display = listingMatchesCategory(title, category) ? "flex" : "none";
+  });
+}
+
 document.addEventListener("click", function(event) {
   const categoryTab = event.target.closest(".shop-category-tab");
   if (categoryTab) {
