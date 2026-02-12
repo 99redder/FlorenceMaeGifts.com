@@ -65,12 +65,10 @@
       <h2>Request a Custom Piece</h2>
       <p>Submit your custom request below. We’ll review details and follow up with final pricing.</p>
       <p id="selected-item-banner" style="display:none;"></p>
-      <p id="digital-item-warning" style="display:none; background:#fff7e6; border:1px solid #f0c36d; padding:10px 12px; border-radius:8px; margin:8px 0 14px;"></p>
 
       <form id="custom-order-form">
         <input id="selected-item-name" name="selectedItemName" type="hidden" value="">
         <input id="selected-item-price-id" name="selectedItemPriceId" type="hidden" value="price_PLACEHOLDER">
-        <input id="priority-shipping-enabled" name="priorityShippingEnabled" type="hidden" value="false">
 
         <label for="customer-name">Name</label><br>
         <input id="customer-name" name="customerName" type="text" required><br><br>
@@ -80,11 +78,6 @@
 
         <label for="order-notes">What would you like made?</label><br>
         <textarea id="order-notes" name="orderNotes" rows="6" required></textarea><br><br>
-
-        <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-          <input id="priority-shipping-checkbox" type="checkbox">
-          Add Priority Shipping (+$4.99)
-        </label>
 
         <button id="start-checkout-btn" type="submit">Continue to Secure Checkout</button>
       </form>
@@ -154,11 +147,8 @@ const CHECKOUT_ENDPOINT = "/api/create-checkout-session";
 const customOrderForm = document.getElementById("custom-order-form");
 const checkoutStatus = document.getElementById("checkout-status");
 const selectedItemBanner = document.getElementById("selected-item-banner");
-const digitalItemWarning = document.getElementById("digital-item-warning");
 const selectedItemNameInput = document.getElementById("selected-item-name");
 const selectedItemPriceIdInput = document.getElementById("selected-item-price-id");
-const priorityShippingEnabledInput = document.getElementById("priority-shipping-enabled");
-const priorityShippingCheckbox = document.getElementById("priority-shipping-checkbox");
 const orderNotesInput = document.getElementById("order-notes");
 const stripe = window.Stripe ? Stripe(STRIPE_PUBLISHABLE_KEY) : null;
 
@@ -167,25 +157,9 @@ const selectedItemName = queryParams.get("item");
 const selectedPriceId = queryParams.get("priceId");
 const selectedPriceDisplay = queryParams.get("priceDisplay");
 
-function parseUsdAmount(display) {
-  const m = (display || "").match(/\$(\d+(?:\.\d{2})?)/);
-  return m ? Number(m[1]) : null;
-}
-
-function renderSelectedItemBanner() {
-  if (!selectedItemName || !selectedItemBanner) return;
-  const base = parseUsdAmount(selectedPriceDisplay);
-  const priority = priorityShippingCheckbox && priorityShippingCheckbox.checked;
-  const totalText = base !== null
-    ? ` (Total: $${(base + (priority ? 4.99 : 0)).toFixed(2)} USD${priority ? ", incl. Priority Shipping" : ""})`
-    : (priority ? " (incl. Priority Shipping +$4.99)" : "");
-
-  selectedItemBanner.style.display = "block";
-  selectedItemBanner.innerHTML = `<strong>Ordering:</strong> ${selectedItemName}${selectedPriceDisplay ? ` (${selectedPriceDisplay})` : ""}${totalText}`;
-}
-
 if (selectedItemName && selectedItemBanner) {
-  renderSelectedItemBanner();
+  selectedItemBanner.style.display = "block";
+  selectedItemBanner.innerHTML = `<strong>Ordering:</strong> ${selectedItemName}${selectedPriceDisplay ? ` (${selectedPriceDisplay})` : ""}`;
 
   if (selectedItemNameInput) selectedItemNameInput.value = selectedItemName;
   if (selectedItemPriceIdInput) selectedItemPriceIdInput.value = selectedPriceId || DEFAULT_STRIPE_PRICE_ID;
@@ -195,27 +169,6 @@ if (selectedItemName && selectedItemBanner) {
   }
 } else {
   if (selectedItemPriceIdInput) selectedItemPriceIdInput.value = DEFAULT_STRIPE_PRICE_ID;
-}
-
-if (priorityShippingCheckbox && priorityShippingEnabledInput) {
-  const isPdfItem = (selectedItemName || "").toLowerCase().includes("pdf download");
-  if (isPdfItem) {
-    priorityShippingCheckbox.checked = false;
-    priorityShippingCheckbox.disabled = true;
-    priorityShippingEnabledInput.value = "false";
-    const wrapper = priorityShippingCheckbox.closest("label");
-    if (wrapper) wrapper.style.opacity = "0.5";
-
-    if (digitalItemWarning) {
-      digitalItemWarning.style.display = "block";
-      digitalItemWarning.innerHTML = "<strong>Digital item notice:</strong> This listing is delivered as a PDF file only. After checkout, the file will be sent to your email address. No physical product will be shipped.";
-    }
-  }
-
-  priorityShippingCheckbox.addEventListener("change", () => {
-    priorityShippingEnabledInput.value = priorityShippingCheckbox.checked ? "true" : "false";
-    renderSelectedItemBanner();
-  });
 }
 
 if (customOrderForm) {
@@ -242,8 +195,7 @@ if (customOrderForm) {
           customerEmail,
           orderNotes,
           selectedItemName: selectedItemNameInput ? selectedItemNameInput.value : "",
-          priceId: selectedItemPriceIdInput ? selectedItemPriceIdInput.value : DEFAULT_STRIPE_PRICE_ID,
-          priorityShipping: priorityShippingEnabledInput ? priorityShippingEnabledInput.value === "true" : false
+          priceId: selectedItemPriceIdInput ? selectedItemPriceIdInput.value : DEFAULT_STRIPE_PRICE_ID
         })
       });
 

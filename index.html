@@ -552,9 +552,30 @@ document.addEventListener("click", function(event) {
     const priceId = stripeOrderButton.getAttribute("data-price-id") || "";
 
     if (priceId && priceId.startsWith("price_")) {
-      const priceDisplay = stripeOrderButton.getAttribute("data-price-display") || "";
-      const qp = new URLSearchParams({ item: itemName, priceId, priceDisplay });
-      window.location.href = `request.html?${qp.toString()}`;
+      stripeOrderButton.disabled = true;
+      stripeOrderButton.textContent = "Redirecting to secure checkout...";
+
+      fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selectedItemName: itemName,
+          priceId
+        })
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.url) {
+            window.location.href = data.url;
+            return;
+          }
+          throw new Error(data?.error || "Could not create checkout session.");
+        })
+        .catch((err) => {
+          alert(err.message || "Checkout failed. Please try again.");
+          stripeOrderButton.disabled = false;
+          stripeOrderButton.textContent = "Order this item with secure checkout";
+        });
       return;
     }
 
