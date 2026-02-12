@@ -498,64 +498,6 @@ function hydrateSizeSelector(scopeNode) {
   orderButton.parentElement.parentElement.insertBefore(wrap, orderButton.parentElement);
 }
 
-function hydratePriorityShipping(scopeNode) {
-  const orderButton = scopeNode ? scopeNode.querySelector(".start-stripe-order") : null;
-  if (!orderButton) return;
-  if (scopeNode.querySelector(".toggle-priority-shipping")) return;
-
-  const itemName = (orderButton.getAttribute("data-item-name") || "").toLowerCase();
-  if (itemName.includes("pdf download")) {
-    orderButton.setAttribute("data-priority-shipping", "false");
-    return;
-  }
-
-  orderButton.setAttribute("data-priority-shipping", "false");
-
-  const priorityButton = document.createElement("button");
-  priorityButton.type = "button";
-  priorityButton.className = "toggle-priority-shipping";
-  priorityButton.textContent = "Add Priority Shipping (+$4.99)";
-  priorityButton.style.marginTop = "8px";
-
-  priorityButton.addEventListener("click", () => {
-    const isEnabled = orderButton.getAttribute("data-priority-shipping") === "true";
-    const next = !isEnabled;
-    orderButton.setAttribute("data-priority-shipping", next ? "true" : "false");
-    priorityButton.textContent = next
-      ? "Priority Shipping Added (+$4.99)"
-      : "Add Priority Shipping (+$4.99)";
-  });
-
-  orderButton.parentElement.parentElement.insertBefore(priorityButton, orderButton.parentElement.nextSibling);
-}
-
-function listingMatchesCategory(title, category) {
-  const t = (title || "").toLowerCase();
-  const isPattern = t.includes("pdf download");
-  const forceBabySet =
-    t === "crochet goku inspired costume with baby onesie and hat (multiple sizes available)" ||
-    t === "shenron shenlong gohan inspired four star hat photo set (multiple sizes available)";
-  const isBabySet = t.includes("baby set") || t.includes("diaper cover") || forceBabySet;
-  const isHat = t.includes("hat") || t.includes("beanie");
-  const excludeFromHats =
-    t === "crochet baby trunks inspired beanie diaper cover photo set costume (multiple sizes available)" ||
-    t === "crochet goku inspired costume with baby onesie and hat (multiple sizes available)" ||
-    t === "shenron shenlong gohan inspired four star hat photo set (multiple sizes available)";
-
-  if (category === "patterns") return isPattern;
-  if (category === "baby-sets") return isBabySet && !isPattern;
-  if (category === "hats") return isHat && !isPattern && !excludeFromHats;
-  return true;
-}
-
-function applyShopCategoryFilter(category) {
-  const listings = document.querySelectorAll(".shop-listing");
-  listings.forEach((listing) => {
-    const title = listing.querySelector(".open-listing-modal")?.textContent?.trim() || "";
-    listing.style.display = listingMatchesCategory(title, category) ? "flex" : "none";
-  });
-}
-
 document.addEventListener("click", function(event) {
   const categoryTab = event.target.closest(".shop-category-tab");
   if (categoryTab) {
@@ -577,7 +519,6 @@ document.addEventListener("click", function(event) {
     if (detailsNode && listingModal && listingModalBody) {
       listingModalBody.innerHTML = detailsNode.innerHTML;
       hydrateSizeSelector(listingModalBody);
-      hydratePriorityShipping(listingModalBody);
       listingModal.style.display = "block";
       listingModal.setAttribute("aria-hidden", "false");
     }
@@ -609,34 +550,11 @@ document.addEventListener("click", function(event) {
 
     const itemName = stripeOrderButton.getAttribute("data-item-name") || "Custom Item";
     const priceId = stripeOrderButton.getAttribute("data-price-id") || "";
-    const priorityShipping = stripeOrderButton.getAttribute("data-priority-shipping") === "true";
 
     if (priceId && priceId.startsWith("price_")) {
-      stripeOrderButton.disabled = true;
-      stripeOrderButton.textContent = "Redirecting to secure checkout...";
-
-      fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selectedItemName: itemName,
-          priceId,
-          priorityShipping
-        })
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.url) {
-            window.location.href = data.url;
-            return;
-          }
-          throw new Error(data?.error || "Could not create checkout session.");
-        })
-        .catch((err) => {
-          alert(err.message || "Checkout failed. Please try again.");
-          stripeOrderButton.disabled = false;
-          stripeOrderButton.textContent = "Order this item with secure checkout";
-        });
+      const priceDisplay = stripeOrderButton.getAttribute("data-price-display") || "";
+      const qp = new URLSearchParams({ item: itemName, priceId, priceDisplay });
+      window.location.href = `request.html?${qp.toString()}`;
       return;
     }
 
