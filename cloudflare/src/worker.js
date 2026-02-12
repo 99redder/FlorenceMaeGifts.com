@@ -48,7 +48,7 @@ async function handleCreateCheckoutSession(request, env) {
   form.set("cancel_url", "https://www.florencemaegifts.com/index.html");
   form.set("line_items[0][price]", priceId);
   form.set("line_items[0][quantity]", "1");
-  form.set("custom_text[shipping_address][message]", "Estimated arrival date to you is shown below for each shipping option. Please allow 3-5 days for processing before shipment unless Rush Processing is selected.");
+  form.set("custom_text[shipping_address][message]", "Please allow 3-5 days for processing before the item ships unless Rush Processing is selected at checkout.");
 
   // Collect shipping details and offer shipping choices for physical items.
   if (!isDigitalItem) {
@@ -57,29 +57,17 @@ async function handleCreateCheckoutSession(request, env) {
     form.set("shipping_options[0][shipping_rate_data][type]", "fixed_amount");
     form.set("shipping_options[0][shipping_rate_data][fixed_amount][amount]", "0");
     form.set("shipping_options[0][shipping_rate_data][fixed_amount][currency]", "usd");
-    form.set("shipping_options[0][shipping_rate_data][display_name]", "Standard Shipping");
-    form.set("shipping_options[0][shipping_rate_data][delivery_estimate][minimum][unit]", "business_day");
-    form.set("shipping_options[0][shipping_rate_data][delivery_estimate][minimum][value]", "5");
-    form.set("shipping_options[0][shipping_rate_data][delivery_estimate][maximum][unit]", "business_day");
-    form.set("shipping_options[0][shipping_rate_data][delivery_estimate][maximum][value]", "8");
+    form.set("shipping_options[0][shipping_rate_data][display_name]", "Standard Shipping (3–5 business days)");
 
     form.set("shipping_options[1][shipping_rate_data][type]", "fixed_amount");
     form.set("shipping_options[1][shipping_rate_data][fixed_amount][amount]", "499");
     form.set("shipping_options[1][shipping_rate_data][fixed_amount][currency]", "usd");
-    form.set("shipping_options[1][shipping_rate_data][display_name]", "Priority Shipping");
-    form.set("shipping_options[1][shipping_rate_data][delivery_estimate][minimum][unit]", "business_day");
-    form.set("shipping_options[1][shipping_rate_data][delivery_estimate][minimum][value]", "2");
-    form.set("shipping_options[1][shipping_rate_data][delivery_estimate][maximum][unit]", "business_day");
-    form.set("shipping_options[1][shipping_rate_data][delivery_estimate][maximum][value]", "3");
+    form.set("shipping_options[1][shipping_rate_data][display_name]", "Priority Shipping (2-3 business days)");
 
     form.set("shipping_options[2][shipping_rate_data][type]", "fixed_amount");
     form.set("shipping_options[2][shipping_rate_data][fixed_amount][amount]", "1999");
     form.set("shipping_options[2][shipping_rate_data][fixed_amount][currency]", "usd");
     form.set("shipping_options[2][shipping_rate_data][display_name]", "Rush Processing (24 hours) + Priority Shipping");
-    form.set("shipping_options[2][shipping_rate_data][delivery_estimate][minimum][unit]", "business_day");
-    form.set("shipping_options[2][shipping_rate_data][delivery_estimate][minimum][value]", "1");
-    form.set("shipping_options[2][shipping_rate_data][delivery_estimate][maximum][unit]", "business_day");
-    form.set("shipping_options[2][shipping_rate_data][delivery_estimate][maximum][value]", "2");
   }
 
   if (customerEmail) form.set("customer_email", customerEmail);
