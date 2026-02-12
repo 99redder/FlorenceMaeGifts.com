@@ -85,25 +85,58 @@
     }
 
     .shop-status {
-      margin: 12px 0 18px;
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 15px;
       display: none;
     }
 
-    .shop-status.success {
-      display: block;
-      background: #e9f9ee;
-      color: #145a2f;
-      border: 1px solid #9bd3ac;
+    .checkout-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10001;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 18px;
+      overflow-y: auto;
     }
 
-    .shop-status.cancel {
-      display: block;
-      background: #fff3f3;
-      color: #7d1f1f;
-      border: 1px solid #f0b0b0;
+    .checkout-modal-content {
+      max-width: 560px;
+      margin: 10vh auto;
+      border-radius: 12px;
+      padding: 22px 20px;
+      background: #fff;
+      color: #111;
+      box-shadow: 0 14px 40px rgba(0,0,0,0.35);
+      position: relative;
+      text-align: left;
+    }
+
+    .dark-theme .checkout-modal-content {
+      background: #222;
+      color: #fff;
+    }
+
+    .checkout-modal-title {
+      font-size: 28px;
+      margin: 0 0 10px;
+      line-height: 1.2;
+    }
+
+    .checkout-modal-text {
+      font-size: 17px;
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    .checkout-modal-close {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      font-size: 28px;
+      line-height: 1;
+      cursor: pointer;
+      border: 0;
+      background: transparent;
+      color: inherit;
     }
 
     .shop-modal {
@@ -215,6 +248,19 @@
         padding: 10px;
       }
 
+      .checkout-modal-content {
+        margin: 5vh auto;
+        padding: 18px 14px;
+      }
+
+      .checkout-modal-title {
+        font-size: 22px;
+      }
+
+      .checkout-modal-text {
+        font-size: 15px;
+      }
+
       .shop-modal-content {
         margin: 8px auto;
         padding: 14px;
@@ -273,6 +319,14 @@
     </div>
   </div>
 
+  <div id="checkout-status-modal" class="checkout-modal" aria-hidden="true">
+    <div class="checkout-modal-content">
+      <button id="checkout-status-close" class="checkout-modal-close" aria-label="Close">&times;</button>
+      <h2 id="checkout-status-title" class="checkout-modal-title"></h2>
+      <p id="checkout-status-text" class="checkout-modal-text"></p>
+    </div>
+  </div>
+
   <!---Footer-->
   <div w3-include-html="footer.html" class="stuff-centered"></div>  
 
@@ -313,22 +367,36 @@
 const listingModal = document.getElementById("shop-listing-modal");
 const listingModalBody = document.getElementById("shop-modal-body");
 const listingModalClose = document.getElementById("shop-modal-close");
-const shopStatus = document.getElementById("shop-status");
+const checkoutStatusModal = document.getElementById("checkout-status-modal");
+const checkoutStatusClose = document.getElementById("checkout-status-close");
+const checkoutStatusTitle = document.getElementById("checkout-status-title");
+const checkoutStatusText = document.getElementById("checkout-status-text");
 
 (function showCheckoutStatusFromQuery() {
-  if (!shopStatus) return;
+  if (!checkoutStatusModal || !checkoutStatusTitle || !checkoutStatusText) return;
 
-  const checkoutStatus = new URLSearchParams(window.location.search).get("checkout");
+  const params = new URLSearchParams(window.location.search);
+  const checkoutStatus = params.get("checkout");
 
   if (checkoutStatus === "success") {
-    shopStatus.classList.add("success");
-    shopStatus.textContent = "Thanks! Your checkout was completed successfully.";
+    checkoutStatusTitle.textContent = "Order Confirmed";
+    checkoutStatusText.textContent = "Thanks! Your checkout was completed successfully.";
+    checkoutStatusModal.style.display = "block";
+    checkoutStatusModal.setAttribute("aria-hidden", "false");
+    params.delete("checkout");
+    const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.replaceState({}, "", next);
     return;
   }
 
   if (checkoutStatus === "cancel") {
-    shopStatus.classList.add("cancel");
-    shopStatus.textContent = "Checkout was canceled. You can try again anytime.";
+    checkoutStatusTitle.textContent = "Checkout Canceled";
+    checkoutStatusText.textContent = "No problem — your order was not completed. You can try again anytime.";
+    checkoutStatusModal.style.display = "block";
+    checkoutStatusModal.setAttribute("aria-hidden", "false");
+    params.delete("checkout");
+    const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.replaceState({}, "", next);
   }
 })();
 
@@ -495,10 +563,29 @@ if (listingModalClose) {
   });
 }
 
+if (checkoutStatusClose && checkoutStatusModal) {
+  checkoutStatusClose.addEventListener("click", function() {
+    checkoutStatusModal.style.display = "none";
+    checkoutStatusModal.setAttribute("aria-hidden", "true");
+  });
+
+  checkoutStatusModal.addEventListener("click", function(event) {
+    if (event.target === checkoutStatusModal) {
+      checkoutStatusModal.style.display = "none";
+      checkoutStatusModal.setAttribute("aria-hidden", "true");
+    }
+  });
+}
+
 document.addEventListener("keydown", function(event) {
   if (event.key === "Escape" && listingModal && listingModal.style.display === "block") {
     listingModal.style.display = "none";
     listingModal.setAttribute("aria-hidden", "true");
+  }
+
+  if (event.key === "Escape" && checkoutStatusModal && checkoutStatusModal.style.display === "block") {
+    checkoutStatusModal.style.display = "none";
+    checkoutStatusModal.setAttribute("aria-hidden", "true");
   }
 });
 
