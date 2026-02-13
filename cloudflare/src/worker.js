@@ -52,11 +52,11 @@ async function handleCreateCheckoutSession(request, env) {
   form.set("cancel_url", "https://www.florencemaegifts.com/index.html");
   form.set("line_items[0][price]", priceId);
   form.set("line_items[0][quantity]", "1");
-  form.set("custom_text[shipping_address][message]", "Please allow 3-5 calendar days for processing before the item ships unless Rush Processing is selected at checkout.");
 
   // Collect shipping details and offer shipping choices for physical items.
   if (!isDigitalItem) {
     form.set("shipping_address_collection[allowed_countries][0]", "US");
+    form.set("custom_text[shipping_address][message]", "Please allow 3-5 calendar days for processing before the item ships unless Rush Processing is selected at checkout.");
 
     form.set("shipping_options[0][shipping_rate_data][type]", "fixed_amount");
     form.set("shipping_options[0][shipping_rate_data][fixed_amount][amount]", "0");
