@@ -60,12 +60,20 @@
       opacity: 0.9;
     }
 
+    .shop-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
     .shop-logo {
       display: inline-flex;
       align-items: center;
       gap: 10px;
       padding: 8px 14px 8px 10px;
-      margin-bottom: 6px;
       border-radius: 999px;
       background: linear-gradient(135deg, #fff6f6 0%, #ffe8e8 100%);
       border: 1px solid #ffd3d3;
@@ -103,6 +111,40 @@
 
     .dark-theme .shop-logo-text {
       color: #ffd8d8;
+    }
+
+    .stripe-secure-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f6f4ff;
+      border: 1px solid #d8d1ff;
+      color: #35236b;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-family: 'Varela Round', sans-serif;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .stripe-secure-badge i {
+      color: #635bff;
+    }
+
+    .stripe-secure-badge strong {
+      color: #635bff;
+      letter-spacing: 0.2px;
+    }
+
+    .dark-theme .stripe-secure-badge {
+      background: #2a2740;
+      border-color: #4b4380;
+      color: #ece9ff;
+    }
+
+    .dark-theme .stripe-secure-badge i,
+    .dark-theme .stripe-secure-badge strong {
+      color: #b8b2ff;
     }
 
     .shop-category-tabs {
