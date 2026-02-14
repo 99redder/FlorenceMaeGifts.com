@@ -1,52 +1,102 @@
 {
   "Crochet Luffy Inspired Baby Straw Hat (Multiple Sizes Available)": {
     "price": "$49.99 USD",
-    "price_id": "price_1Szt64FrcndjcbQZ9sfG618e",
-    "payment_link": "https://buy.stripe.com/test_fZucN54IPgvmaeq1tPg3600"
+    "price_id": "price_1T0rvqCHBNzHMP0MImWHo2Gz",
+    "payment_link": ""
   },
   "Four Star Ball Crochet Baby Hat Pattern - Beginner Level (PDF Download Only)": {
     "price": "$4.99 USD",
-    "price_id": "price_1Szt65FrcndjcbQZNjvnzN8f",
-    "payment_link": "https://buy.stripe.com/test_6oU6oH1wDdjafyKfkFg3601"
+    "price_id": "price_1T0rw0CHBNzHMP0MLshjwnHi",
+    "payment_link": ""
   },
   "Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)": {
     "price": "$4.99 USD",
-    "price_id": "price_1Szt66FrcndjcbQZu2Nb28z5",
-    "payment_link": "https://buy.stripe.com/test_00w8wPdfl0wo9am3BXg3602"
+    "price_id": "price_1T0rw0CHBNzHMP0MsFTUW2La",
+    "payment_link": ""
   },
   "Crochet Monster Diaper Cover Baby Set Costume (Multiple Sizes Available)": {
-    "price": "$54.99 USD",
-    "price_id": "price_1Szt66FrcndjcbQZEoTFrTwt",
-    "payment_link": "https://buy.stripe.com/test_7sYeVdb7dcf672e5K5g3603"
+    "price": "$59.99 USD",
+    "price_id": "price_1T0rw1CHBNzHMP0MgdPdV4QG",
+    "payment_link": ""
   },
   "Four-Star Crochet Hat (Multiple Sizes Available)": {
     "price": "$49.99 USD",
-    "price_id": "price_1Szt67FrcndjcbQZsmiPH1ur",
-    "payment_link": "https://buy.stripe.com/test_3cIaEX6QX1As3Q2dcxg3604"
+    "price_id": "price_1T0rvsCHBNzHMP0MoJRbg0Fa",
+    "payment_link": ""
   },
   "Chiaotzu Inspired Crochet Baby Photo Set Costume (Multiple Sizes Available)": {
     "price": "$39.99 USD",
-    "price_id": "price_1Szt68FrcndjcbQZpMtHQkCf",
-    "payment_link": "https://buy.stripe.com/test_3cI9AT3EL7YQ4U62xTg3605"
+    "price_id": "price_1T0rw2CHBNzHMP0MRKXeQBrp",
+    "payment_link": ""
   },
   "Crochet Turtles Diaper Cover Baby Set Costume (Multiple Sizes Available)": {
     "price": "$49.99 USD",
-    "price_id": "price_1Szt69FrcndjcbQZFu0GzX7C",
-    "payment_link": "https://buy.stripe.com/test_14A3cv3EL3IA1HU2xTg3606"
+    "price_id": "price_1T0rw3CHBNzHMP0Mj2vhHXJ0",
+    "payment_link": ""
   },
   "Rumi Crochet Hat / Beanie (Multiple Sizes Available)": {
     "price": "$49.99 USD",
-    "price_id": "price_1Szt6AFrcndjcbQZ6JJcLkV0",
-    "payment_link": "https://buy.stripe.com/test_00w9AT0sz7YQcmy1tPg3607"
+    "price_id": "price_1T0rvuCHBNzHMP0MXKrcGa6g",
+    "payment_link": ""
   },
   "Crochet Baby TRUNKS Inspired Beanie Diaper Cover Photo Set Costume (Multiple Sizes Available)": {
     "price": "$59.99 USD",
-    "price_id": "price_1Szt6AFrcndjcbQZ9qghSFxE",
-    "payment_link": "https://buy.stripe.com/test_fZu5kD3EL3IA0DQ3BXg3608"
+    "price_id": "price_1T0rvyCHBNzHMP0MctKVtn3a",
+    "payment_link": ""
   },
   "Crochet Majin Buu Inspired Diaper Cover Baby Set Costume (Multiple Sizes Available)": {
     "price": "$59.99 USD",
-    "price_id": "price_1Szt6BFrcndjcbQZxW5BeJl3",
-    "payment_link": "https://buy.stripe.com/test_14A3cv3EL4MEaeqb4pg3609"
+    "price_id": "price_1T0rvzCHBNzHMP0MWOP7HKFy",
+    "payment_link": ""
+  },
+  "Crochet Five Point Baby Hat / Beanie (Multiple Sizes Available)": {
+    "price": "$39.99 USD",
+    "price_id": "price_1T0rvwCHBNzHMP0MMeFCETDE",
+    "payment_link": ""
+  },
+  "Goku Gohan Inspired Four Star Hat (Multiple Sizes Available)": {
+    "price": "$49.99 USD",
+    "price_id": "price_1T0rw4CHBNzHMP0MqxWbWDCW",
+    "payment_link": ""
+  },
+  "Crochet Santa Baby Diaper Cover Set (Multiple Sizes Available)": {
+    "price": "$59.99 USD",
+    "price_id": "price_1T0rw6CHBNzHMP0MxIQVwqYf",
+    "payment_link": ""
+  },
+  "Chiaotzu Inspired Crochet Baby Hat (Multiple Sizes Available)": {
+    "price": "$24.99 USD",
+    "price_id": "price_1T0rw7CHBNzHMP0M8W7r6fNa",
+    "payment_link": ""
+  },
+  "Crochet Chi Chi Dragon Ball Baby Diaper Set (Multiple Sizes Available)": {
+    "price": "$59.99 USD",
+    "price_id": "price_1T0rw8CHBNzHMP0MeMEtseum",
+    "payment_link": ""
+  },
+  "Crochet Where's Waldo Inspired Diaper Cover Baby Set (Multiple Sizes Available)": {
+    "price": "$49.99 USD",
+    "price_id": "price_1T0rw9CHBNzHMP0Muisegkgo",
+    "payment_link": ""
+  },
+  "Crochet Dumbo Diaper Cover Baby Set (Multiple Sizes Available)": {
+    "price": "$59.99 USD",
+    "price_id": "price_1T0rwACHBNzHMP0ME8rldqDD",
+    "payment_link": ""
+  },
+  "Shenron Shenlong Gohan Inspired Four Star Hat (Multiple Sizes Available)": {
+    "price": "$49.99 USD",
+    "price_id": "price_1T0rwBCHBNzHMP0MZBpeEbqw",
+    "payment_link": ""
+  },
+  "Shenron Shenlong Gohan Inspired Four Star Hat Photo Set (Multiple Sizes Available)": {
+    "price": "$59.99 USD",
+    "price_id": "price_1T0rwDCHBNzHMP0MD2IBymHv",
+    "payment_link": ""
+  },
+  "Crochet Goku Inspired Costume with Baby Onesie and Hat (Multiple Sizes Available)": {
+    "price": "$79.99 USD",
+    "price_id": "price_1T0rwECHBNzHMP0MBGJNH9dx",
+    "payment_link": ""
   }
 }
