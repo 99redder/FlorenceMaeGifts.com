@@ -3,7 +3,7 @@
 ; Title: request.html 
 ; Author: Red
 ; Date Created: 11 January 2023
-; Last Updated: 12 February 2026
+; Last Updated: 14 February 2026
 ; Description: The code for the Florence Mae Gifts Request A Custom Piece Page (request.html)
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
@@ -44,8 +44,6 @@
     <!---The JavaScript source code for the include HTML function-->
     <script src="includeHTML.js"></script>
 
-    <!-- Stripe.js -->
-    <script src="https://js.stripe.com/v3/"></script>
 
 </head>
 
@@ -63,33 +61,39 @@
     <div class="leftcolumn">
 
       <h2>Request a Custom Piece</h2>
-      <p>Submit your custom request below. We’ll review details and follow up with final pricing.</p>
-      <p id="selected-item-banner" style="display:none;"></p>
+      <p>Use this form to request a custom piece and upload inspiration photos. We’ll review and email you back with details.</p>
 
-      <form id="custom-order-form">
-        <input id="selected-item-name" name="selectedItemName" type="hidden" value="">
-        <input id="selected-item-price-id" name="selectedItemPriceId" type="hidden" value="price_PLACEHOLDER">
+      <form id="custom-order-form" action="https://formspree.io/f/xnqrpewl" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="_subject" value="New Florence Mae Gifts Custom Piece Request">
 
         <label for="customer-name">Name</label><br>
-        <input id="customer-name" name="customerName" type="text" required><br><br>
+        <input id="customer-name" name="name" type="text" required><br><br>
 
         <label for="customer-email">Email</label><br>
-        <input id="customer-email" name="customerEmail" type="email" required><br><br>
+        <input id="customer-email" name="email" type="email" required><br><br>
+
+        <label for="customer-phone">Phone (optional)</label><br>
+        <input id="customer-phone" name="phone" type="text"><br><br>
+
+        <label for="request-category">Request Type</label><br>
+        <select id="request-category" name="requestType" required>
+          <option value="">Select one</option>
+          <option>Custom baby hat</option>
+          <option>Custom costume/photo set</option>
+          <option>Pattern question/customization</option>
+          <option>Other</option>
+        </select><br><br>
 
         <label for="order-notes">What would you like made?</label><br>
-        <textarea id="order-notes" name="orderNotes" rows="6" required></textarea><br><br>
+        <textarea id="order-notes" name="message" rows="8" required placeholder="Share sizes, colors, character/theme, due date, and any details that matter."></textarea><br><br>
 
-        <button id="start-checkout-btn" type="submit">Continue to Secure Checkout</button>
+        <label for="inspiration-images">Upload inspiration images (up to 3)</label><br>
+        <input id="inspiration-images" name="attachments" type="file" accept="image/*" multiple><br><br>
+
+        <button id="submit-custom-request-btn" type="submit">Send Custom Request</button>
       </form>
 
-      <p id="checkout-status" style="margin-top: 12px;"></p>
-
-      <!--
-        Stripe placeholders (replace later):
-        - STRIPE_PUBLISHABLE_KEY_PLACEHOLDER
-        - STRIPE_PRICE_ID_PLACEHOLDER
-        - /api/create-checkout-session endpoint
-      -->
+      <p id="request-status" style="margin-top: 12px;"></p>
 
     </div>
                     
@@ -139,80 +143,12 @@
       document.getElementById("icon-text").innerHTML = localStorage.getItem("iconText");
   }
 
-// Stripe placeholder config
-const STRIPE_PUBLISHABLE_KEY = "pk_live_51Szsu2CHBNzHMP0MMfWXw8qjjJ7NZVdHvHtraQbP6b36S9Feun6mIeQc8fRdO9hbBSFimwCYobaHEIv8oE5zrGpW00kCb7zoam";
-const DEFAULT_STRIPE_PRICE_ID = "price_PLACEHOLDER";
-const CHECKOUT_ENDPOINT = "/api/create-checkout-session";
-
 const customOrderForm = document.getElementById("custom-order-form");
-const checkoutStatus = document.getElementById("checkout-status");
-const selectedItemBanner = document.getElementById("selected-item-banner");
-const selectedItemNameInput = document.getElementById("selected-item-name");
-const selectedItemPriceIdInput = document.getElementById("selected-item-price-id");
-const orderNotesInput = document.getElementById("order-notes");
-const stripe = window.Stripe ? Stripe(STRIPE_PUBLISHABLE_KEY) : null;
+const requestStatus = document.getElementById("request-status");
 
-const queryParams = new URLSearchParams(window.location.search);
-const selectedItemName = queryParams.get("item");
-const selectedPriceId = queryParams.get("priceId");
-const selectedPriceDisplay = queryParams.get("priceDisplay");
-
-if (selectedItemName && selectedItemBanner) {
-  selectedItemBanner.style.display = "block";
-  selectedItemBanner.innerHTML = `<strong>Ordering:</strong> ${selectedItemName}${selectedPriceDisplay ? ` (${selectedPriceDisplay})` : ""}`;
-
-  if (selectedItemNameInput) selectedItemNameInput.value = selectedItemName;
-  if (selectedItemPriceIdInput) selectedItemPriceIdInput.value = selectedPriceId || DEFAULT_STRIPE_PRICE_ID;
-
-  if (orderNotesInput && !orderNotesInput.value.trim()) {
-    orderNotesInput.value = `Item: ${selectedItemName}${selectedPriceDisplay ? `\nPrice: ${selectedPriceDisplay}` : ""}\n\nAdditional customization details:`;
-  }
-} else {
-  if (selectedItemPriceIdInput) selectedItemPriceIdInput.value = DEFAULT_STRIPE_PRICE_ID;
-}
-
-if (customOrderForm) {
-  customOrderForm.addEventListener("submit", async function (event) {
-    event.preventDefault();
-
-    const customerName = document.getElementById("customer-name").value.trim();
-    const customerEmail = document.getElementById("customer-email").value.trim();
-    const orderNotes = document.getElementById("order-notes").value.trim();
-
-    checkoutStatus.textContent = "Preparing secure checkout...";
-
-    if (!stripe || STRIPE_PUBLISHABLE_KEY.includes("PLACEHOLDER")) {
-      checkoutStatus.textContent = "Stripe is in placeholder mode. Add live Stripe keys + backend session endpoint to enable checkout.";
-      return;
-    }
-
-    try {
-      const response = await fetch(CHECKOUT_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerName,
-          customerEmail,
-          orderNotes,
-          selectedItemName: selectedItemNameInput ? selectedItemNameInput.value : "",
-          priceId: selectedItemPriceIdInput ? selectedItemPriceIdInput.value : DEFAULT_STRIPE_PRICE_ID
-        })
-      });
-
-      if (!response.ok) throw new Error("Checkout session request failed");
-
-      const data = await response.json();
-
-      if (!data || !data.id) throw new Error("Missing Stripe session id");
-
-      const stripeResult = await stripe.redirectToCheckout({ sessionId: data.id });
-
-      if (stripeResult.error) {
-        checkoutStatus.textContent = stripeResult.error.message;
-      }
-    } catch (error) {
-      checkoutStatus.textContent = "Checkout is not live yet (placeholder backend).";
-    }
+if (customOrderForm && requestStatus) {
+  customOrderForm.addEventListener("submit", function () {
+    requestStatus.textContent = "Sending your request...";
   });
 }
 
