@@ -17,4 +17,4 @@ SUPPORT_EMAIL = "support@florencemaegifts.com"
 
 [[r2_buckets]]
 binding = "DOWNLOADS_BUCKET"
-bucket_name = "fmg-downloads-private"
+bucket_name = "fmg"
