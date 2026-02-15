@@ -14,3 +14,7 @@ DOWNLOAD_LINK_MAP = '{"Four Star Ball Crochet Baby Hat Pattern - Beginner Level 
 # Sender email must be a verified Resend domain/sender.
 RESEND_FROM_EMAIL = "Florence Mae Gifts <orders@florencemaegifts.com>"
 SUPPORT_EMAIL = "support@florencemaegifts.com"
+
+[[r2_buckets]]
+binding = "DOWNLOADS_BUCKET"
+bucket_name = "fmg-downloads-private"
