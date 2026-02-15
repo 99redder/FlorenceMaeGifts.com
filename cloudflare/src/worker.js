@@ -22,6 +22,10 @@ export default {
       return handleStripeWebhook(request, env);
     }
 
+    if (url.pathname === "/api/download" && request.method === "GET") {
+      return handleOneTimeDownload(request, env);
+    }
+
     return json({ error: "Not found" }, 404, env);
   },
 };
@@ -114,13 +118,14 @@ async function handleCheckoutSessionDetails(request, env) {
 
   const itemName = (stripeJson.metadata?.selected_item_name || "").trim();
   const isDigital = itemName.toLowerCase().includes("pdf download");
-  const downloadUrl = isDigital ? resolveDownloadUrl(itemName, env) : "";
+  const downloadUrl = isDigital ? resolveLegacyDownloadUrl(itemName, env) : "";
 
   return json(
     {
       paid: stripeJson.payment_status === "paid",
       itemName,
       isDigital,
+      emailDeliveryExpected: isDigital,
       downloadUrl,
     },
     200,
@@ -174,11 +179,24 @@ async function maybeSendDigitalDownloadEmail(event, env) {
     const itemName = (session.metadata?.selected_item_name || "").trim();
     if (!itemName) return;
 
-    const downloadUrl = resolveDownloadUrl(itemName, env);
-    if (!downloadUrl) return;
+    const objectKey = resolveDownloadObjectKey(itemName, env);
+    if (!objectKey) return;
 
     const email = (session.customer_details?.email || session.customer_email || "").trim();
     if (!email) return;
+
+    const downloadUrl = await createOneTimeDownloadLink({
+      itemName,
+      objectKey,
+      toEmail: email,
+      sessionId: session.id || "",
+      env,
+    });
+
+    if (!downloadUrl) {
+      console.warn("Unable to generate one-time download link for", itemName);
+      return;
+    }
 
     await sendDigitalDownloadEmail({
       toEmail: email,
@@ -305,7 +323,17 @@ function resolvePriceId(incomingPriceId, selectedItemName, env) {
   }
 }
 
-function resolveDownloadUrl(selectedItemName, env) {
+function resolveDownloadObjectKey(selectedItemName, env) {
+  if (!selectedItemName || !env.DOWNLOAD_FILE_MAP) return "";
+  try {
+    const map = JSON.parse(env.DOWNLOAD_FILE_MAP);
+    return map[selectedItemName] || "";
+  } catch {
+    return "";
+  }
+}
+
+function resolveLegacyDownloadUrl(selectedItemName, env) {
   if (!selectedItemName || !env.DOWNLOAD_LINK_MAP) return "";
   try {
     const map = JSON.parse(env.DOWNLOAD_LINK_MAP);
@@ -313,6 +341,65 @@ function resolveDownloadUrl(selectedItemName, env) {
   } catch {
     return "";
   }
+}
+
+async function createOneTimeDownloadLink({ itemName, objectKey, toEmail, sessionId, env }) {
+  if (!env.DOWNLOAD_TOKENS) return "";
+  const token = `${crypto.randomUUID().replaceAll("-", "")}${Date.now().toString(36)}`;
+  const ttlSeconds = Number(env.DOWNLOAD_TOKEN_TTL_SECONDS || 172800); // default 48h
+  const tokenData = {
+    itemName,
+    objectKey,
+    toEmail,
+    sessionId,
+    createdAt: Date.now(),
+    used: false,
+  };
+  await env.DOWNLOAD_TOKENS.put(`download:${token}`, JSON.stringify(tokenData), {
+    expirationTtl: ttlSeconds,
+  });
+  const base = (env.DOWNLOAD_BASE_URL || "https://www.florencemaegifts.com/api/download").trim();
+  return `${base}?t=${encodeURIComponent(token)}`;
+}
+
+async function handleOneTimeDownload(request, env) {
+  if (!env.DOWNLOAD_TOKENS || !env.DOWNLOADS_BUCKET) {
+    return json({ error: "Download service not configured" }, 500, env);
+  }
+
+  const url = new URL(request.url);
+  const token = (url.searchParams.get("t") || "").trim();
+  if (!token) return json({ error: "Missing token" }, 400, env);
+
+  const key = `download:${token}`;
+  const recordRaw = await env.DOWNLOAD_TOKENS.get(key);
+  if (!recordRaw) return json({ error: "Invalid or expired link" }, 404, env);
+
+  let record;
+  try {
+    record = JSON.parse(recordRaw);
+  } catch {
+    return json({ error: "Invalid token record" }, 400, env);
+  }
+
+  if (record.used) return json({ error: "This download link has already been used" }, 410, env);
+  if (!record.objectKey) return json({ error: "Missing file mapping" }, 400, env);
+
+  const object = await env.DOWNLOADS_BUCKET.get(record.objectKey);
+  if (!object) return json({ error: "File not found" }, 404, env);
+
+  record.used = true;
+  record.usedAt = Date.now();
+  await env.DOWNLOAD_TOKENS.put(key, JSON.stringify(record), { expirationTtl: 3600 });
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("etag", object.httpEtag);
+  headers.set("cache-control", "private, no-store");
+  const fileName = String(record.objectKey).split("/").pop() || "download.pdf";
+  headers.set("content-disposition", `attachment; filename="${fileName}"`);
+
+  return new Response(object.body, { headers });
 }
 
 function corsHeaders(env) {

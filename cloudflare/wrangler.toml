@@ -9,8 +9,13 @@ CANCEL_URL = "https://www.florencemaegifts.com/index.html"
 
 # Optional: map item names to fallback price ids if client doesn't send one.
 # ITEM_PRICE_MAP = '{"Example Item":"price_..."}'
-# Map digital item names to hosted download URLs shown on success modal + email.
-DOWNLOAD_LINK_MAP = '{"Four Star Ball Crochet Baby Hat Pattern - Beginner Level (PDF Download Only)":"https://www.florencemaegifts.com/downloads/four-star-ball-crochet-baby-hat-pattern.pdf","Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)":"https://www.florencemaegifts.com/downloads/crochet-baby-hat-pattern-five-point-design.pdf"}'
+# Map digital item names to private R2 object keys for one-time download links.
+DOWNLOAD_FILE_MAP = '{"Four Star Ball Crochet Baby Hat Pattern - Beginner Level (PDF Download Only)":"Four Star Ball Baby Hat Crochet Pattern.pdf","Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)":"Crochet Baby Hat Pattern.pdf"}'
+# Legacy fallback map (optional) for immediate in-browser success modal link.
+DOWNLOAD_LINK_MAP = '{}'
+# One-time link settings.
+DOWNLOAD_BASE_URL = "https://www.florencemaegifts.com/api/download"
+DOWNLOAD_TOKEN_TTL_SECONDS = "172800"
 # Sender email must be a verified Resend domain/sender.
 RESEND_FROM_EMAIL = "Florence Mae Gifts <orders@florencemaegifts.com>"
 SUPPORT_EMAIL = "support@florencemaegifts.com"
@@ -18,3 +23,7 @@ SUPPORT_EMAIL = "support@florencemaegifts.com"
 [[r2_buckets]]
 binding = "DOWNLOADS_BUCKET"
 bucket_name = "fmg"
+
+[[kv_namespaces]]
+binding = "DOWNLOAD_TOKENS"
+id = "7350d3bd812644928452170df7b380ec"
