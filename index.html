@@ -533,7 +533,7 @@ const checkoutStatusText = document.getElementById("checkout-status-text");
         const detailsRes = await fetch(`/api/checkout-session-details?session_id=${encodeURIComponent(sessionId)}`);
         const details = await detailsRes.json();
         if (detailsRes.ok && details?.isDigital) {
-          checkoutStatusText.innerHTML += `<br><br><strong>Pattern purchase detected:</strong> a download link will also be sent to your email.`;
+          checkoutStatusText.innerHTML += `<br><br><strong>A download link for your pattern will be sent to your email.</strong>`;
           if (details?.downloadUrl) {
             checkoutStatusText.innerHTML += `<br><br><strong>Your digital download is ready:</strong><br><a href="${details.downloadUrl}" target="_blank" rel="noopener noreferrer">Download your PDF file</a>`;
           }
