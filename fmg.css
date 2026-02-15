@@ -342,6 +342,24 @@ input[type=submit]:hover {
   box-shadow: 0 3px 8px rgba(254, 102, 102, 0.24);
 }
 
+/* Match contact form submit button with custom request styling */
+#contact-submit-btn {
+  background: linear-gradient(135deg, #FE6666 0%, #FF6699 100%);
+  color: #fff;
+  border: 1px solid #f35f74;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(254, 102, 102, 0.24);
+}
+
+#contact-submit-btn:hover {
+  filter: brightness(1.04);
+}
+
 /* Custom request upload button styling */
 #inspiration-images {
   width: 80%;
