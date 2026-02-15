@@ -9,6 +9,7 @@
 
 - `wrangler secret put STRIPE_SECRET_KEY`
 - `wrangler secret put STRIPE_WEBHOOK_SECRET`
+- `wrangler secret put RESEND_API_KEY`
 
 ## 3) Deploy
 
@@ -24,6 +25,14 @@ In Cloudflare dashboard, add Worker route:
 Set webhook endpoint in Stripe to:
 - `https://www.florencemaegifts.com/api/stripe-webhook`
 
-## 6) Test endpoint
+## 6) Digital download email receipts (optional but recommended)
+
+When a checkout completes for an item in `DOWNLOAD_LINK_MAP`, the webhook sends a separate email with the download link using Resend.
+
+Required:
+- `RESEND_API_KEY` secret (set with Wrangler)
+- `RESEND_FROM_EMAIL` var in `wrangler.toml` (must be a verified sender/domain in Resend)
+
+## 7) Test endpoint
 
 - `curl https://www.florencemaegifts.com/api/health`

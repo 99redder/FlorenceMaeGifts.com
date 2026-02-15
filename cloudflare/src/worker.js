@@ -148,7 +148,11 @@ async function handleStripeWebhook(request, env) {
   }
 
   switch (event.type) {
-    case "checkout.session.completed":
+    case "checkout.session.completed": {
+      console.log("Stripe webhook event:", event.type, event.id);
+      await maybeSendDigitalDownloadEmail(event, env);
+      break;
+    }
     case "checkout.session.async_payment_succeeded":
     case "checkout.session.async_payment_failed": {
       console.log("Stripe webhook event:", event.type, event.id);
@@ -159,6 +163,82 @@ async function handleStripeWebhook(request, env) {
   }
 
   return json({ received: true }, 200, env);
+}
+
+async function maybeSendDigitalDownloadEmail(event, env) {
+  try {
+    if (!env.RESEND_API_KEY || !env.RESEND_FROM_EMAIL) return;
+    const session = event?.data?.object;
+    if (!session || session.object !== "checkout.session") return;
+
+    const itemName = (session.metadata?.selected_item_name || "").trim();
+    if (!itemName) return;
+
+    const downloadUrl = resolveDownloadUrl(itemName, env);
+    if (!downloadUrl) return;
+
+    const email = (session.customer_details?.email || session.customer_email || "").trim();
+    if (!email) return;
+
+    await sendDigitalDownloadEmail({
+      toEmail: email,
+      itemName,
+      downloadUrl,
+      sessionId: session.id || "",
+      env,
+    });
+  } catch (err) {
+    console.error("Digital download email error:", err?.message || String(err));
+  }
+}
+
+async function sendDigitalDownloadEmail({ toEmail, itemName, downloadUrl, sessionId, env }) {
+  const supportEmail = env.SUPPORT_EMAIL || env.RESEND_FROM_EMAIL;
+  const subject = `Your Florence Mae Gifts download: ${itemName}`;
+  const htmlBody = `
+    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111;max-width:640px;margin:0 auto;">
+      <h2 style="margin:0 0 12px 0;">Thank you for your purchase 💖</h2>
+      <p>Your digital download is ready:</p>
+      <p><strong>${escapeHtml(itemName)}</strong></p>
+      <p style="margin:18px 0;">
+        <a href="${escapeHtml(downloadUrl)}" style="background:#FE6666;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;display:inline-block;">Download your file</a>
+      </p>
+      <p style="font-size:13px;color:#444;">If the button doesn't work, copy and paste this link into your browser:</p>
+      <p style="font-size:13px;word-break:break-all;"><a href="${escapeHtml(downloadUrl)}">${escapeHtml(downloadUrl)}</a></p>
+      ${sessionId ? `<p style="font-size:12px;color:#666;">Order reference: ${escapeHtml(sessionId)}</p>` : ""}
+      <p style="font-size:12px;color:#666;">Need help? Reply to this email or contact ${escapeHtml(supportEmail)}.</p>
+    </div>
+  `;
+
+  const payload = {
+    from: env.RESEND_FROM_EMAIL,
+    to: [toEmail],
+    subject,
+    html: htmlBody,
+  };
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const msg = await response.text();
+    throw new Error(`Resend send failed (${response.status}): ${msg}`);
+  }
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 async function verifyStripeSignature(rawBody, stripeSignatureHeader, webhookSecret) {
