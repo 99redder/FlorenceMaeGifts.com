@@ -313,6 +313,34 @@ input[type=submit]:hover {
   opacity: 0.9;
 }
 
+/* Professional button styling for custom request form */
+#submit-custom-request-btn {
+  appearance: none;
+  background: linear-gradient(135deg, #FE6666 0%, #FF6699 100%);
+  color: #fff;
+  border: 1px solid #f35f74;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(254, 102, 102, 0.28);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+#submit-custom-request-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 6px 14px rgba(255, 102, 153, 0.3);
+}
+
+#submit-custom-request-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(254, 102, 102, 0.24);
+}
+
 .requestbox {
   height: 200px;
 }
