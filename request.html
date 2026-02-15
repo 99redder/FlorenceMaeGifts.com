@@ -88,9 +88,11 @@
         <textarea id="order-notes" name="message" rows="8" required placeholder="Share sizes, colors, character/theme, due date, and any details that matter."></textarea><br><br>
 
         <label for="inspiration-images">Upload inspiration images (up to 3)</label><br>
-        <input id="inspiration-images" name="attachments" type="file" accept="image/*" multiple><br><br>
+        <input id="inspiration-images" name="attachments" type="file" accept="image/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
+        <label for="inspiration-images" id="inspiration-images-btn" style="display:inline-block;background:linear-gradient(135deg,#FE6666 0%,#FF6699 100%);color:#fff;border:1px solid #f35f74;border-radius:12px;padding:14px 20px;font-family:'Varela Round',sans-serif;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 4px 10px rgba(254,102,102,.28);">Browse Images</label>
+        <span id="inspiration-images-name" style="display:inline-block;margin-left:10px;font-size:14px;color:var(--text-color);vertical-align:middle;">No files selected</span><br><br>
 
-        <button id="submit-custom-request-btn" type="submit">Send Custom Request</button>
+        <button id="submit-custom-request-btn" type="submit" style="background:linear-gradient(135deg,#FE6666 0%,#FF6699 100%);color:#fff;border:1px solid #f35f74;border-radius:12px;padding:14px 22px;min-width:260px;font-family:'Varela Round',sans-serif;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 4px 10px rgba(254,102,102,.28);">Send Custom Request</button>
       </form>
 
       <p id="request-status" style="margin-top: 12px;"></p>
@@ -145,6 +147,21 @@
 
 const customOrderForm = document.getElementById("custom-order-form");
 const requestStatus = document.getElementById("request-status");
+const inspirationImagesInput = document.getElementById("inspiration-images");
+const inspirationImagesName = document.getElementById("inspiration-images-name");
+
+if (inspirationImagesInput && inspirationImagesName) {
+  inspirationImagesInput.addEventListener("change", function () {
+    const files = Array.from(inspirationImagesInput.files || []);
+    if (!files.length) {
+      inspirationImagesName.textContent = "No files selected";
+      return;
+    }
+    inspirationImagesName.textContent = files.length === 1
+      ? files[0].name
+      : `${files.length} files selected`;
+  });
+}
 
 if (customOrderForm && requestStatus) {
   customOrderForm.addEventListener("submit", function () {

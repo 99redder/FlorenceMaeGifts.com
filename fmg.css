@@ -285,7 +285,7 @@ a:hover {
 }
 
 /* start of CSS for contact form on index.html */
-input[type=text], select, textarea {
+input[type=text], input[type=email], select, textarea {
   width: 80%;
   padding: 12px;
   border: 1px solid #ccc;
@@ -295,7 +295,7 @@ input[type=text], select, textarea {
   font-size: 16px;
 }
 
-input[type=text]:focus {
+input[type=text]:focus, input[type=email]:focus {
   background-color: lightblue;
 }
 
