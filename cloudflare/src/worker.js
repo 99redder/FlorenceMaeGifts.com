@@ -224,6 +224,7 @@ async function sendDigitalDownloadEmail({ toEmail, itemName, downloadUrl, sessio
       <p style="font-size:13px;color:#444;">If the button doesn't work, copy and paste this link into your browser:</p>
       <p style="font-size:13px;word-break:break-all;"><a href="${escapeHtml(downloadUrl)}">${escapeHtml(downloadUrl)}</a></p>
       ${sessionId ? `<p style="font-size:12px;color:#666;">Order reference: ${escapeHtml(sessionId)}</p>` : ""}
+      <p style="font-size:12px;color:#666;"><strong>This link is valid for 24 hours and up to 3 downloads.</strong></p>
       <p style="font-size:12px;color:#666;">Need help? Reply to this email or contact ${escapeHtml(supportEmail)}.</p>
     </div>
   `;
@@ -346,14 +347,16 @@ function resolveLegacyDownloadUrl(selectedItemName, env) {
 async function createOneTimeDownloadLink({ itemName, objectKey, toEmail, sessionId, env }) {
   if (!env.DOWNLOAD_TOKENS) return "";
   const token = `${crypto.randomUUID().replaceAll("-", "")}${Date.now().toString(36)}`;
-  const ttlSeconds = Number(env.DOWNLOAD_TOKEN_TTL_SECONDS || 172800); // default 48h
+  const ttlSeconds = Number(env.DOWNLOAD_TOKEN_TTL_SECONDS || 86400); // default 24h
+  const maxUses = Number(env.DOWNLOAD_TOKEN_MAX_USES || 3);
   const tokenData = {
     itemName,
     objectKey,
     toEmail,
     sessionId,
     createdAt: Date.now(),
-    used: false,
+    useCount: 0,
+    maxUses,
   };
   await env.DOWNLOAD_TOKENS.put(`download:${token}`, JSON.stringify(tokenData), {
     expirationTtl: ttlSeconds,
@@ -382,15 +385,17 @@ async function handleOneTimeDownload(request, env) {
     return json({ error: "Invalid token record" }, 400, env);
   }
 
-  if (record.used) return json({ error: "This download link has already been used" }, 410, env);
+  const useCount = Number(record.useCount || 0);
+  const maxUses = Number(record.maxUses || Number(env.DOWNLOAD_TOKEN_MAX_USES || 3));
+  if (useCount >= maxUses) return json({ error: "This download link has reached its maximum number of downloads" }, 410, env);
   if (!record.objectKey) return json({ error: "Missing file mapping" }, 400, env);
 
   const object = await env.DOWNLOADS_BUCKET.get(record.objectKey);
   if (!object) return json({ error: "File not found" }, 404, env);
 
-  record.used = true;
-  record.usedAt = Date.now();
-  await env.DOWNLOAD_TOKENS.put(key, JSON.stringify(record), { expirationTtl: 3600 });
+  record.useCount = useCount + 1;
+  record.lastUsedAt = Date.now();
+  await env.DOWNLOAD_TOKENS.put(key, JSON.stringify(record), { expirationTtl: 86400 });
 
   const headers = new Headers();
   object.writeHttpMetadata(headers);

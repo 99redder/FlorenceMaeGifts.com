@@ -15,10 +15,11 @@ DOWNLOAD_FILE_MAP = '{"Four Star Ball Crochet Baby Hat Pattern - Beginner Level 
 DOWNLOAD_LINK_MAP = '{}'
 # One-time link settings.
 DOWNLOAD_BASE_URL = "https://www.florencemaegifts.com/api/download"
-DOWNLOAD_TOKEN_TTL_SECONDS = "172800"
+DOWNLOAD_TOKEN_TTL_SECONDS = "86400"
+DOWNLOAD_TOKEN_MAX_USES = "3"
 # Sender email must be a verified Resend domain/sender.
 RESEND_FROM_EMAIL = "Florence Mae Gifts <orders@florencemaegifts.com>"
-SUPPORT_EMAIL = "support@florencemaegifts.com"
+SUPPORT_EMAIL = "florencemaegifts@outlook.com"
 
 [[r2_buckets]]
 binding = "DOWNLOADS_BUCKET"

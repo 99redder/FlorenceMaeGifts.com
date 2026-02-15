@@ -35,7 +35,7 @@ Set webhook endpoint in Stripe to:
 
 ## 7) Digital download email receipts (optional but recommended)
 
-When a checkout completes for an item in `DOWNLOAD_FILE_MAP`, the webhook sends a one-time download link email using Resend.
+When a checkout completes for an item in `DOWNLOAD_FILE_MAP`, the webhook sends a limited-use download link email using Resend (currently 24 hours, up to 3 downloads).
 
 Required:
 - `RESEND_API_KEY` secret (set with Wrangler)
