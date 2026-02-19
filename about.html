@@ -3,7 +3,7 @@
 ; Title: about.html 
 ; Author: Red
 ; Date Created: 11 January 2023
-; Last Updated: 04 February 2026
+; Last Updated: 19 February 2026
 ; Description: The code for the Florence Mae Gifts About The Artist page (about.html)
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
@@ -14,10 +14,13 @@
 
   <head>
 
-    <title>About The Artist - Florence Mae Gifts - Premium Handmade Crochet Items</title>
+    <title>About Florence Mae Gifts | Handmade Crochet Artist in Maryland</title>
     
-    <meta name="description" content="All about the artist behind Florence Mae Gifts.">
+    <meta name="description" content="Meet the artist behind Florence Mae Gifts, creating handmade crochet baby hats, diaper sets, cosplay pieces, and gift-ready keepsakes in Maryland.">
     <meta http-equiv="author" content ="Red">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <link rel="canonical" href="https://www.florencemaegifts.com/about.html">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -54,7 +57,8 @@
 
         <div w3-include-html="topnav.html" class="topnav"></div>
 
-        <div class="row">
+        <main id="main-content" role="main">
+<div class="row">
 
                           
           <div w3-include-html="aboutleftcolumn.html" class="leftcolumn"></div>
@@ -65,7 +69,9 @@
           </div>
           
           <!---Footer-->
-          <div w3-include-html="footer.html" class="stuff-centered"></div>  
+          </main>
+
+  <div w3-include-html="footer.html" class="stuff-centered"></div>  
 
 </body>
 

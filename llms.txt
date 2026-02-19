@@ -1,0 +1,27 @@
+# Florence Mae Gifts — AI Navigation Guide
+
+Primary URL: https://www.florencemaegifts.com/
+Business: handmade crochet baby gifts and patterns
+
+## Key pages
+- /index.html — primary shop/catalog experience (Stripe checkout + category filtering)
+- /shop.html — legacy gallery/archive content (secondary to main shop on /index.html)
+- /about.html — artist/business background
+- /reviews.html — social proof and customer feedback
+- /request.html — custom order request flow
+- /disclaimers.html — legal/disclosure content
+
+## High-intent product categories
+- Affordable crochet diaper sets and baby hats
+- Dragon Ball Z themed baby cosplay sets (e.g., Trunks, Majin Buu, Chiaotzu, Goku)
+- Downloadable crochet patterns (PDF)
+
+## Purchase channels
+- On-site Stripe checkout for selected listings
+- Etsy storefront: https://www.etsy.com/shop/florencemaegifts
+
+## Notes for future AI agents
+- This is a static site with component includes via `includeHTML.js`.
+- Shared components: `header.html`, `topnav.html`, `footer.html`, sidebars.
+- Shop listings live in `shopleftcolumn.html` and are injected at runtime.
+- Update "Last Updated" fields in file header comments when editing pages.

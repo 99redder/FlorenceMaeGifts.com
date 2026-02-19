@@ -185,3 +185,58 @@ Key behavior:
 - `e5aa6e6` — Add large dismissible checkout success/cancel modal
 - `542b65b` — Refine shop copy and confirmation wording
 
+
+
+## Session Update — 2026-02-19 (SEO + AI Navigation)
+
+### Goals from Chris
+- Improve SEO for discovery around:
+  - affordable high-quality crochet diaper sets and hats
+  - Dragon Ball Z themed baby cosplay sets
+  - crochet patterns and gift intent
+- Make site easier for future AI agents to understand and navigate quickly.
+
+### What was changed
+- Updated `index.html` and `shop.html` head metadata:
+  - stronger title + meta descriptions with target phrases
+  - keywords meta, canonical URL, robots directive
+  - Open Graph and Twitter card metadata
+  - JSON-LD schema (`Store`) for richer machine-readable business context
+- Updated `shopleftcolumn.html` with a short keyword-aligned intro paragraph under the shop header.
+- Updated `footer.html` with links to `sitemap.xml` and `llms.txt` for crawler/agent discoverability.
+- Added crawl/navigation helper files at repo root:
+  - `robots.txt`
+  - `sitemap.xml`
+  - `llms.txt`
+
+### Architecture note for future agents
+- This repo currently has swapped page responsibilities:
+  - `index.html` contains the modern shop/catalog behavior
+  - `shop.html` contains older gallery/landing content
+- Keep this in mind before renaming files or changing nav; verify live routes and includes first.
+
+### SEO content focus guidance
+When adding new listings or copy, naturally include variants of:
+- "crochet diaper set", "crochet baby hat", "baby cosplay set"
+- "Dragon Ball Z baby set", "DBZ inspired baby costume"
+- "crochet pattern PDF", "beginner crochet baby hat pattern"
+- gift-intent language like "baby shower gift" and "gift for new parents"
+
+Avoid keyword stuffing; keep copy readable and specific to real products.
+
+
+### Follow-up SEO pass — 2026-02-19 (technical)
+- Normalized homepage canonical to `https://www.florencemaegifts.com/` (root).
+- Added canonical + robots meta tags to `about.html`, `reviews.html`, `request.html`, and `disclaimers.html`.
+- Improved page titles/descriptions for secondary pages to better match search intent and improve snippet quality.
+- Updated nav label from "Gallery" to "Shop" in `topnav.html` for clearer user + crawler understanding.
+- Improved shared header semantics and image alt text in `header.html` for accessibility/crawler clarity.
+
+
+### Follow-up SEO pass — 2026-02-19 (landmarks + URL clarity)
+- Added semantic `<main id="main-content" role="main">` landmarks to core pages (`index`, `shop`, `about`, `reviews`, `request`, `disclaimers`).
+- Added `id="shop"` anchor on the primary catalog section in `index.html` for stable deep-linking.
+- Updated nav to clarify IA:
+  - `Shop` now points to `index.html#shop` (primary commercial intent page)
+  - old `shop.html` relabeled as `Gallery Archive`
+- Reduced `shop.html` sitemap priority/frequency to reduce keyword cannibalization with homepage shop intent.
