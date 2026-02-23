@@ -3,7 +3,7 @@
 ; Title: footer.html
 ; Author: Red
 ; Date Created: 28 January 2023
-; Last Updated: 22 February 2026
+; Last Updated: 23 February 2026
 ; Description: The code for the Florence Mae Gifts, LLC Footer (used on every page)
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
@@ -11,13 +11,13 @@
 
 
         <hr>
-        <p>Website created and maintained by <a href="https://www.easternshore.ai" target="_blank">Eastern Shore AI, LLC</a>. Last Updated: February 22, 2026.</p>
+        <p>Website created and maintained by <a href="https://www.easternshore.ai" target="_blank">Eastern Shore AI, LLC</a>. Last Updated: February 23, 2026.</p>
 
         <div class="footer">
 
                 <a href="https://www.instagram.com/florencemaegifts/" class="disclaimer-links x-large" target="resource window"><i class="fa-brands fa-instagram"></i></a>
 
-                <a href="#contact" class="disclaimer-links x-large"><i class="fa-regular fa-envelope"></i></a>
+                <a href="javascript:void(0)" onclick="document.getElementById('modal-contact').style.display='block'" class="disclaimer-links x-large"><i class="fa-regular fa-envelope"></i></a>
 
                 <a href="https://www.etsy.com/shop/florencemaegifts" class="disclaimer-links x-large" target="resource window"><i class="fa-brands fa-etsy"></i></a>
 
@@ -113,3 +113,88 @@
             The Site may contain testimonials by users of our products and/or services. These testimonials reflect the real-life experiences and opinions of such users. However, the experiences are personal to those particular users, and may not necessarily be representative of all users of our products and/or services. We do not claim, and you should not assume, that all users will have the same experiences. YOUR INDIVIDUAL RESULTS MAY VARY. The testimonials on the Site are submitted in various forms such as text, audio and/or video, and are reviewed by us before being posted. They appear on the Site verbatim as given by the users, except for the correction of grammar or typing errors. Some testimonials may have been shortened for the sake of brevity where the full testimonial contained extraneous information not relevant to the general public. The views and opinions contained in the testimonials belong solely to the individual user and do not reflect our views and opinions. We are not affiliated with users who provide testimonials, and users are not paid or otherwise compensated for their testimonials.</p>
           </div>
         </div>
+
+        <!-- Contact Modal -->
+        <div id="modal-contact" class="footer-modal" onclick="if(event.target===this)this.style.display='none'">
+          <div class="footer-modal-content">
+            <span class="footer-modal-close" onclick="document.getElementById('modal-contact').style.display='none'">&times;</span>
+            <h3 style="margin-top:0"><i class="fa-solid fa-message"></i> Contact Us</h3>
+            <p>Have a question? Send us a message and we'll get back to you soon.</p>
+
+            <form id="contact-form" action="https://formspree.io/f/xnqrpewl" method="POST">
+              <input type="hidden" name="_subject" value="New Florence Mae Gifts Contact Message">
+
+              <label for="contact-name">Your Name</label><br>
+              <input type="text" id="contact-name" name="name" placeholder="Your name.." required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
+
+              <label for="contact-email">Your Email</label><br>
+              <input type="email" id="contact-email" name="email" placeholder="Your email.." required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
+
+              <label for="contact-message">Your Message</label><br>
+              <textarea id="contact-message" name="message" rows="5" placeholder="Write something.." required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;resize:vertical;"></textarea><br>
+
+              <button type="submit" style="background:linear-gradient(135deg,#FE6666 0%,#FF6699 100%);color:#fff;border:1px solid #f35f74;border-radius:10px;padding:12px 20px;font-family:'Varela Round',sans-serif;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 3px 8px rgba(254,102,102,.24);">Send Message</button>
+            </form>
+
+            <p id="contact-form-status" style="margin-top:12px;"></p>
+          </div>
+        </div>
+
+        <!-- Request Custom Piece Modal -->
+        <div id="modal-custom-request" class="footer-modal" onclick="if(event.target===this)this.style.display='none'">
+          <div class="footer-modal-content">
+            <span class="footer-modal-close" onclick="document.getElementById('modal-custom-request').style.display='none'">&times;</span>
+            <h3 style="margin-top:0"><i class="fa-solid fa-keyboard"></i> Request a Custom Piece</h3>
+            <p>Use this form to request a custom piece. I'll review and email you back within 24 hours.</p>
+
+            <form id="custom-request-form" action="https://formspree.io/f/xnqrpewl" method="POST">
+              <input type="hidden" name="_subject" value="New Florence Mae Gifts Custom Piece Request">
+
+              <label for="custom-name">Name</label><br>
+              <input type="text" id="custom-name" name="name" required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
+
+              <label for="custom-email">Email</label><br>
+              <input type="email" id="custom-email" name="email" required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
+
+              <label for="custom-phone">Phone (optional)</label><br>
+              <input type="text" id="custom-phone" name="phone" style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
+
+              <label for="custom-request-type">Request Type</label><br>
+              <select id="custom-request-type" name="requestType" required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;">
+                <option value="">Select one</option>
+                <option>Custom baby hat</option>
+                <option>Custom costume/photo set</option>
+                <option>Pattern question/customization</option>
+                <option>Other</option>
+              </select><br>
+
+              <label for="custom-message">What would you like made?</label><br>
+              <textarea id="custom-message" name="message" rows="6" required placeholder="Share sizes, colors, character/theme, due date, and any details that matter." style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;resize:vertical;"></textarea><br>
+
+              <button type="submit" style="background:linear-gradient(135deg,#FE6666 0%,#FF6699 100%);color:#fff;border:1px solid #f35f74;border-radius:12px;padding:14px 22px;min-width:260px;font-family:'Varela Round',sans-serif;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 4px 10px rgba(254,102,102,.28);">Send Custom Request</button>
+            </form>
+
+            <p id="custom-request-form-status" style="margin-top:12px;"></p>
+          </div>
+        </div>
+
+        <script>
+        // Contact form submission feedback
+        (function() {
+          var contactForm = document.getElementById('contact-form');
+          var contactStatus = document.getElementById('contact-form-status');
+          if (contactForm && contactStatus) {
+            contactForm.addEventListener('submit', function() {
+              contactStatus.textContent = 'Sending your message...';
+            });
+          }
+
+          var customForm = document.getElementById('custom-request-form');
+          var customStatus = document.getElementById('custom-request-form-status');
+          if (customForm && customStatus) {
+            customForm.addEventListener('submit', function() {
+              customStatus.textContent = 'Sending your request...';
+            });
+          }
+        })();
+        </script>

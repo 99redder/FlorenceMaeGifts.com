@@ -8,7 +8,7 @@ Business: handmade crochet baby gifts and patterns
 - /shop.html — legacy gallery/archive content (secondary to main shop on /index.html)
 - /about.html — artist/business background
 - /reviews.html — social proof and customer feedback
-- /request.html — custom order request flow
+- Contact and custom order requests are handled via modals (no dedicated page)
 - /disclaimers.html — legal/disclosure content
 
 ## High-intent product categories
