@@ -98,9 +98,11 @@ The site uses a **client-side HTML include pattern** via `includeHTML.js`. Commo
 - Theme classes: `.light-theme`, `.dark-theme`
 - Images: `example1.jpeg` through `example20.png` for gallery items
 
-## Footer Update
+## Footer Update (Mandatory)
 
-The `footer.html` contains a visible "Last Updated" date that should be updated whenever site content changes. This is separate from the header comment `Last Updated` field.
+- **Any time any site content is changed**, update the visible `Last Updated` date in `footer.html` in the same change set.
+- Treat this as a required step before commit/push.
+- This is separate from the header comment `Last Updated` field, and both should be kept current when applicable.
 
 ---
 
