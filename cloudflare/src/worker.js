@@ -26,6 +26,10 @@ export default {
       return handleOneTimeDownload(request, env);
     }
 
+    if (url.pathname === "/api/contact" && request.method === "POST") {
+      return handleContactForm(request, env);
+    }
+
     return json({ error: "Not found" }, 404, env);
   },
 };
@@ -363,6 +367,68 @@ async function createOneTimeDownloadLink({ itemName, objectKey, toEmail, session
   });
   const base = (env.DOWNLOAD_BASE_URL || "https://www.florencemaegifts.com/api/download").trim();
   return `${base}?t=${encodeURIComponent(token)}`;
+}
+
+async function handleContactForm(request, env) {
+  if (!env.RESEND_API_KEY || !env.RESEND_FROM_EMAIL) {
+    return json({ error: "Email service not configured" }, 500, env);
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return json({ error: "Invalid JSON" }, 400, env);
+  }
+
+  const mode = (payload.mode || "contact").toString().trim().toLowerCase();
+  const name = (payload.name || "").toString().trim();
+  const email = (payload.email || "").toString().trim();
+  const phone = (payload.phone || "").toString().trim();
+  const requestType = (payload.requestType || "").toString().trim();
+  const message = (payload.message || "").toString().trim();
+
+  if (!name || !email || !message) {
+    return json({ error: "Missing required fields" }, 400, env);
+  }
+
+  const toEmail = env.CONTACT_TO_EMAIL || env.SUPPORT_EMAIL || env.RESEND_FROM_EMAIL;
+  const subject = mode === "custom"
+    ? `Custom Piece Request: ${requestType || "General"}`
+    : "New Contact Message: Florence Mae Gifts";
+
+  const text = [
+    `Mode: ${mode}`,
+    `Name: ${name}`,
+    `Email: ${email}`,
+    `Phone: ${phone || "(not provided)"}`,
+    `Request Type: ${requestType || "(not provided)"}`,
+    "",
+    "Message:",
+    message,
+  ].join("\n");
+
+  const resendRes = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: env.RESEND_FROM_EMAIL,
+      to: [toEmail],
+      subject,
+      text,
+      reply_to: email,
+    }),
+  });
+
+  if (!resendRes.ok) {
+    const detail = await resendRes.text();
+    return json({ error: "Email send failed", detail }, 502, env);
+  }
+
+  return json({ ok: true }, 200, env);
 }
 
 async function handleOneTimeDownload(request, env) {

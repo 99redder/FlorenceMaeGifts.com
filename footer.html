@@ -45,7 +45,7 @@
             <p>Florence Mae Gifts, LLC ("we," "us," or "our") operates the website <a href="https://www.florencemaegifts.com">https://www.florencemaegifts.com</a> (the "Site"). This Privacy Policy describes how we collect, use, and share information when you visit the Site.</p>
 
             <p><strong>Information We Collect</strong><br>
-            We do not directly collect personal information through the Site. However, when you use our contact form (powered by Formspree), you voluntarily provide your name, email address, and message content. This information is processed by Formspree and delivered to us via email.</p>
+            We do not directly collect personal information through the Site. However, when you use our contact form, you voluntarily provide your name, email address, and message content. This information is processed and delivered to us via our website email service provider.</p>
 
             <p><strong>Cookies and Tracking</strong><br>
             The Site uses browser localStorage to remember your theme preference (light or dark mode). We do not use tracking cookies. Third-party services embedded on the Site (such as Google Fonts and Font Awesome) may collect usage data in accordance with their own privacy policies.</p>
@@ -121,8 +121,7 @@
             <h3 style="margin-top:0"><i class="fa-solid fa-message"></i> Contact Us</h3>
             <p>Have a question? Send us a message and we'll get back to you soon.</p>
 
-            <form id="contact-form" action="https://formspree.io/f/xnqrpewl" method="POST">
-              <input type="hidden" name="_subject" value="New Florence Mae Gifts Contact Message">
+            <form id="contact-form">
 
               <label for="contact-name">Your Name</label><br>
               <input type="text" id="contact-name" name="name" placeholder="Your name.." required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
@@ -147,8 +146,7 @@
             <h3 style="margin-top:0"><i class="fa-solid fa-keyboard"></i> Request a Custom Piece</h3>
             <p>Use this form to request a custom piece. I'll review and email you back within 24 hours.</p>
 
-            <form id="custom-request-form" action="https://formspree.io/f/xnqrpewl" method="POST">
-              <input type="hidden" name="_subject" value="New Florence Mae Gifts Custom Piece Request">
+            <form id="custom-request-form">
 
               <label for="custom-name">Name</label><br>
               <input type="text" id="custom-name" name="name" required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
@@ -179,21 +177,60 @@
         </div>
 
         <script>
-        // Contact form submission feedback
+        // Contact + custom request modal form submission
         (function() {
+          async function sendForm(mode, payload) {
+            const response = await fetch('/api/contact', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mode: mode, ...payload })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw new Error(data.error || 'Unable to send message right now.');
+            }
+            return data;
+          }
+
           var contactForm = document.getElementById('contact-form');
           var contactStatus = document.getElementById('contact-form-status');
           if (contactForm && contactStatus) {
-            contactForm.addEventListener('submit', function() {
+            contactForm.addEventListener('submit', async function(event) {
+              event.preventDefault();
               contactStatus.textContent = 'Sending your message...';
+              try {
+                await sendForm('contact', {
+                  name: document.getElementById('contact-name')?.value || '',
+                  email: document.getElementById('contact-email')?.value || '',
+                  message: document.getElementById('contact-message')?.value || ''
+                });
+                contactStatus.textContent = 'Thanks! Your message was sent.';
+                contactForm.reset();
+              } catch (err) {
+                contactStatus.textContent = err.message || 'Could not send message. Please try again.';
+              }
             });
           }
 
           var customForm = document.getElementById('custom-request-form');
           var customStatus = document.getElementById('custom-request-form-status');
           if (customForm && customStatus) {
-            customForm.addEventListener('submit', function() {
+            customForm.addEventListener('submit', async function(event) {
+              event.preventDefault();
               customStatus.textContent = 'Sending your request...';
+              try {
+                await sendForm('custom', {
+                  name: document.getElementById('custom-name')?.value || '',
+                  email: document.getElementById('custom-email')?.value || '',
+                  phone: document.getElementById('custom-phone')?.value || '',
+                  requestType: document.getElementById('custom-request-type')?.value || '',
+                  message: document.getElementById('custom-message')?.value || ''
+                });
+                customStatus.textContent = 'Thanks! Your custom request was sent.';
+                customForm.reset();
+              } catch (err) {
+                customStatus.textContent = err.message || 'Could not send request. Please try again.';
+              }
             });
           }
         })();
