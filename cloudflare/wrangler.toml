@@ -10,7 +10,7 @@ CANCEL_URL = "https://www.florencemaegifts.com/index.html"
 # Optional: map item names to fallback price ids if client doesn't send one.
 # ITEM_PRICE_MAP = '{"Example Item":"price_..."}'
 # Map digital item names to private R2 object keys for one-time download links.
-DOWNLOAD_FILE_MAP = '{"Four Star Ball Crochet Baby Hat Pattern - Beginner Level (PDF Download Only)":"Four Star Ball Baby Hat Crochet Pattern.pdf","Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)":"Crochet Baby Hat Pattern.pdf"}'
+DOWNLOAD_FILE_MAP = '{"Four Star Ball Crochet Baby Hat Pattern - Beginner Level (PDF Download Only)":"Four Star Ball Baby Hat Crochet Pattern.pdf","Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)":"Crochet Baby Hat Pattern.pdf","Gohan Inspired Hat Pattern - Beginner Level (PDF Download Only)":"Four Star Ball Baby Hat Crochet Pattern.pdf","Goku Inpsired Baby Hat Pattern - Beginner Level (PDF Download Only)":"Crochet Baby Hat Pattern.pdf"}'
 # Legacy fallback map (optional) for immediate in-browser success modal link.
 DOWNLOAD_LINK_MAP = '{}'
 # One-time link settings.
