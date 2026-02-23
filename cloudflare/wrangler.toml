@@ -20,6 +20,7 @@ DOWNLOAD_TOKEN_MAX_USES = "3"
 # Sender email must be a verified Resend domain/sender.
 RESEND_FROM_EMAIL = "Florence Mae Gifts <orders@florencemaegifts.com>"
 SUPPORT_EMAIL = "florencemaegifts@outlook.com"
+CONTACT_TO_EMAIL = "contact@florencemaegifts.com"
 
 [[r2_buckets]]
 binding = "DOWNLOADS_BUCKET"
