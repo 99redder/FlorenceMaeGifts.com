@@ -252,62 +252,6 @@
           </div>
         </div>
 
-        <div class="admin-collapsible-card" id="booking-controls-card">
-          <div class="admin-collapsible-head">
-            <h3 style="margin:0;">Admin Booking Controls</h3>
-            <button type="button" class="btn" id="booking-collapse-btn" aria-expanded="false">Expand</button>
-          </div>
-          <div id="booking-controls-body" class="admin-collapsible-body-collapsed">
-        <div class="admin-grid" style="margin-top:.7rem;">
-          <div>
-            <h3 style="margin:.1rem 0 .4rem;">Block / Unblock Slot</h3>
-            <div class="form-grid" style="margin-top:0;">
-              <div>
-                <label for="admin-date">Date</label>
-                <input id="admin-date" type="date" />
-              </div>
-              <div>
-                <label for="admin-time">Time Block</label>
-                <select id="admin-time">
-                  <option value="">Select block…</option>
-                </select>
-              </div>
-              <div class="full">
-                <label for="admin-reason">Reason (optional)</label>
-                <input id="admin-reason" placeholder="Unavailable / booked elsewhere" />
-              </div>
-            </div>
-            <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
-              <button type="button" class="btn btn-primary" id="admin-block-btn">Block Slot</button>
-              <button type="button" class="btn" id="admin-unblock-btn">Unblock Slot</button>
-              <button type="button" class="btn btn-primary" id="admin-block-day-btn">Block Entire Day</button>
-              <button type="button" class="btn" id="admin-unblock-day-btn">Unblock Day</button>
-              <button type="button" class="btn" id="admin-refresh-btn">Refresh</button>
-              <button type="button" class="btn delete" id="admin-cleanup-pending-btn">Clear Pending &gt; 5 Days</button>
-            </div>
-          </div>
-          <div>
-            <h3 style="margin:.1rem 0 .4rem;">Recent Bookings / Blocks</h3>
-            <div class="admin-list" id="admin-list">No data yet.</div>
-            <div class="admin-calendar-wrap">
-              <div class="admin-calendar-head">
-                <button type="button" class="btn" id="admin-cal-prev-btn">← Prev</button>
-                <div class="admin-calendar-title" id="admin-calendar-title">Availability Calendar</div>
-                <button type="button" class="btn" id="admin-cal-next-btn">Next →</button>
-              </div>
-              <div class="admin-calendar-grid" id="admin-calendar-grid"></div>
-              <div class="admin-legend">
-                <span><i class="admin-dot booked-openclaw"></i>OpenClaw</span>
-                <span><i class="admin-dot booked-lessons"></i>Lessons</span>
-                <span><i class="admin-dot blocked"></i>Blocked</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-          </div>
-        </div>
-
         <div class="admin-collapsible-card" id="tax-ledger-card" style="margin-top:1rem;">
           <div class="admin-collapsible-head">
             <h3 style="margin:0;">Tax Ledger</h3>
@@ -721,10 +665,7 @@
   <script>
 // ===== API URL Constants =====
     const CONTACT_API_URL = window.CONTACT_API_URL || `${window.location.origin}/api/contact`;
-    const BOOKINGS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/bookings');
-    const BLOCK_SLOT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/block-slot');
-    const BLOCK_DAY_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/block-day');
-    const CLEANUP_PENDING_BOOKINGS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/bookings/cleanup-pending');
+
     const TAX_TX_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/transactions');
     const TAX_EXPENSE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/expense');
     const TAX_INCOME_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/income');
@@ -751,8 +692,6 @@
     const adminSectionTabsEl = document.getElementById('admin-section-tabs');
     const adminSectionTabBtns = document.querySelectorAll('[data-admin-tab]');
 
-    const bookingCollapseBtn = document.getElementById('booking-collapse-btn');
-    const bookingControlsBody = document.getElementById('booking-controls-body');
     const taxCollapseBtn = document.getElementById('tax-collapse-btn');
     const taxLedgerBody = document.getElementById('tax-ledger-body');
     const accountsCollapseBtn = document.getElementById('accounts-collapse-btn');
@@ -872,20 +811,7 @@
     const taxCancelIncomeEditBtn = document.getElementById('tax-cancel-income-edit-btn');
     const taxClearIncomeBtn = document.getElementById('tax-clear-income-btn');
 
-    const adminDateEl = document.getElementById('admin-date');
-    const adminTimeEl = document.getElementById('admin-time');
-    const adminReasonEl = document.getElementById('admin-reason');
-    const adminListEl = document.getElementById('admin-list');
-    const adminCalendarGridEl = document.getElementById('admin-calendar-grid');
-    const adminCalendarTitleEl = document.getElementById('admin-calendar-title');
-    const adminCalPrevBtn = document.getElementById('admin-cal-prev-btn');
-    const adminCalNextBtn = document.getElementById('admin-cal-next-btn');
-    const adminBlockBtn = document.getElementById('admin-block-btn');
-    const adminUnblockBtn = document.getElementById('admin-unblock-btn');
-    const adminBlockDayBtn = document.getElementById('admin-block-day-btn');
-    const adminUnblockDayBtn = document.getElementById('admin-unblock-day-btn');
-    const adminRefreshBtn = document.getElementById('admin-refresh-btn');
-    const adminCleanupPendingBtn = document.getElementById('admin-cleanup-pending-btn');
+
 
     const successModal = document.getElementById('success-modal');
     const successTitle = document.getElementById('success-title');
@@ -913,22 +839,7 @@
     let blurMoneyEnabled = false;
 
     // ===== Time Slots =====
-    const TIME_SLOTS = [
-      { value: '10:00-12:00', label: '1000 - 1200' },
-      { value: '12:00-14:00', label: '1200 - 1400' },
-      { value: '14:00-16:00', label: '1400 - 1600' },
-      { value: '16:00-18:00', label: '1600 - 1800' },
-      { value: '18:00-20:00', label: '1800 - 2000' }
-    ];
 
-    function initAdminTimeDropdown() {
-      const opts = ['<option value="">Select block…</option>'];
-      for (const slot of TIME_SLOTS) {
-        opts.push(`<option value="${slot.value}">${slot.label}</option>`);
-      }
-      adminTimeEl.innerHTML = opts.join('');
-    }
-    initAdminTimeDropdown();
 
     // ===== Time Utilities =====
     function nowEtParts() {
@@ -2392,10 +2303,10 @@
     }
 
     function disableLegacyCollapse() {
-      [bookingCollapseBtn, taxCollapseBtn, accountsCollapseBtn, reconciliationCollapseBtn, yearCloseCollapseBtn, auditPackageCollapseBtn].forEach((btn) => {
+      [taxCollapseBtn, accountsCollapseBtn, reconciliationCollapseBtn, yearCloseCollapseBtn, auditPackageCollapseBtn].forEach((btn) => {
         if (btn) btn.style.display = 'none';
       });
-      [bookingControlsBody, taxLedgerBody, accountsBody, reconciliationBody, yearCloseBody, auditPackageBody].forEach((body) => {
+      [taxLedgerBody, accountsBody, reconciliationBody, yearCloseBody, auditPackageBody].forEach((body) => {
         body?.classList.remove('admin-collapsible-body-collapsed');
       });
     }
@@ -2407,7 +2318,8 @@
       const key = adminKeyEl.value.trim();
       if (!key) return;
       try {
-        const res = await fetch(`${BOOKINGS_API_URL}?limit=1`, {
+        const thisYear = String(new Date().getFullYear());
+        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(thisYear)}&type=all&limit=1`, {
           headers: { 'X-Admin-Password': key }
         });
         const data = await res.json();
@@ -2424,7 +2336,6 @@
         setAdminSectionTab('stats');
         loadBlurMoneyPref();
         markMoneyBlurTargets();
-        await loadAdminData();
         await loadTaxTransactions();
         await loadAccountsData();
       } catch (e) {
@@ -2435,24 +2346,6 @@
     // Also allow Enter key on password input
     adminKeyEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') adminUnlockBtn.click();
-    });
-
-    // ===== Booking Controls Event Listeners =====
-    adminBlockBtn.addEventListener('click', () => setBlockedSlot(true));
-    adminUnblockBtn.addEventListener('click', () => setBlockedSlot(false));
-    adminBlockDayBtn.addEventListener('click', () => setBlockedDay(true));
-    adminUnblockDayBtn.addEventListener('click', () => setBlockedDay(false));
-    adminRefreshBtn.addEventListener('click', loadAdminData);
-    adminCleanupPendingBtn?.addEventListener('click', cleanupOldPendingBookings);
-    adminCalPrevBtn?.addEventListener('click', () => {
-      const c = adminCalendarCursor || new Date();
-      adminCalendarCursor = new Date(c.getFullYear(), c.getMonth() - 1, 1);
-      loadAdminData();
-    });
-    adminCalNextBtn?.addEventListener('click', () => {
-      const c = adminCalendarCursor || new Date();
-      adminCalendarCursor = new Date(c.getFullYear(), c.getMonth() + 1, 1);
-      loadAdminData();
     });
 
     // ===== Tax Ledger Event Listeners =====
