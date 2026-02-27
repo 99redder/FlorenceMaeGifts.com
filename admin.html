@@ -991,37 +991,46 @@
     async function loadStatsData() {
       if (!adminUnlocked) return;
       const year = statsYearEl?.value || taxYearEl?.value || String(new Date().getFullYear());
-      const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed loading stats');
+
+      const seeded = {
+        '2023': { salesCount: 453, salesVolume: 14341.59, feesCosts: 0, monthly: null },
+        '2024': { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
+        '2025': { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
+      };
 
       const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
-      const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
-      const expenseRows = data.expenses || [];
-      const salesRows = incomeRows;
+      let salesCount = 0;
+      let salesVolume = 0;
+      let feesCosts = 0;
+      let monthly = Array.from({ length: 12 }, () => ({ cents: 0 }));
 
-      const monthly = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, cents: 0 }));
-      for (const r of salesRows) {
-        const m = Number(String(r.date || '').slice(5, 7));
-        if (m >= 1 && m <= 12) monthly[m - 1].cents += Number(r.amount_cents || 0);
+      if (seeded[year]) {
+        const s = seeded[year];
+        salesCount = Number(s.salesCount || 0);
+        salesVolume = Math.round(Number(s.salesVolume || 0) * 100);
+        feesCosts = Math.round(Number(s.feesCosts || 0) * 100);
+        if (Array.isArray(s.monthly)) {
+          monthly = s.monthly.map(v => ({ cents: Math.round(Number(v || 0) * 100) }));
+        }
+      } else {
+        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed loading stats');
+
+        const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
+        const expenseRows = data.expenses || [];
+        const salesRows = incomeRows;
+
+        for (const r of salesRows) {
+          const m = Number(String(r.date || '').slice(5, 7));
+          if (m >= 1 && m <= 12) monthly[m - 1].cents += Number(r.amount_cents || 0);
+        }
+        salesCount = salesRows.length;
+        salesVolume = salesRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
+        feesCosts = expenseRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
       }
 
-      const salesVolume = salesRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
-      const feesCosts = expenseRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
       const profit = salesVolume - feesCosts;
-
-      const productCounts = new Map();
-      const categoryCounts = new Map();
-      let patternDownloads = 0;
-      for (const r of salesRows) {
-        const src = String(r.source || 'Unknown').trim() || 'Unknown';
-        productCounts.set(src, (productCounts.get(src) || 0) + 1);
-        const cat = String(r.category || 'Other').trim() || 'Other';
-        categoryCounts.set(cat, (categoryCounts.get(cat) || 0) + 1);
-        if (src.toLowerCase().includes('pattern') || cat.toLowerCase().includes('pattern')) patternDownloads += 1;
-      }
-      const topProduct = [...productCounts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
-      const topCategory = [...categoryCounts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
 
       if (statsMonthlyTitleEl) statsMonthlyTitleEl.textContent = `Monthly Stats (${year})`;
       if (statsYearlyTitleEl) statsYearlyTitleEl.textContent = `${year} Stats`;
@@ -1029,14 +1038,16 @@
         const names = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
         statsMonthlyGridEl.innerHTML = monthly.map((m, i) => `<strong>${names[i]}</strong><strong class="money-blur-target">${money(m.cents)}</strong>`).join('');
       }
-      if (statsSalesCountEl) statsSalesCountEl.textContent = String(salesRows.length);
+      if (statsSalesCountEl) statsSalesCountEl.textContent = String(salesCount);
       if (statsSalesVolumeEl) statsSalesVolumeEl.textContent = money(salesVolume);
       if (statsFeesCostsEl) statsFeesCostsEl.textContent = money(feesCosts);
       if (statsProfitEl) statsProfitEl.textContent = money(profit);
-      if (statsProductsSoldEl) statsProductsSoldEl.textContent = String(salesRows.length);
-      if (statsTopProductEl) statsTopProductEl.textContent = topProduct;
-      if (statsTopCategoryEl) statsTopCategoryEl.textContent = topCategory;
-      if (statsPatternDownloadsEl) statsPatternDownloadsEl.textContent = String(patternDownloads);
+
+      // Item stats intentionally deferred until LLC cutover day.
+      if (statsProductsSoldEl) statsProductsSoldEl.textContent = '—';
+      if (statsTopProductEl) statsTopProductEl.textContent = 'Pending LLC cutover';
+      if (statsTopCategoryEl) statsTopCategoryEl.textContent = 'Pending LLC cutover';
+      if (statsPatternDownloadsEl) statsPatternDownloadsEl.textContent = '—';
       markMoneyBlurTargets();
     }
 
