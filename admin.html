@@ -63,6 +63,24 @@
     .form-grid > * { min-width:0; overflow:hidden; }
     .full { grid-column:1 / -1; }
     input, textarea, select { width:100%; min-width:0; max-width:100%; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); padding:.65rem .7rem; font:inherit; }
+    input[type="file"] { padding:.4rem .5rem; }
+    input[type="file"]::file-selector-button {
+      border:1px solid #FE6666;
+      background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%);
+      color:#000;
+      border-radius:8px;
+      padding:.45rem .8rem;
+      margin-right:.6rem;
+      font:inherit;
+      cursor:pointer;
+    }
+    input[type="file"]::file-selector-button:hover {
+      border-color:var(--violet);
+      box-shadow:0 0 0 2px rgba(255,102,153,.25);
+    }
+    body.dark-theme input[type="file"]::file-selector-button {
+      color:#fff;
+    }
     textarea { min-height:120px; resize:vertical; }
     .form-actions { display:flex; justify-content:flex-end; margin-top:.9rem; }
     .btn.delete { border-color:#5a2222; color:#ff9b9b; }
