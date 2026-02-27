@@ -2468,6 +2468,14 @@
         openErrorModal('Preview transactions first.');
         return;
       }
+
+      const importBtn = taxImportEtsyCsvBtn;
+      const prevText = importBtn?.textContent || 'Import Transactions';
+      if (importBtn) {
+        importBtn.disabled = true;
+        importBtn.textContent = 'Importing…';
+      }
+
       try {
         for (const s of pendingEtsyImportSales) {
           await postTaxIncomeEntry({ date: s.isoDate, source: s.title || 'Etsy Sale', category: 'Product Sale', amount: s.amount, notes: 'Imported from Etsy statement CSV' });
@@ -2479,6 +2487,7 @@
         const cExp = pendingEtsyImportExpenses.length;
         pendingEtsyImportSales = [];
         pendingEtsyImportExpenses = [];
+        if (taxSaleImportPreviewEl) taxSaleImportPreviewEl.textContent = 'Import complete. Run a new preview to import another file.';
 
         await loadTaxTransactions();
         await loadAccountsData();
@@ -2486,6 +2495,11 @@
         openSuccessModal(`Etsy import complete: ${cSales} sales, ${cExp} expenses.`, 'Import Complete ✅');
       } catch (err) {
         openErrorModal(`Etsy import failed: ${err.message || err}`);
+      } finally {
+        if (importBtn) {
+          importBtn.disabled = false;
+          importBtn.textContent = prevText;
+        }
       }
     }
 
