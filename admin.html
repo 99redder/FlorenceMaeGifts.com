@@ -2437,7 +2437,28 @@
         parsed.push({ isoDate, type, title, amount, fee, net });
       }
 
-      pendingEtsyImportSales = parsed.filter(p => p.type === 'Sale' && p.amount > 0);
+      const extractOrderId = (txt) => {
+        const m = String(txt || '').match(/Order\s*#(\d+)/i);
+        return m ? m[1] : null;
+      };
+
+      const taxByOrder = new Map();
+      for (const p of parsed) {
+        if (p.type === 'Tax' && /sales tax paid by buyer/i.test(p.title || '') && p.fee < 0) {
+          const oid = extractOrderId(p.title);
+          if (oid) taxByOrder.set(oid, (taxByOrder.get(oid) || 0) + Math.abs(p.fee));
+        }
+      }
+
+      pendingEtsyImportSales = parsed
+        .filter(p => p.type === 'Sale' && p.amount > 0)
+        .map((p) => {
+          const oid = extractOrderId(p.title);
+          const tax = oid ? Number(taxByOrder.get(oid) || 0) : 0;
+          const netSale = Math.max(0, Number(p.amount || 0) - tax);
+          return { ...p, orderId: oid, taxDeducted: tax, netAmount: netSale };
+        });
+
       pendingEtsyImportExpenses = [];
       for (const p of parsed) {
         if (p.type === 'Shipping' && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Shipping Costs', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
@@ -2447,14 +2468,16 @@
         if (p.type === 'Fee' && /processing fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Payment Processing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
       }
 
-      const salesTotal = pendingEtsyImportSales.reduce((s, r) => s + Number(r.amount || 0), 0);
+      const salesGross = pendingEtsyImportSales.reduce((s, r) => s + Number(r.amount || 0), 0);
+      const salesTax = pendingEtsyImportSales.reduce((s, r) => s + Number(r.taxDeducted || 0), 0);
+      const salesTotal = pendingEtsyImportSales.reduce((s, r) => s + Number(r.netAmount || 0), 0);
       const expTotal = pendingEtsyImportExpenses.reduce((s, r) => s + Number(r.amount || 0), 0);
 
       if (taxSaleImportPreviewEl) {
-        const allSales = pendingEtsyImportSales.map(s => `<div>${escHtml(s.isoDate)} | SALE | ${escHtml(s.title || 'Etsy Sale')} | $${Number(s.amount||0).toFixed(2)}</div>`).join('');
+        const allSales = pendingEtsyImportSales.map(s => `<div>${escHtml(s.isoDate)} | SALE | ${escHtml(s.title || 'Etsy Sale')} | Gross $${Number(s.amount||0).toFixed(2)} | Tax -$${Number(s.taxDeducted||0).toFixed(2)} | Net $${Number(s.netAmount||0).toFixed(2)}</div>`).join('');
         const allExp = pendingEtsyImportExpenses.map(e => `<div>${escHtml(e.date)} | ${escHtml(e.category)} | $${Number(e.amount||0).toFixed(2)}</div>`).join('');
         taxSaleImportPreviewEl.innerHTML = `
-          <div><strong>Ready to Import</strong> — Sales: ${pendingEtsyImportSales.length} ($${salesTotal.toFixed(2)}) | Expenses: ${pendingEtsyImportExpenses.length} ($${expTotal.toFixed(2)})</div>
+          <div><strong>Ready to Import</strong> — Sales: ${pendingEtsyImportSales.length} (Gross $${salesGross.toFixed(2)} | Tax -$${salesTax.toFixed(2)} | Net $${salesTotal.toFixed(2)}) | Expenses: ${pendingEtsyImportExpenses.length} ($${expTotal.toFixed(2)})</div>
           <div style="margin-top:.35rem;"><strong>Sales Transactions</strong>${allSales || '<div>None</div>'}</div>
           <div style="margin-top:.35rem;"><strong>Expense Transactions</strong>${allExp || '<div>None</div>'}</div>
         `;
@@ -2478,7 +2501,13 @@
 
       try {
         for (const s of pendingEtsyImportSales) {
-          await postTaxIncomeEntry({ date: s.isoDate, source: s.title || 'Etsy Sale', category: 'Product Sale', amount: s.amount, notes: 'Imported from Etsy statement CSV' });
+          await postTaxIncomeEntry({
+            date: s.isoDate,
+            source: s.title || 'Etsy Sale',
+            category: 'Product Sale',
+            amount: s.netAmount,
+            notes: `Imported from Etsy statement CSV${s.taxDeducted ? ` (sales tax removed: $${Number(s.taxDeducted).toFixed(2)})` : ''}`
+          });
         }
         for (const e of pendingEtsyImportExpenses) {
           await postTaxExpenseEntry(e);
