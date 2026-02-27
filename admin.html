@@ -160,7 +160,7 @@
         </div>
         <div style="display:flex; gap:.45rem; align-items:center; margin-top:.1rem;">
           <button type="button" class="btn" id="admin-theme-btn">Theme: Light</button>
-          <button type="button" class="btn" id="admin-blur-amounts-btn">Blur $: Off</button>
+          <button type="button" class="btn" id="admin-blur-amounts-btn" title="Toggle amount blur" aria-label="Toggle amount blur">👁️</button>
           <button type="button" class="btn" id="admin-user-guide-top-btn">User Guide</button>
         </div>
       </div>
@@ -968,7 +968,9 @@
       blurMoneyEnabled = !!on;
       document.body.classList.toggle('money-blur-on', blurMoneyEnabled);
       if (adminBlurAmountsBtn) {
-        adminBlurAmountsBtn.textContent = blurMoneyEnabled ? 'Blur $: On' : 'Blur $: Off';
+        adminBlurAmountsBtn.textContent = blurMoneyEnabled ? '🙈' : '👁️';
+        adminBlurAmountsBtn.title = blurMoneyEnabled ? 'Amount blur: On' : 'Amount blur: Off';
+        adminBlurAmountsBtn.setAttribute('aria-label', blurMoneyEnabled ? 'Amount blur on' : 'Amount blur off');
         adminBlurAmountsBtn.classList.toggle('active', blurMoneyEnabled);
       }
       try { localStorage.setItem('esa_blur_money', blurMoneyEnabled ? '1' : '0'); } catch {}
