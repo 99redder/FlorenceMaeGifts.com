@@ -197,11 +197,59 @@
 
       <div class="admin-controls" id="admin-controls" style="padding:0 1rem 1rem;">
         <div class="admin-section-tabs" id="admin-section-tabs">
-          <button type="button" class="btn active" data-admin-tab="tax">Tax Ledger</button>
+          <button type="button" class="btn active" data-admin-tab="stats">Stats</button>
+          <button type="button" class="btn" data-admin-tab="tax">Tax Ledger</button>
           <button type="button" class="btn" data-admin-tab="accounts">Accounts</button>
           <button type="button" class="btn" data-admin-tab="reconciliation">Reconciliation</button>
           <button type="button" class="btn" data-admin-tab="year-close">Year-End Close</button>
           <button type="button" class="btn" data-admin-tab="audit-package">Audit Package</button>
+        </div>
+
+        <div class="admin-collapsible-card" id="stats-card">
+          <div class="admin-collapsible-head">
+            <h3 style="margin:0;">Stats</h3>
+          </div>
+          <div id="stats-body">
+            <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+              <div class="admin-grid" style="grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem;">
+                <div class="admin-calendar-wrap" style="margin:0; background:#d9f5d2; color:#1f2324;">
+                  <div class="admin-calendar-title" style="color:#1f2324;">Monthly Stats (2026)</div>
+                  <div style="display:grid; grid-template-columns:1fr auto; gap:.2rem .6rem; font-size:.92rem; margin-top:.4rem;">
+                    <strong>JAN</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>FEB</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>MAR</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>APR</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>MAY</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>JUN</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>JUL</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>AUG</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>SEP</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>OCT</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>NOV</strong><strong class="money-blur-target">$0.00</strong>
+                    <strong>DEC</strong><strong class="money-blur-target">$0.00</strong>
+                  </div>
+                </div>
+
+                <div class="admin-calendar-wrap" style="margin:0; background:#d9f5d2; color:#1f2324;">
+                  <div class="admin-calendar-title" style="color:#1f2324;">2026 Stats</div>
+                  <div class="tax-summary-line"><span>Total Number of Sales</span><strong>0</strong></div>
+                  <div class="tax-summary-line"><span>Total Sales Volume</span><strong class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Fees and Costs</span><strong class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid #9cc99f; padding-top:.4rem;"><span>Profit</span><strong class="money-blur-target">$0.00</strong></div>
+                  <p style="margin:.65rem 0 0; font-size:.86rem; color:#3d4648;">No sales yet (LLC cutover pending). This card will auto-populate once transactions are added.</p>
+                </div>
+
+                <div class="admin-calendar-wrap" style="margin:0; background:#d9f5d2; color:#1f2324;">
+                  <div class="admin-calendar-title" style="color:#1f2324;">Item Stats</div>
+                  <div class="tax-summary-line"><span>Total Products Sold</span><strong>0</strong></div>
+                  <div class="tax-summary-line"><span>Top Product</span><strong>—</strong></div>
+                  <div class="tax-summary-line"><span>Top Category</span><strong>—</strong></div>
+                  <div class="tax-summary-line"><span>Pattern Downloads</span><strong>0</strong></div>
+                  <p style="margin:.65rem 0 0; font-size:.86rem; color:#3d4648;">Use this as your quick dashboard once live sales start.</p>
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
 
         <div class="admin-collapsible-card" id="booking-controls-card">
@@ -861,7 +909,7 @@
     let editingExpenseId = null;
     let editingIncomeId = null;
     let activeAccountsTab = 'balances';
-    let activeAdminSectionTab = 'tax';
+    let activeAdminSectionTab = 'stats';
     let blurMoneyEnabled = false;
 
     // ===== Time Slots =====
@@ -2334,6 +2382,7 @@
       activeAdminSectionTab = tab;
       adminSectionTabBtns.forEach((btn) => btn.classList.toggle('active', btn.getAttribute('data-admin-tab') === tab));
       const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+      show('stats-card', tab === 'stats');
       show('booking-controls-card', false);
       show('tax-ledger-card', tab === 'tax');
       show('accounts-card', tab === 'accounts');
@@ -2372,7 +2421,7 @@
         initAccountsUiDefaults();
         setAccountsTab('balances');
         disableLegacyCollapse();
-        setAdminSectionTab('tax');
+        setAdminSectionTab('stats');
         loadBlurMoneyPref();
         markMoneyBlurTargets();
         await loadAdminData();
