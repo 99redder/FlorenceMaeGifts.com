@@ -2,6 +2,11 @@ name = "fmg-stripe-api"
 main = "src/worker.js"
 compatibility_date = "2026-02-12"
 
+[[d1_databases]]
+binding = "DB"
+database_name = "florence-mae-gifts-admin"
+database_id = "381735a9-b25c-4f5d-9e21-24db3b997d10"
+
 [vars]
 ALLOWED_ORIGIN = "https://www.florencemaegifts.com"
 SUCCESS_URL = "https://www.florencemaegifts.com/index.html?checkout=success"
