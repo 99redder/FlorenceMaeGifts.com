@@ -31,7 +31,7 @@
 
     /* ===== Cards, Buttons & Forms ===== */
     .card { background:var(--card); border:1px solid var(--line); border-radius:0; padding:1rem; overflow-x:clip; }
-    h1, h2, h3, h4 { font-family:'Titillium Web', system-ui, sans-serif; }
+    h1, h2, h3, h4 { font-family:'Lora', serif; }
     h1 { margin:.2rem 0 .6rem; color:var(--cyan); }
     h3 { font-size:1.25rem; }
     h4 { font-size:1.05rem; }
@@ -41,6 +41,12 @@
     body.dark-theme .btn { background:var(--card); }
     .btn:hover, label.btn:hover { border-color:var(--violet); box-shadow:0 0 0 2px rgba(255,102,153,.25); }
     .btn-primary { background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%); border-color:#FE6666; color:#000; box-shadow:0 3px 8px rgba(254,102,102,.22); }
+    body.dark-theme #admin-unlock-btn {
+      background:var(--card);
+      border-color:var(--line);
+      color:var(--text);
+      box-shadow:none;
+    }
     body.dark-theme .tx-entry-mode-btn,
     body.dark-theme #tax-manage-categories-btn {
       color:#fff;
@@ -212,7 +218,7 @@
               <div class="admin-grid" style="grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem;">
                 <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
                   <div class="admin-calendar-title" id="stats-monthly-title" style="color:var(--stats-text);">Monthly Stats</div>
-                  <div id="stats-monthly-grid" style="display:grid; grid-template-columns:auto auto; column-gap:.65rem; row-gap:.24rem; font-size:.92rem; margin-top:.4rem; align-items:center; justify-content:start;">No data yet.</div>
+                  <div id="stats-monthly-grid" style="display:grid; grid-template-columns:auto auto; column-gap:1rem; row-gap:.24rem; font-size:.92rem; margin-top:.4rem; align-items:center; justify-content:start;">No data yet.</div>
                 </div>
 
                 <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
@@ -1083,7 +1089,7 @@
         const header = `<strong>Month</strong>${yoy.map(y => `<strong>${y.year}</strong>`).join('')}`;
         const rows = monthNames.map((name, idx) => `<strong>${name}</strong>${yoy.map(y => `<strong class="money-blur-target">${money(y.monthlyCents[idx])}</strong>`).join('')}`).join('');
         statsMonthlyGridEl.style.gridTemplateColumns = `auto repeat(${yoy.length}, auto)`;
-        statsMonthlyGridEl.style.columnGap = '.65rem';
+        statsMonthlyGridEl.style.columnGap = '1rem';
         statsMonthlyGridEl.style.rowGap = '.24rem';
         statsMonthlyGridEl.style.justifyContent = 'start';
         statsMonthlyGridEl.innerHTML = header + rows;
