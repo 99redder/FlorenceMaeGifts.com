@@ -12,8 +12,8 @@
   <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     /* ===== Theme & CSS Variables ===== */
-    :root { --bg:#f5f7fb; --bg2:#edf1f7; --card:#ffffff; --card-soft:#e9eef6; --text:#1f2937; --muted:#6b7280; --cyan:#2563eb; --line:#cfd8e3; --violet:#7c3aed; --stats-bg:#eef3fb; --stats-text:#1f2937; }
-    body.dark-theme { --bg:#0f172a; --bg2:#111827; --card:#1f2937; --card-soft:#273449; --text:#e5e7eb; --muted:#9ca3af; --cyan:#60a5fa; --line:#374151; --violet:#a78bfa; --stats-bg:#243246; --stats-text:#e5e7eb; }
+    :root { --bg:#f3faf5; --bg2:#eaf6ee; --card:#ffffff; --card-soft:#e4f1e8; --text:#1f2d24; --muted:#5d7265; --cyan:#1f8f4d; --line:#c7dfcf; --violet:#2ea85d; --stats-bg:#edf7f0; --stats-text:#1f2d24; }
+    body.dark-theme { --bg:#0f1a14; --bg2:#132119; --card:#1b2a21; --card-soft:#22362a; --text:#e6f3ea; --muted:#9fb7a7; --cyan:#57c77f; --line:#355343; --violet:#7fda9f; --stats-bg:#24392c; --stats-text:#e6f3ea; }
 
     * { box-sizing:border-box; }
     html { scroll-behavior:smooth; overflow-x:hidden; max-width:100vw; }
@@ -39,8 +39,8 @@
     label { display:block; font-size:1rem; color:var(--muted); margin-bottom:.25rem; }
     .btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:8px; padding:.75rem 1.2rem; cursor:pointer; font-weight:600; font-family:'Lora', serif; transition:background 0.15s, color 0.15s, border-color 0.15s, box-shadow .15s; font-size:1rem; }
     body.dark-theme .btn { background:var(--card); }
-    .btn:hover, label.btn:hover { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(37,99,235,.2); }
-    .btn-primary { background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border-color:#1d4ed8; color:#fff; box-shadow:0 3px 8px rgba(37,99,235,.24); }
+    .btn:hover, label.btn:hover { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(31,143,77,.2); }
+    .btn-primary { background:linear-gradient(135deg, #1f8f4d 0%, #2ea85d 100%); border-color:#1f8f4d; color:#fff; box-shadow:0 3px 8px rgba(31,143,77,.24); }
     .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin-top:.7rem; }
     .form-grid > * { min-width:0; overflow:hidden; }
     .full { grid-column:1 / -1; }
@@ -82,7 +82,7 @@
     .tax-row .amt { color:var(--text); font-weight:700; }
     .tax-row .edit { padding:.35rem .75rem; font-size:.95rem; }
     .tax-row .delete { padding:.35rem .75rem; font-size:.95rem; border-color:#5a2222; color:#ff9b9b; }
-    .btn.tx-filter-btn.active { background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border-color:#1d4ed8; color:#fff; }
+    .btn.tx-filter-btn.active { background:linear-gradient(135deg, #1f8f4d 0%, #2ea85d 100%); border-color:#1f8f4d; color:#fff; }
     .admin-calendar-wrap { margin-top:.7rem; border:1px solid var(--line); border-radius:8px; background:var(--card); padding:1rem; }
     .tax-summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
     .tax-summary-col { border:1px solid var(--line); border-radius:8px; padding:.6rem; background:var(--card); }
@@ -99,8 +99,8 @@
       box-shadow:none;
     }
     body.dark-theme .admin-section-tabs .btn { border-color:var(--line); background:var(--card); color:var(--text); }
-    .admin-section-tabs .btn:hover { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(37,99,235,.2); }
-    .admin-section-tabs .btn.active { border-color:#1d4ed8; background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color:#fff; box-shadow:0 4px 10px rgba(37,99,235,.28); }
+    .admin-section-tabs .btn:hover { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(31,143,77,.2); }
+    .admin-section-tabs .btn.active { border-color:#1f8f4d; background:linear-gradient(135deg, #1f8f4d 0%, #2ea85d 100%); color:#fff; box-shadow:0 4px 10px rgba(31,143,77,.28); }
 
     .money-blur-on .money-blur-target { filter: blur(6px); transition: filter .15s ease; user-select: none; }
 
