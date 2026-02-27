@@ -1,0 +1,2608 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Admin — Florence Mae Gifts</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/fonts.css" />
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <style>
+    /* ===== Theme & CSS Variables ===== */
+    :root { --bg:#0a0b10; --bg2:#10121a; --card:#141620; --text:#d8dce8; --muted:#7a7e96; --cyan:#00e5ff; --line:#222438; --violet:#c850ff; }
+
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; overflow-x:hidden; max-width:100vw; }
+    body { margin:0; font-family:'Titillium Web',system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--text);
+      background:var(--bg); overflow-x:hidden; max-width:100vw; font-size:1.08rem; }
+    main { display:block; overflow-x:hidden; position:relative; width:100%; }
+    .container { max-width:1440px; margin:0 auto; padding:1.2rem; overflow-x:clip; }
+    a { color:#ff4fd8; text-shadow:0 0 8px rgba(255,79,216,0.35); }
+
+    /* ===== Battle-Damaged Hull Edges (clip-path) ===== */
+    .card,
+    .success-modal,
+    .admin-calendar-wrap,
+    .admin-lock {
+      clip-path: polygon(
+        0 8px,
+        8px 0,
+        35% 0,
+        35.5% 4px,
+        37% 0,
+        calc(100% - 12px) 0,
+        100% 12px,
+        100% 65%,
+        calc(100% - 3px) 66%,
+        100% 67.5%,
+        100% calc(100% - 6px),
+        calc(100% - 6px) 100%,
+        62% 100%,
+        61.5% calc(100% - 3px),
+        60% 100%,
+        10px 100%,
+        0 calc(100% - 10px),
+        3px calc(100% - 14px),
+        0 calc(100% - 18px)
+      );
+      border-radius: 0 !important;
+    }
+    .btn, .btn-primary { clip-path: none; }
+
+    /* ===== Cards, Buttons & Forms ===== */
+    .card { background:var(--card); border:1px solid var(--line); border-radius:0; padding:1rem; overflow-x:clip; }
+    h1, h2, h3, h4 { font-family:'Titillium Web', system-ui, sans-serif; }
+    h1 { margin:.2rem 0 .6rem; color:var(--cyan); }
+    h3 { font-size:1.25rem; }
+    h4 { font-size:1.05rem; }
+    p { color:var(--muted); line-height:1.6; }
+    label { display:block; font-size:1rem; color:var(--muted); margin-bottom:.25rem; }
+    .btn { border:1px solid var(--line); background:transparent; color:var(--text); border-radius:2px; padding:.75rem 1.2rem; cursor:pointer; font-weight:600; font-family:'Titillium Web', system-ui, sans-serif; transition:background 0.15s, color 0.15s, border-color 0.15s; font-size:1rem; }
+    label.btn:hover { background:rgba(255,79,216,0.12); color:#ff4fd8; border-color:#ff4fd8; }
+    .btn-primary { background:linear-gradient(145deg,#ff4fd8,#cc3fb0); border-color:#ff4fd8; color:#fff; box-shadow:0 0 16px rgba(255,79,216,0.35); }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin-top:.7rem; }
+    .form-grid > * { min-width:0; overflow:hidden; }
+    .full { grid-column:1 / -1; }
+    input, textarea, select { width:100%; min-width:0; max-width:100%; border:1px solid var(--line); border-radius:2px; background:#10121a; color:var(--text); padding:.65rem .7rem; font:inherit; }
+    textarea { min-height:120px; resize:vertical; }
+    .form-actions { display:flex; justify-content:flex-end; margin-top:.9rem; }
+    .btn.delete { border-color:#5a2222; color:#ff9b9b; }
+
+    /* ===== Site Header ===== */
+
+    /* ===== Success / Error / Confirm Modals ===== */
+    .success-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; padding:1rem; z-index:1200; }
+    .success-modal-overlay.active { display:flex; }
+    #tax-category-modal { z-index:1250; }
+    #tax-category-edit-modal { z-index:1300; }
+    #confirm-modal, #success-modal, #error-modal { z-index:1400; }
+    .success-modal { width:min(560px,96vw); background:linear-gradient(160deg, #141620, #10121a); border:1px solid var(--line); border-radius:0; padding:1rem; }
+    .success-modal h3 { margin:.1rem 0 .4rem; color:var(--cyan); }
+    .success-modal p { margin:.45rem 0; }
+    .error-modal h3 { color:var(--violet); }
+
+    /* ===== Admin Panel ===== */
+    .admin-panel { margin-top:1rem; }
+    .admin-lock { border:1px solid var(--line); border-radius:2px; padding:.75rem; background:#10121a; margin-top:.6rem; }
+    .admin-controls { display:none; margin-top:.8rem; }
+    .admin-controls.active { display:block; }
+    .admin-collapsible-card { border:1px solid var(--line); border-radius:2px; padding:.85rem; background:#10121a; }
+    .admin-collapsible-head { display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.35rem; }
+    .admin-collapsible-body-collapsed { display:none; }
+    .admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
+    .admin-list { max-height:520px; overflow:auto; border:1px solid var(--line); border-radius:2px; padding:.4rem; background:#10121a; font-size:1rem; color:var(--muted); }
+    .admin-row { display:flex; }
+
+    /* ===== Tax Ledger ===== */
+    .tax-row { display:grid; grid-template-columns:auto 1fr auto auto; gap:.45rem; align-items:center; padding:.55rem .5rem; border-bottom:1px dashed var(--line); gap:.6rem; }
+    .tax-row:last-child { border-bottom:none; }
+    .tax-row .type { font-size:.85rem; padding:.1rem .4rem; border:1px solid var(--line); border-radius:999px; color:var(--text); }
+    .tax-row .desc { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tax-row .amt { color:var(--text); font-weight:700; }
+    .tax-row .edit { padding:.35rem .75rem; font-size:.95rem; }
+    .tax-row .delete { padding:.35rem .75rem; font-size:.95rem; border-color:#5a2222; color:#ff9b9b; }
+    .btn.tx-filter-btn.active { background:linear-gradient(145deg,var(--cyan),#007ab5); border-color:var(--cyan); color:#000; }
+    .admin-calendar-wrap { margin-top:.7rem; border:1px solid var(--line); border-radius:2px; background:#10121a; padding:1rem; }
+    .tax-summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+    .tax-summary-col { border:1px solid var(--line); border-radius:2px; padding:.6rem; background:#141620; }
+    .tax-summary-col h4 { margin:.1rem 0 .45rem; color:var(--cyan); font-size:1rem; }
+    .tax-summary-line { display:flex; justify-content:space-between; gap:.6rem; padding:.12rem 0; color:var(--muted); }
+    .tax-summary-line strong { color:var(--text); font-weight:700; }
+    .tax-entry-wrap { margin-top:1rem; }
+
+    .admin-section-tabs { display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:.7rem; }
+    .admin-section-tabs .btn {
+      border-color:#1c4f8f;
+      background:linear-gradient(145deg,#0f2f57,#1f4f90);
+      color:#d9ecff;
+      box-shadow:0 0 10px rgba(31,79,144,.35);
+    }
+    .admin-section-tabs .btn:hover {
+      background:linear-gradient(145deg,#164277,#2a66b0);
+      border-color:#3d7bc6;
+    }
+    .admin-section-tabs .btn.active { border-color:#7bb6ff; box-shadow:0 0 12px rgba(123,182,255,.45); }
+
+    .money-blur-on .money-blur-target { filter: blur(6px); transition: filter .15s ease; user-select: none; }
+
+    .bs-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem; }
+    .bs-card { border:1px solid var(--line); border-radius:4px; background:#141620; padding:.55rem; }
+    .bs-card h4 { margin:.1rem 0 .45rem; color:var(--cyan); font-size:1rem; }
+    .bs-line { display:flex; justify-content:space-between; gap:.5rem; padding:.12rem 0; }
+    .bs-total { margin-top:.35rem; padding-top:.35rem; border-top:1px solid var(--line); display:flex; justify-content:space-between; font-weight:700; }
+
+    /* ===== Admin Calendar ===== */
+    .admin-calendar-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; gap:.45rem; }
+    .admin-calendar-title { font-size:1.05rem; color:var(--cyan); }
+    .admin-calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.25rem; }
+    .admin-cal-dow { font-size:.85rem; color:var(--muted); text-align:center; padding:.2rem 0; }
+    .admin-cal-day { min-height:58px; border:1px solid var(--line); border-radius:2px; padding:.25rem; font-size:.85rem; color:var(--text); position:relative; background:#141620; }
+    .admin-cal-day.empty { background:transparent; border-color:transparent; }
+    .admin-cal-day-num { font-size:.85rem; }
+    .admin-cal-dots { position:absolute; left:.25rem; right:.25rem; bottom:.25rem; display:flex; gap:.2rem; flex-wrap:wrap; }
+    .admin-dot { width:7px; height:7px; border-radius:50%; }
+    .admin-dot.booked-openclaw { background:#ff5555; }
+    .admin-dot.booked-lessons { background:#c850ff; }
+    .admin-dot.blocked { background:#ffaa2a; }
+    .admin-legend { display:flex; gap:.7rem; align-items:center; margin-top:.5rem; color:var(--muted); font-size:.92rem; }
+    .admin-legend span { display:inline-flex; align-items:center; gap:.3rem; }
+
+    /* ===== Responsive: 760px ===== */
+    @media (max-width: 760px) {
+      .admin-grid { grid-template-columns:1fr; }
+      .form-grid { grid-template-columns:1fr; }
+      .tax-summary-grid { grid-template-columns:1fr; }
+      .bs-grid { grid-template-columns:1fr; }
+      .admin-section-tabs { gap:.3rem; }
+      .container { padding:0.8rem; }
+      .admin-cal-day { min-height:38px; }
+      .admin-calendar-grid { gap:0.15rem; }
+      input, textarea, select { font-size:16px; }
+    }
+
+    @media (max-width: 480px) {
+      .card { padding:0.65rem; }
+      .container { padding:0.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+<main>
+  <div class="container">
+
+    <!-- ===== SECTION: Admin Panel ===== -->
+    <section class="card admin-panel" id="admin-panel" style="padding:0; overflow:hidden;">
+      <img src="/logo.jpg" alt="" aria-hidden="true" style="width:100%; aspect-ratio:32/5; object-fit:cover; object-position:center; display:block;" />
+      <div style="padding:1.5rem 2rem 0; display:flex; justify-content:space-between; align-items:flex-start; gap:.8rem; flex-wrap:wrap;">
+        <div>
+          <h2 style="margin:0 0 0.25rem;">Florence Mae Gifts</h2>
+          <p style="margin:0 0 1rem; color:var(--muted); font-size:0.9rem; letter-spacing:.06em; text-transform:uppercase;">Administrative Access</p>
+        </div>
+        <div style="display:flex; gap:.45rem; align-items:center; margin-top:.1rem;">
+          <button type="button" class="btn" id="admin-blur-amounts-btn">Blur $: Off</button>
+          <button type="button" class="btn" id="admin-user-guide-top-btn">User Guide</button>
+        </div>
+      </div>
+      <div class="admin-lock" id="admin-lock" style="padding:1rem 1rem 2.5rem; margin:0 1rem;">
+        <div style="display:flex; flex-direction:column; gap:1rem; width:320px; margin:0 auto;">
+          <label for="admin-key" style="font-size:1.1rem; color:var(--cyan); letter-spacing:.08em; text-align:center;">Admin Password</label>
+          <input id="admin-key" type="password" placeholder="Enter admin password" style="font-size:1rem; padding:.6rem .9rem;" />
+          <button type="button" class="btn btn-primary" id="admin-unlock-btn" style="font-size:1.15rem; padding:.85rem 2rem; letter-spacing:.06em;">Login</button>
+        </div>
+      </div>
+
+      <div class="admin-controls" id="admin-controls" style="padding:0 1rem 1rem;">
+        <div class="admin-section-tabs" id="admin-section-tabs">
+          <button type="button" class="btn active" data-admin-tab="booking">Booking Controls</button>
+          <button type="button" class="btn" data-admin-tab="tax">Tax Ledger</button>
+          <button type="button" class="btn" data-admin-tab="accounts">Accounts</button>
+          <button type="button" class="btn" data-admin-tab="reconciliation">Reconciliation</button>
+          <button type="button" class="btn" data-admin-tab="year-close">Year-End Close</button>
+          <button type="button" class="btn" data-admin-tab="audit-package">Audit Package</button>
+        </div>
+
+        <div class="admin-collapsible-card" id="booking-controls-card">
+          <div class="admin-collapsible-head">
+            <h3 style="margin:0;">Admin Booking Controls</h3>
+            <button type="button" class="btn" id="booking-collapse-btn" aria-expanded="false">Expand</button>
+          </div>
+          <div id="booking-controls-body" class="admin-collapsible-body-collapsed">
+        <div class="admin-grid" style="margin-top:.7rem;">
+          <div>
+            <h3 style="margin:.1rem 0 .4rem;">Block / Unblock Slot</h3>
+            <div class="form-grid" style="margin-top:0;">
+              <div>
+                <label for="admin-date">Date</label>
+                <input id="admin-date" type="date" />
+              </div>
+              <div>
+                <label for="admin-time">Time Block</label>
+                <select id="admin-time">
+                  <option value="">Select block…</option>
+                </select>
+              </div>
+              <div class="full">
+                <label for="admin-reason">Reason (optional)</label>
+                <input id="admin-reason" placeholder="Unavailable / booked elsewhere" />
+              </div>
+            </div>
+            <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary" id="admin-block-btn">Block Slot</button>
+              <button type="button" class="btn" id="admin-unblock-btn">Unblock Slot</button>
+              <button type="button" class="btn btn-primary" id="admin-block-day-btn">Block Entire Day</button>
+              <button type="button" class="btn" id="admin-unblock-day-btn">Unblock Day</button>
+              <button type="button" class="btn" id="admin-refresh-btn">Refresh</button>
+              <button type="button" class="btn delete" id="admin-cleanup-pending-btn">Clear Pending &gt; 5 Days</button>
+            </div>
+          </div>
+          <div>
+            <h3 style="margin:.1rem 0 .4rem;">Recent Bookings / Blocks</h3>
+            <div class="admin-list" id="admin-list">No data yet.</div>
+            <div class="admin-calendar-wrap">
+              <div class="admin-calendar-head">
+                <button type="button" class="btn" id="admin-cal-prev-btn">← Prev</button>
+                <div class="admin-calendar-title" id="admin-calendar-title">Availability Calendar</div>
+                <button type="button" class="btn" id="admin-cal-next-btn">Next →</button>
+              </div>
+              <div class="admin-calendar-grid" id="admin-calendar-grid"></div>
+              <div class="admin-legend">
+                <span><i class="admin-dot booked-openclaw"></i>OpenClaw</span>
+                <span><i class="admin-dot booked-lessons"></i>Lessons</span>
+                <span><i class="admin-dot blocked"></i>Blocked</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+          </div>
+        </div>
+
+        <div class="admin-collapsible-card" id="tax-ledger-card" style="margin-top:1rem;">
+          <div class="admin-collapsible-head">
+            <h3 style="margin:0;">Tax Ledger</h3>
+            <button type="button" class="btn" id="tax-collapse-btn" aria-expanded="false">Expand</button>
+          </div>
+          <div id="tax-ledger-body" class="admin-collapsible-body-collapsed">
+        <!-- ===== SECTION: Admin Tax Ledger ===== -->
+        <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+          <div class="admin-grid" style="grid-template-columns:1fr; gap:.6rem;">
+                <div id="tax-summary" class="admin-calendar-wrap" style="margin:0;">
+                  <div class="admin-calendar-head" style="justify-content:space-between; align-items:center; gap:.6rem; flex-wrap:wrap;">
+                    <div class="admin-calendar-title">Year Totals Snapshot</div>
+                    <div style="display:flex; align-items:center; gap:.4rem;">
+                      <label for="tax-summary-year" style="margin:0; min-width:40px;">Year</label>
+                      <select id="tax-summary-year" style="max-width:140px;"></select>
+                    </div>
+                  </div>
+                  <div class="tax-summary-grid" id="tax-summary-list">No data yet.</div>
+                </div>
+
+                <div class="admin-row" style="gap:.4rem; flex-wrap:wrap; margin-top:.4rem;">
+                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-expense-btn">Add Expense</button>
+                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-income-btn">Add Income</button>
+                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-owner-transfer-btn">Add Owner Transfer</button>
+                  <button type="button" class="btn btn-primary" id="tax-manage-categories-btn" onclick="window.openTaxCategoryManager && window.openTaxCategoryManager()">Manage Categories</button>
+                </div>
+
+                <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-top:.5rem;">
+                  <label style="min-width:80px;">Year</label>
+                  <select id="tax-year" style="max-width:160px;"></select>
+                  <label style="min-width:70px;">Type</label>
+                  <select id="tax-type" style="max-width:200px;">
+                    <option value="all">All</option>
+                    <option value="income">Income</option>
+                    <option value="expense">Expenses</option>
+                  </select>
+                  <button type="button" class="btn" id="tax-refresh-btn">Refresh</button>
+                </div>
+
+                <div class="tax-entry-wrap" id="tax-expense-panel" style="margin-top:.5rem; display:none;">
+                  <div class="admin-calendar-wrap">
+                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Add Expense</div><button type="button" class="btn" id="tax-minimize-expense-btn">Minimize</button></div>
+                    <div class="admin-row" id="tax-expense-fields" style="flex-direction:column; align-items:stretch;">
+                      <label>Date</label>
+                      <input id="tax-expense-date" type="date" />
+                      <label>Vendor</label>
+                      <input id="tax-expense-vendor" placeholder="e.g. Amazon, Cloudflare" />
+                      <label>Category</label>
+                      <select id="tax-expense-category"></select>
+                      <label>Amount (USD)</label>
+                      <input id="tax-expense-amount" type="number" step="0.01" placeholder="0.00" />
+                      <label>Paid via</label>
+                      <input id="tax-expense-paidvia" placeholder="card, cash, bank, etc." />
+                      <label>Notes</label>
+                      <input id="tax-expense-notes" placeholder="optional" />
+                      <label>Receipt <span style="font-size:0.78rem; color:var(--muted); font-weight:400;">(optional — PDF, JPG, PNG)</span></label>
+                      <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+                        <label for="tax-expense-receipt" class="btn" style="cursor:pointer; white-space:nowrap; margin:0;">Browse…</label>
+                        <input id="tax-expense-receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
+                        <span id="tax-expense-receipt-name" style="font-size:0.8rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">No file chosen</span>
+                      </div>
+                      <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
+                        <button type="button" class="btn btn-primary" id="tax-add-expense-btn">Add Expense</button>
+                        <button type="button" class="btn btn-primary" id="tax-update-expense-btn" style="display:none;">Save Expense Update</button>
+                        <button type="button" class="btn" id="tax-cancel-expense-edit-btn" style="display:none;">Cancel Edit</button>
+                        <button type="button" class="btn" id="tax-clear-expense-btn">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tax-entry-wrap" id="tax-income-panel" style="margin-top:.5rem; display:none;">
+                  <div class="admin-calendar-wrap">
+                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Add Income</div><button type="button" class="btn" id="tax-minimize-income-btn">Minimize</button></div>
+                    <div class="admin-row" id="tax-income-fields" style="flex-direction:column; align-items:stretch;">
+                      <label>Date</label>
+                      <input id="tax-income-date" type="date" />
+                      <label>Source</label>
+                      <input id="tax-income-source" placeholder="e.g. Stripe, Client" />
+                      <label>Category</label>
+                      <select id="tax-income-category"></select>
+                      <label>Amount (USD)</label>
+                      <input id="tax-income-amount" type="number" step="0.01" placeholder="0.00" />
+                      <label>Stripe session id (optional)</label>
+                      <input id="tax-income-stripe" placeholder="cs_test_..." />
+                      <label>Notes</label>
+                      <input id="tax-income-notes" placeholder="optional" />
+                      <label style="display:inline-flex; align-items:center; gap:.3rem; margin-top:.25rem; font-weight:600; line-height:1.2;">
+                        <input id="tax-income-owner-funded" type="checkbox" style="margin:0; width:16px; height:16px;" />
+                        <span>Treat as owner-funded (non-revenue)</span>
+                        <span title="Use this for owner money, test payments, or non-customer deposits. It will post to Owner Contributions instead of Revenue." style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border:1px solid var(--line); border-radius:999px; color:var(--cyan); font-size:12px; cursor:help;">?</span>
+                      </label>
+                      <label>Receipt <span style="font-size:0.78rem; color:var(--muted); font-weight:400;">(optional — PDF, JPG, PNG)</span></label>
+                      <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+                        <label for="tax-income-receipt" class="btn" style="cursor:pointer; white-space:nowrap; margin:0;">Browse…</label>
+                        <input id="tax-income-receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
+                        <span id="tax-income-receipt-name" style="font-size:0.8rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">No file chosen</span>
+                      </div>
+                      <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
+                        <button type="button" class="btn btn-primary" id="tax-add-income-btn" style="padding:.85rem 1.35rem; font-size:1.05rem;">Add Income</button>
+                        <button type="button" class="btn btn-primary" id="tax-update-income-btn" style="display:none;">Save Income Update</button>
+                        <button type="button" class="btn" id="tax-cancel-income-edit-btn" style="display:none;">Cancel Edit</button>
+                        <button type="button" class="btn" id="tax-clear-income-btn" style="padding:.85rem 1.35rem; font-size:1.05rem;">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style="display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; margin:.1rem 0 .4rem;">
+                    <h3 style="margin:0; white-space:nowrap;">Tax Transactions (Selected Year)</h3>
+                    <div style="display:flex; gap:.3rem; flex-wrap:wrap;">
+                      <button type="button" class="btn tx-filter-btn active" data-filter="all">All</button>
+                      <button type="button" class="btn tx-filter-btn" data-filter="income">Income</button>
+                      <button type="button" class="btn tx-filter-btn" data-filter="expense">Expenses</button>
+                    </div>
+                    <select id="tx-category-filter" style="display:none; max-width:200px;"></select>
+                  </div>
+                  <div class="admin-list" id="tax-list">No data yet.</div>
+                </div>
+              </div>
+        </section>
+
+        </div>
+      </div>
+
+      <div class="admin-collapsible-card" id="accounts-card" style="margin-top:1rem;">
+        <div class="admin-collapsible-head">
+          <h3 style="margin:0;">Accounts</h3>
+          <button type="button" class="btn" id="accounts-collapse-btn" aria-expanded="false">Expand</button>
+        </div>
+        <div id="accounts-body" class="admin-collapsible-body-collapsed">
+          <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+            <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem;">
+              <button type="button" class="btn active" id="accounts-tab-balances">Trial Balance</button>
+              <button type="button" class="btn" id="accounts-tab-balance-sheet">Balance Sheet</button>
+              <button type="button" class="btn" id="accounts-tab-pnl">Income Statement (P&L)</button>
+              <button type="button" class="btn" id="accounts-tab-cashflow">Cash Flow</button>
+              <button type="button" class="btn" id="accounts-tab-journal">Journal</button>
+              <label>Year</label>
+              <select id="accounts-year" style="max-width:140px;"></select>
+              <label>From</label>
+              <input id="accounts-from" type="date" style="max-width:170px;" />
+              <label>To</label>
+              <input id="accounts-to" type="date" style="max-width:170px;" />
+              <button type="button" class="btn" id="accounts-refresh-btn">Refresh</button>
+            </div>
+            <div id="accounts-balance-status" class="admin-calendar-title" style="margin-bottom:.4rem;">Trial Balance: —</div>
+            <div class="admin-list" id="accounts-list">No data yet.</div>
+            <div class="admin-list" id="accounts-statements-list" style="display:none; margin-top:.6rem;">No statement data yet.</div>
+            <div class="admin-list" id="accounts-journal-list" style="display:none; margin-top:.6rem;">No journal entries yet.</div>
+          </section>
+        </div>
+      </div>
+
+      <div class="admin-collapsible-card" id="reconciliation-card" style="margin-top:1rem;">
+        <div class="admin-collapsible-head">
+          <h3 style="margin:0;">Reconciliation</h3>
+          <button type="button" class="btn" id="reconciliation-collapse-btn" aria-expanded="false">Expand</button>
+        </div>
+        <div id="reconciliation-body" class="admin-collapsible-body-collapsed">
+          <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+            <p style="margin:.2rem 0 .65rem; color:var(--text); line-height:1.45;">
+              Import a bank/card CSV and match lines against ledger transactions. Great for monthly bookkeeping once your business account is live.
+            </p>
+            <div class="admin-row" style="gap:.5rem; flex-wrap:wrap;">
+              <label for="recon-year">Year</label>
+              <select id="recon-year" style="max-width:140px;"></select>
+              <label for="recon-month">Month</label>
+              <select id="recon-month" style="max-width:160px;">
+                <option value="all">All Year</option>
+                <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+                <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+                <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+                <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+              </select>
+              <label for="recon-csv">Statement CSV</label>
+              <input id="recon-csv" type="file" accept=".csv,text/csv" />
+              <button type="button" class="btn" id="recon-run-btn">Run Reconciliation</button>
+            </div>
+            <div id="recon-summary" class="admin-list" style="margin-top:.6rem;">No reconciliation run yet.</div>
+            <div id="recon-matches" class="admin-list" style="margin-top:.6rem;">Matched and unmatched lines will appear here.</div>
+          </section>
+        </div>
+      </div>
+
+      <div class="admin-collapsible-card" id="year-close-card" style="margin-top:1rem;">
+        <div class="admin-collapsible-head">
+          <h3 style="margin:0;">Year-End Close Wizard</h3>
+          <button type="button" class="btn" id="year-close-collapse-btn" aria-expanded="false">Expand</button>
+        </div>
+        <div id="year-close-body" class="admin-collapsible-body-collapsed">
+          <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+            <p style="margin:.2rem 0 .65rem; color:var(--text); line-height:1.45;">
+              Use this once per year (after final reconciliation) to create formal closing entries.
+              It closes revenue and expense accounts, then rolls net income/loss into Owner Equity.
+            </p>
+            <div class="admin-row" style="gap:.5rem; flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary" id="accounts-year-close-btn">Open Year-End Close Wizard</button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="admin-collapsible-card" id="audit-package-card" style="margin-top:1rem;">
+        <div class="admin-collapsible-head">
+          <h3 style="margin:0;">Audit Package</h3>
+          <button type="button" class="btn" id="audit-package-collapse-btn" aria-expanded="false">Expand</button>
+        </div>
+        <div id="audit-package-body" class="admin-collapsible-body-collapsed">
+          <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+            <p style="margin:.2rem 0 .65rem; color:var(--text); line-height:1.45;">
+              Build a downloadable ZIP for a selected year with statements, journal/tax CSVs, optional receipts, and a manifest.
+            </p>
+            <div class="admin-row" style="gap:.5rem; flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary" id="audit-package-btn">Open Audit Package Builder</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+  </div>
+  </main>
+
+  <!-- ===== SECTION: Success Modal ===== -->
+  <div class="success-modal-overlay" id="success-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title">
+      <h3 id="success-title">Done ✅</h3>
+      <p id="success-details"></p>
+      <div class="form-actions" style="margin-top:1rem;">
+        <button type="button" class="btn btn-primary" id="success-close-btn">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="error-modal" aria-hidden="true">
+    <div class="success-modal error-modal" role="dialog" aria-modal="true" aria-labelledby="error-title">
+      <h3 id="error-title">Heads Up</h3>
+      <p id="error-details"></p>
+      <div class="form-actions" style="margin-top:1rem;">
+        <button type="button" class="btn btn-primary" id="error-close-btn">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="confirm-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h3 id="confirm-title">Please Confirm</h3>
+      <p id="confirm-details"></p>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="confirm-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirm-ok-btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="tax-category-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="tax-category-title" style="width:min(920px,94vw); max-height:86vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:.5rem;">
+        <h3 id="tax-category-title" style="margin:.1rem 0 .4rem;">Manage Categories</h3>
+        <button type="button" class="btn" id="tax-category-x-btn" aria-label="Close category manager" title="Close">✕</button>
+      </div>
+      <div class="admin-grid" style="grid-template-columns:1fr 1fr; gap:.7rem;">
+        <div class="admin-calendar-wrap">
+          <div class="admin-calendar-head"><div class="admin-calendar-title">Expense Categories</div></div>
+          <div id="expense-categories-list" style="display:flex; flex-direction:column; gap:.35rem; margin-top:.5rem;"></div>
+          <div style="margin-top:1.25rem; padding-top:.75rem; border-top:1px solid var(--line);">
+            <label style="display:block; margin-bottom:.35rem;">Add New Expense Category</label>
+            <div class="admin-row" style="gap:.4rem; flex-direction:column; align-items:stretch;">
+              <input id="new-expense-category" placeholder="Enter your new expense category, here" style="width:100%;" />
+              <button type="button" class="btn btn-primary" id="add-expense-category-btn" style="width:100%;">Add</button>
+            </div>
+          </div>
+        </div>
+        <div class="admin-calendar-wrap">
+          <div class="admin-calendar-head"><div class="admin-calendar-title">Income Categories</div></div>
+          <div id="income-categories-list" style="display:flex; flex-direction:column; gap:.35rem; margin-top:.5rem;"></div>
+          <div style="margin-top:1.25rem; padding-top:.75rem; border-top:1px solid var(--line);">
+            <label style="display:block; margin-bottom:.35rem;">Add New Income category</label>
+            <div class="admin-row" style="gap:.4rem; flex-direction:column; align-items:stretch;">
+              <input id="new-income-category" placeholder="Enter your new income category, here" style="width:100%;" />
+              <button type="button" class="btn btn-primary" id="add-income-category-btn" style="width:100%;">Add</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:1rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="tax-category-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="tax-category-edit-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="tax-category-edit-title" style="width:min(540px,94vw);">
+      <h3 id="tax-category-edit-title">Edit Category</h3>
+      <label for="tax-category-edit-input">Category Name</label>
+      <input id="tax-category-edit-input" type="text" />
+      <div class="form-actions" style="margin-top:1rem; justify-content:flex-end; gap:.5rem;">
+        <button type="button" class="btn" id="tax-category-edit-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="tax-category-edit-save-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="year-close-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="year-close-title" style="width:min(780px,94vw); max-height:86vh; overflow-y:auto;">
+      <h3 id="year-close-title">Year-End Close Wizard</h3>
+      <p style="margin-top:.2rem; color:var(--muted);">This creates formal closing entries in 3 steps for the selected year.</p>
+      <div id="year-close-steps" class="admin-list">Loading preview…</div>
+      <div style="margin-top:.7rem; color:var(--text); font-size:.92rem; line-height:1.5;">
+        <strong>What each step does:</strong>
+        <ol style="margin:.4rem 0 0 1.2rem; padding:0; display:grid; gap:.25rem;">
+          <li>Close all revenue accounts into Income Summary.</li>
+          <li>Close all expense accounts into Income Summary.</li>
+          <li>Move net income/loss from Income Summary into Owner Equity.</li>
+        </ol>
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="year-close-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="year-close-apply-btn">Apply Year-End Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="owner-transfer-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="owner-transfer-title" style="width:min(700px,94vw); max-height:86vh; overflow-y:auto;">
+      <h3 id="owner-transfer-title">Add Owner Transfer</h3>
+      <p style="margin-top:.2rem; color:var(--muted); line-height:1.45;">
+        Use this for owner money moves (not sales/expenses): personal funds into business, owner draws, or paying a business card with personal funds.
+      </p>
+      <div class="admin-row" style="flex-direction:column; align-items:stretch;">
+        <label>Date</label>
+        <input id="tax-owner-transfer-date" type="date" />
+        <label>Transfer Type</label>
+        <select id="tax-owner-transfer-type">
+          <option value="personal_to_business">Personal → Business (Owner Contribution)</option>
+          <option value="business_to_personal">Business → Personal (Owner Draw)</option>
+          <option value="personal_paid_business_card">Personal Paid Business Card</option>
+        </select>
+        <label>Amount (USD)</label>
+        <input id="tax-owner-transfer-amount" type="number" step="0.01" placeholder="0.00" />
+        <label>Notes</label>
+        <input id="tax-owner-transfer-notes" placeholder="optional" />
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="owner-transfer-close-btn">Cancel</button>
+        <button type="button" class="btn" id="tax-clear-owner-transfer-btn">Clear</button>
+        <button type="button" class="btn btn-primary" id="tax-add-owner-transfer-btn">Add Transfer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="audit-package-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="audit-package-title" style="width:min(760px,94vw); max-height:86vh; overflow-y:auto;">
+      <h3 id="audit-package-title">Audit Package</h3>
+      <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-bottom:.6rem;">
+        <label for="audit-year">Year</label>
+        <select id="audit-year" style="max-width:160px;"></select>
+        <button type="button" class="btn" id="audit-select-all-btn">Select All</button>
+      </div>
+      <div id="audit-doc-list" style="display:grid; gap:.35rem;">
+        <label style="display:inline-flex; align-items:center; gap:.35rem;"><input type="checkbox" value="balance_sheet_pdf" checked style="margin:0; width:16px; height:16px;" /><span>Balance Sheet (PDF)</span></label>
+        <label style="display:inline-flex; align-items:center; gap:.35rem;"><input type="checkbox" value="pnl_pdf" checked style="margin:0; width:16px; height:16px;" /><span>Income Statement / Profit &amp; Loss (PDF)</span></label>
+        <label style="display:inline-flex; align-items:center; gap:.35rem;"><input type="checkbox" value="cashflow_pdf" checked style="margin:0; width:16px; height:16px;" /><span>Cash Flow (PDF)</span></label>
+        <label style="display:inline-flex; align-items:center; gap:.35rem;"><input type="checkbox" value="trial_balance_pdf" checked style="margin:0; width:16px; height:16px;" /><span>Trial Balance (PDF)</span></label>
+        <label style="display:inline-flex; align-items:center; gap:.35rem;"><input type="checkbox" value="tax_csv" checked style="margin:0; width:16px; height:16px;" /><span>Tax Transactions CSV</span></label>
+        <label style="display:inline-flex; align-items:center; gap:.35rem;"><input type="checkbox" value="journal_csv" checked style="margin:0; width:16px; height:16px;" /><span>Journal Entries CSV</span></label>
+        <label style="display:inline-flex; align-items:center; gap:.35rem;"><input type="checkbox" value="receipts" checked style="margin:0; width:16px; height:16px;" /><span>Receipts</span></label>
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="audit-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="audit-generate-btn">Generate ZIP</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="user-guide-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="user-guide-title" style="width:min(920px,96vw); max-height:90vh; overflow-y:auto;">
+      <h3 id="user-guide-title">Admin User Guide</h3>
+      <div style="display:flex; gap:.4rem; flex-wrap:wrap; margin:.2rem 0 .8rem;" id="user-guide-tabs">
+        <button type="button" class="btn active" data-guide-tab="expenses">Expenses + Journal</button>
+        <button type="button" class="btn" data-guide-tab="bookings">Booking Controls</button>
+        <button type="button" class="btn" data-guide-tab="statements">Statements + Accounts</button>
+      </div>
+
+      <div id="user-guide-panel-expenses" data-guide-panel="expenses" style="display:block; color:var(--text);">
+        <img src="/images/admin-guide-expenses.svg" alt="Guide diagram for adding expense and income entries" style="width:100%; border:1px solid var(--line); border-radius:6px; background:#0a0b10;" />
+        <ul style="margin:.7rem 0 0 1.1rem; padding:0; display:grid; gap:.28rem;">
+          <li>Enter date, category, amount first — those are mandatory.</li>
+          <li>Use notes/vendor/source for context you’ll need later.</li>
+          <li>Upload receipts whenever possible.</li>
+        </ul>
+      </div>
+
+      <div id="user-guide-panel-bookings" data-guide-panel="bookings" style="display:none; color:var(--text);">
+        <img src="/images/admin-guide-bookings.svg" alt="Guide diagram for admin booking controls" style="width:100%; border:1px solid var(--line); border-radius:6px; background:#0a0b10;" />
+        <ul style="margin:.7rem 0 0 1.1rem; padding:0; display:grid; gap:.28rem;">
+          <li>Use block-slot for specific time windows; block-day for all-day closures.</li>
+          <li>Refresh after changes to confirm the calendar state.</li>
+          <li>Clean stale pending bookings periodically.</li>
+        </ul>
+      </div>
+
+      <div id="user-guide-panel-statements" data-guide-panel="statements" style="display:none; color:var(--text);">
+        <img src="/images/admin-guide-statements.svg" alt="Guide diagram for trial balance, statements, and journal tabs" style="width:100%; border:1px solid var(--line); border-radius:6px; background:#0a0b10;" />
+        <ul style="margin:.7rem 0 0 1.1rem; padding:0; display:grid; gap:.28rem;">
+          <li>Trial Balance should remain balanced.</li>
+          <li>Use Balance Sheet + P&L for management and tax prep snapshots.</li>
+          <li>Use Journal for line-level verification when numbers look off.</li>
+        </ul>
+      </div>
+
+      <div class="form-actions" style="margin-top:1rem;">
+        <button type="button" class="btn btn-primary" id="user-guide-close-btn">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+// ===== API URL Constants =====
+    const CONTACT_API_URL = window.CONTACT_API_URL || `${window.location.origin}/api/contact`;
+    const BOOKINGS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/bookings');
+    const BLOCK_SLOT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/block-slot');
+    const BLOCK_DAY_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/block-day');
+    const CLEANUP_PENDING_BOOKINGS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/bookings/cleanup-pending');
+    const TAX_TX_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/transactions');
+    const TAX_EXPENSE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/expense');
+    const TAX_INCOME_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/income');
+    const TAX_OWNER_TRANSFER_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/owner-transfer');
+    const TAX_EXPENSE_UPDATE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/expense/update');
+    const TAX_INCOME_UPDATE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/income/update');
+    const TAX_EXPENSE_DELETE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/expense/delete');
+    const TAX_INCOME_DELETE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/income/delete');
+    const TAX_EXPORT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/export.csv');
+    const TAX_RECEIPT_UPLOAD_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/receipt/upload');
+    const TAX_RECEIPT_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/receipt');
+    const ACCOUNTS_LIST_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/list');
+    const ACCOUNTS_SUMMARY_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/summary');
+    const ACCOUNTS_JOURNAL_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/journal');
+    const ACCOUNTS_STATEMENTS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/statements');
+    const ACCOUNTS_YEAR_CLOSE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/year-close');
+
+    // ===== DOM Refs =====
+    const adminLock = document.getElementById('admin-lock');
+    const adminControls = document.getElementById('admin-controls');
+    const adminKeyEl = document.getElementById('admin-key');
+    const adminUnlockBtn = document.getElementById('admin-unlock-btn');
+
+    const adminSectionTabsEl = document.getElementById('admin-section-tabs');
+    const adminSectionTabBtns = document.querySelectorAll('[data-admin-tab]');
+
+    const bookingCollapseBtn = document.getElementById('booking-collapse-btn');
+    const bookingControlsBody = document.getElementById('booking-controls-body');
+    const taxCollapseBtn = document.getElementById('tax-collapse-btn');
+    const taxLedgerBody = document.getElementById('tax-ledger-body');
+    const accountsCollapseBtn = document.getElementById('accounts-collapse-btn');
+    const accountsBody = document.getElementById('accounts-body');
+    const reconciliationCollapseBtn = document.getElementById('reconciliation-collapse-btn');
+    const reconciliationBody = document.getElementById('reconciliation-body');
+    const yearCloseCollapseBtn = document.getElementById('year-close-collapse-btn');
+    const yearCloseBody = document.getElementById('year-close-body');
+    const auditPackageCollapseBtn = document.getElementById('audit-package-collapse-btn');
+    const auditPackageBody = document.getElementById('audit-package-body');
+
+    const taxYearEl = document.getElementById('tax-year');
+    const taxSummaryYearEl = document.getElementById('tax-summary-year');
+    const taxTypeEl = document.getElementById('tax-type');
+    const taxRefreshBtn = document.getElementById('tax-refresh-btn');
+    const taxExportBtn = document.getElementById('tax-export-btn');
+    const taxModeExpenseBtn = document.getElementById('tax-mode-expense-btn');
+    const taxModeIncomeBtn = document.getElementById('tax-mode-income-btn');
+    const taxModeOwnerTransferBtn = document.getElementById('tax-mode-owner-transfer-btn');
+    const taxManageCategoriesBtn = document.getElementById('tax-manage-categories-btn');
+    const adminUserGuideBtn = document.getElementById('admin-user-guide-btn');
+    const adminBlurAmountsBtn = document.getElementById('admin-blur-amounts-btn');
+    const adminUserGuideTopBtn = document.getElementById('admin-user-guide-top-btn');
+    const taxExpensePanel = document.getElementById('tax-expense-panel');
+    const taxOwnerTransferPanel = document.getElementById('tax-owner-transfer-panel');
+    const taxIncomePanel = document.getElementById('tax-income-panel');
+    const taxExpenseFields = document.getElementById('tax-expense-fields');
+    const taxOwnerTransferFields = document.getElementById('tax-owner-transfer-fields');
+    const taxIncomeFields = document.getElementById('tax-income-fields');
+    const taxMinimizeExpenseBtn = document.getElementById('tax-minimize-expense-btn');
+    const taxMinimizeOwnerTransferBtn = document.getElementById('tax-minimize-owner-transfer-btn');
+    const taxMinimizeIncomeBtn = document.getElementById('tax-minimize-income-btn');
+    const taxCategoryModal = document.getElementById('tax-category-modal');
+    const taxCategoryCloseBtn = document.getElementById('tax-category-close-btn');
+    const taxCategoryXBtn = document.getElementById('tax-category-x-btn');
+    const expenseCategoriesListEl = document.getElementById('expense-categories-list');
+    const incomeCategoriesListEl = document.getElementById('income-categories-list');
+    const newExpenseCategoryEl = document.getElementById('new-expense-category');
+    const newIncomeCategoryEl = document.getElementById('new-income-category');
+    const addExpenseCategoryBtn = document.getElementById('add-expense-category-btn');
+    const addIncomeCategoryBtn = document.getElementById('add-income-category-btn');
+    const taxCategoryEditModal = document.getElementById('tax-category-edit-modal');
+    const ownerTransferModal = document.getElementById('owner-transfer-modal');
+    const ownerTransferCloseBtn = document.getElementById('owner-transfer-close-btn');
+    const yearCloseModal = document.getElementById('year-close-modal');
+    const yearCloseStepsEl = document.getElementById('year-close-steps');
+    const yearCloseCancelBtn = document.getElementById('year-close-cancel-btn');
+    const yearCloseApplyBtn = document.getElementById('year-close-apply-btn');
+
+    const auditPackageModal = document.getElementById('audit-package-modal');
+    const auditYearEl = document.getElementById('audit-year');
+    const auditSelectAllBtn = document.getElementById('audit-select-all-btn');
+    const auditCancelBtn = document.getElementById('audit-cancel-btn');
+    const auditGenerateBtn = document.getElementById('audit-generate-btn');
+
+    const userGuideModal = document.getElementById('user-guide-modal');
+    const userGuideCloseBtn = document.getElementById('user-guide-close-btn');
+    const userGuideTabBtns = document.querySelectorAll('[data-guide-tab]');
+    const userGuidePanels = document.querySelectorAll('[data-guide-panel]');
+    const taxCategoryEditInput = document.getElementById('tax-category-edit-input');
+    const taxCategoryEditSaveBtn = document.getElementById('tax-category-edit-save-btn');
+    const taxCategoryEditCancelBtn = document.getElementById('tax-category-edit-cancel-btn');
+    const taxSummaryListEl = document.getElementById('tax-summary-list');
+    const taxListEl = document.getElementById('tax-list');
+    const txCategoryFilterEl = document.getElementById('tx-category-filter');
+    const txFilterBtns = document.querySelectorAll('.tx-filter-btn');
+    const accountsTabBalancesBtn = document.getElementById('accounts-tab-balances');
+    const accountsTabBalanceSheetBtn = document.getElementById('accounts-tab-balance-sheet');
+    const accountsTabPnlBtn = document.getElementById('accounts-tab-pnl');
+    const accountsTabCashflowBtn = document.getElementById('accounts-tab-cashflow');
+    const accountsTabJournalBtn = document.getElementById('accounts-tab-journal');
+    const accountsYearEl = document.getElementById('accounts-year');
+    const accountsFromEl = document.getElementById('accounts-from');
+    const accountsToEl = document.getElementById('accounts-to');
+    const accountsRefreshBtn = document.getElementById('accounts-refresh-btn');
+    const reconYearEl = document.getElementById('recon-year');
+    const reconMonthEl = document.getElementById('recon-month');
+    const reconCsvEl = document.getElementById('recon-csv');
+    const reconRunBtn = document.getElementById('recon-run-btn');
+    const reconSummaryEl = document.getElementById('recon-summary');
+    const reconMatchesEl = document.getElementById('recon-matches');
+
+    const accountsYearCloseBtn = document.getElementById('accounts-year-close-btn');
+    const auditPackageBtn = document.getElementById('audit-package-btn');
+    const accountsBalanceStatusEl = document.getElementById('accounts-balance-status');
+    const accountsListEl = document.getElementById('accounts-list');
+    const accountsStatementsListEl = document.getElementById('accounts-statements-list');
+    const accountsJournalListEl = document.getElementById('accounts-journal-list');
+
+    const taxExpenseDateEl = document.getElementById('tax-expense-date');
+    const taxExpenseVendorEl = document.getElementById('tax-expense-vendor');
+    const taxExpenseCategoryEl = document.getElementById('tax-expense-category');
+    const taxExpenseAmountEl = document.getElementById('tax-expense-amount');
+    const taxExpensePaidViaEl = document.getElementById('tax-expense-paidvia');
+    const taxExpenseNotesEl = document.getElementById('tax-expense-notes');
+    const taxAddExpenseBtn = document.getElementById('tax-add-expense-btn');
+    const taxUpdateExpenseBtn = document.getElementById('tax-update-expense-btn');
+    const taxCancelExpenseEditBtn = document.getElementById('tax-cancel-expense-edit-btn');
+    const taxClearExpenseBtn = document.getElementById('tax-clear-expense-btn');
+
+    const taxOwnerTransferDateEl = document.getElementById('tax-owner-transfer-date');
+    const taxOwnerTransferTypeEl = document.getElementById('tax-owner-transfer-type');
+    const taxOwnerTransferAmountEl = document.getElementById('tax-owner-transfer-amount');
+    const taxOwnerTransferNotesEl = document.getElementById('tax-owner-transfer-notes');
+    const taxAddOwnerTransferBtn = document.getElementById('tax-add-owner-transfer-btn');
+    const taxClearOwnerTransferBtn = document.getElementById('tax-clear-owner-transfer-btn');
+
+    const taxIncomeDateEl = document.getElementById('tax-income-date');
+    const taxIncomeSourceEl = document.getElementById('tax-income-source');
+    const taxIncomeCategoryEl = document.getElementById('tax-income-category');
+    const taxIncomeAmountEl = document.getElementById('tax-income-amount');
+    const taxIncomeStripeEl = document.getElementById('tax-income-stripe');
+    const taxIncomeNotesEl = document.getElementById('tax-income-notes');
+    const taxIncomeOwnerFundedEl = document.getElementById('tax-income-owner-funded');
+    const taxAddIncomeBtn = document.getElementById('tax-add-income-btn');
+    const taxUpdateIncomeBtn = document.getElementById('tax-update-income-btn');
+    const taxCancelIncomeEditBtn = document.getElementById('tax-cancel-income-edit-btn');
+    const taxClearIncomeBtn = document.getElementById('tax-clear-income-btn');
+
+    const adminDateEl = document.getElementById('admin-date');
+    const adminTimeEl = document.getElementById('admin-time');
+    const adminReasonEl = document.getElementById('admin-reason');
+    const adminListEl = document.getElementById('admin-list');
+    const adminCalendarGridEl = document.getElementById('admin-calendar-grid');
+    const adminCalendarTitleEl = document.getElementById('admin-calendar-title');
+    const adminCalPrevBtn = document.getElementById('admin-cal-prev-btn');
+    const adminCalNextBtn = document.getElementById('admin-cal-next-btn');
+    const adminBlockBtn = document.getElementById('admin-block-btn');
+    const adminUnblockBtn = document.getElementById('admin-unblock-btn');
+    const adminBlockDayBtn = document.getElementById('admin-block-day-btn');
+    const adminUnblockDayBtn = document.getElementById('admin-unblock-day-btn');
+    const adminRefreshBtn = document.getElementById('admin-refresh-btn');
+    const adminCleanupPendingBtn = document.getElementById('admin-cleanup-pending-btn');
+
+    const successModal = document.getElementById('success-modal');
+    const successTitle = document.getElementById('success-title');
+    const successDetails = document.getElementById('success-details');
+    const successCloseBtn = document.getElementById('success-close-btn');
+    const errorModal = document.getElementById('error-modal');
+    const errorDetails = document.getElementById('error-details');
+    const errorCloseBtn = document.getElementById('error-close-btn');
+    const confirmModal = document.getElementById('confirm-modal');
+    const confirmDetails = document.getElementById('confirm-details');
+    const confirmOkBtn = document.getElementById('confirm-ok-btn');
+    const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+
+    // ===== State =====
+    let adminUnlocked = false;
+    let adminPassword = '';
+    let adminCalendarCursor = null;
+    let allTxItems = [];
+    let loadedTaxData = { income: [], expenses: [] };
+    let activeTxFilter = 'all';
+    let editingExpenseId = null;
+    let editingIncomeId = null;
+    let activeAccountsTab = 'balances';
+    let activeAdminSectionTab = 'booking';
+    let blurMoneyEnabled = false;
+
+    // ===== Time Slots =====
+    const TIME_SLOTS = [
+      { value: '10:00-12:00', label: '1000 - 1200' },
+      { value: '12:00-14:00', label: '1200 - 1400' },
+      { value: '14:00-16:00', label: '1400 - 1600' },
+      { value: '16:00-18:00', label: '1600 - 1800' },
+      { value: '18:00-20:00', label: '1800 - 2000' }
+    ];
+
+    function initAdminTimeDropdown() {
+      const opts = ['<option value="">Select block…</option>'];
+      for (const slot of TIME_SLOTS) {
+        opts.push(`<option value="${slot.value}">${slot.label}</option>`);
+      }
+      adminTimeEl.innerHTML = opts.join('');
+    }
+    initAdminTimeDropdown();
+
+    // ===== Time Utilities =====
+    function nowEtParts() {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/New_York',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hour12: false
+      }).formatToParts(new Date());
+      const get = (t) => parts.find(p => p.type === t)?.value;
+      return {
+        date: `${get('year')}-${get('month')}-${get('day')}`,
+        time: `${get('hour')}:${get('minute')}`
+      };
+    }
+
+    // ===== Modals =====
+    function openSuccessModal(text, title) {
+      if (title) successTitle.textContent = title;
+      successDetails.textContent = text;
+      successModal.classList.add('active');
+      successModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeSuccessModal() {
+      successModal.classList.remove('active');
+      successModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function openErrorModal(text) {
+      errorDetails.textContent = text;
+      errorModal.classList.add('active');
+      errorModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeErrorModal() {
+      errorModal.classList.remove('active');
+      errorModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function setUserGuideTab(tab) {
+      userGuideTabBtns.forEach((btn) => btn.classList.toggle('active', btn.getAttribute('data-guide-tab') === tab));
+      userGuidePanels.forEach((panel) => {
+        panel.style.display = panel.getAttribute('data-guide-panel') === tab ? 'block' : 'none';
+      });
+    }
+
+    function markMoneyBlurTargets() {
+      const scope = document.getElementById('admin-controls') || document.body;
+      const nodes = scope.querySelectorAll('div,span,strong,p,li,h4,a,label,button');
+      nodes.forEach((el) => {
+        if (el.closest('#admin-blur-amounts-btn')) return;
+        const txt = (el.textContent || '').trim();
+        if (/\$\s?\d/.test(txt) && el.children.length === 0) {
+          el.classList.add('money-blur-target');
+        }
+      });
+    }
+
+    function setBlurMoney(on) {
+      blurMoneyEnabled = !!on;
+      document.body.classList.toggle('money-blur-on', blurMoneyEnabled);
+      if (adminBlurAmountsBtn) {
+        adminBlurAmountsBtn.textContent = blurMoneyEnabled ? 'Blur $: On' : 'Blur $: Off';
+        adminBlurAmountsBtn.classList.toggle('active', blurMoneyEnabled);
+      }
+      try { localStorage.setItem('esa_blur_money', blurMoneyEnabled ? '1' : '0'); } catch {}
+      markMoneyBlurTargets();
+    }
+
+    function loadBlurMoneyPref() {
+      try {
+        const v = localStorage.getItem('esa_blur_money');
+        setBlurMoney(v === '1');
+      } catch {
+        setBlurMoney(false);
+      }
+    }
+
+    function openOwnerTransferModal() {
+      clearTaxOwnerTransferForm();
+      ownerTransferModal?.classList.add('active');
+      ownerTransferModal?.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeOwnerTransferModal() {
+      ownerTransferModal?.classList.remove('active');
+      ownerTransferModal?.setAttribute('aria-hidden', 'true');
+    }
+
+    async function openYearCloseWizard() {
+      const year = accountsYearEl?.value;
+      if (!/^\d{4}$/.test(year || '')) { openErrorModal('Select a valid year before running year-end close.'); return; }
+      yearCloseModal?.classList.add('active');
+      yearCloseModal?.setAttribute('aria-hidden', 'false');
+      yearCloseStepsEl.textContent = 'Loading preview…';
+      try {
+        const res = await fetch(ACCOUNTS_YEAR_CLOSE_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify({ year, apply: false })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Preview failed');
+        const steps = data.preview?.steps || [];
+        yearCloseStepsEl.innerHTML = steps.map((s) => `<div style="padding:.35rem 0; border-bottom:1px dashed var(--line);"><strong>Step ${s.step}:</strong> ${escHtml(s.title)} <span style="float:right;">$${(Number(s.amount_cents||0)/100).toFixed(2)}</span></div>`).join('') || 'No close steps found.';
+      } catch (e) {
+        yearCloseStepsEl.textContent = `Could not load year-close preview: ${e.message || e}`;
+      }
+    }
+
+    function closeYearCloseWizard() {
+      yearCloseModal?.classList.remove('active');
+      yearCloseModal?.setAttribute('aria-hidden', 'true');
+    }
+
+    function openAuditPackageModal() {
+      if (auditYearEl && accountsYearEl?.value) auditYearEl.value = accountsYearEl.value;
+      auditPackageModal?.classList.add('active');
+      auditPackageModal?.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeAuditPackageModal() {
+      auditPackageModal?.classList.remove('active');
+      auditPackageModal?.setAttribute('aria-hidden', 'true');
+    }
+
+    function buildPdfBlob(title, lines) {
+      const jspdfNs = window.jspdf;
+      if (!jspdfNs?.jsPDF) throw new Error('jsPDF failed to load');
+      const doc = new jspdfNs.jsPDF({ orientation: 'p', unit: 'pt', format: 'letter' });
+      let y = 50;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text(title, 40, y);
+      y += 24;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      for (const line of lines) {
+        if (y > 740) { doc.addPage(); y = 50; }
+        doc.text(String(line).slice(0, 120), 40, y);
+        y += 14;
+      }
+      return doc.output('blob');
+    }
+
+    async function generateAuditPackage() {
+      const year = auditYearEl?.value;
+      if (!/^\d{4}$/.test(year || '')) { openErrorModal('Select a valid year.'); return; }
+      const selected = Array.from(document.querySelectorAll('#audit-doc-list input[type="checkbox"]:checked')).map(i => i.value);
+      if (!selected.length) { openErrorModal('Select at least one document.'); return; }
+      if (typeof JSZip === 'undefined') { openErrorModal('JSZip not loaded — refresh and try again.'); return; }
+
+      auditGenerateBtn.disabled = true;
+      auditGenerateBtn.textContent = 'Building…';
+      try {
+        const zip = new JSZip();
+        const root = zip.folder(`audit-package-${year}`);
+
+        const [txRes, summaryRes, statementsRes, journalRes] = await Promise.all([
+          fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } }),
+          fetch(`${ACCOUNTS_SUMMARY_API_URL}?year=${encodeURIComponent(year)}`, { headers: { 'X-Admin-Password': adminPassword } }),
+          fetch(`${ACCOUNTS_STATEMENTS_API_URL}?year=${encodeURIComponent(year)}`, { headers: { 'X-Admin-Password': adminPassword } }),
+          fetch(`${ACCOUNTS_JOURNAL_API_URL}?year=${encodeURIComponent(year)}&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } })
+        ]);
+        const txData = await txRes.json();
+        const summaryData = await summaryRes.json();
+        const stData = await statementsRes.json();
+        const journalData = await journalRes.json();
+
+        const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
+
+        if (selected.includes('tax_csv')) {
+          const csvRes = await fetch(`${TAX_EXPORT_API_URL}?year=${encodeURIComponent(year)}&type=all`, { headers: { 'X-Admin-Password': adminPassword } });
+          if (csvRes.ok) root.file(`tax-transactions-${year}.csv`, await csvRes.blob());
+        }
+
+        if (selected.includes('journal_csv')) {
+          const lines = ['date,memo,account,debit,credit'];
+          for (const e of (journalData.entries || [])) {
+            for (const l of (e.lines || [])) {
+              lines.push(`${e.entry_date || ''},"${(e.memo || '').replace(/"/g,'""')}","${l.code} ${l.name}",${(Number(l.debit_cents||0)/100).toFixed(2)},${(Number(l.credit_cents||0)/100).toFixed(2)}`);
+            }
+          }
+          root.file(`journal-${year}.csv`, lines.join('\n'));
+        }
+
+        if (selected.includes('trial_balance_pdf')) {
+          const lines = (summaryData.accounts || []).map(a => `${a.code} ${a.name} | Balance ${money(a.balance_cents)}`);
+          root.file(`trial-balance-${year}.pdf`, await buildPdfBlob(`Trial Balance ${year}`, lines));
+        }
+
+        if (selected.includes('balance_sheet_pdf')) {
+          const totalAssets = Number(stData.totals?.assets || 0);
+          const totalLiabilities = Number(stData.totals?.liabilities || 0);
+          const totalEquity = Number(stData.totals?.equity || 0);
+          const currentEarnings = Number(stData.totals?.income || 0) - Number(stData.totals?.expenses || 0);
+          const adjustedEquity = totalEquity + currentEarnings;
+          const totalLE = totalLiabilities + adjustedEquity;
+          const balancedText = totalAssets === totalLE ? 'Balanced YES' : 'Balanced NO';
+
+          const lines = [
+            'Assets:',
+            ...(stData.balanceSheet?.assets || []).map(a => `${a.code} ${a.name} ${money(a.balance_cents)}`),
+            `Total Assets: ${money(totalAssets)}`,
+            '',
+            'Liabilities:',
+            ...(stData.balanceSheet?.liabilities || []).map(a => `${a.code} ${a.name} ${money(a.balance_cents)}`),
+            `Total Liabilities: ${money(totalLiabilities)}`,
+            '',
+            'Equity:',
+            ...(stData.balanceSheet?.equity || []).map(a => `${a.code} ${a.name} ${money(a.balance_cents)}`),
+            `Current Period Earnings: ${money(currentEarnings)}`,
+            `Adjusted Equity: ${money(adjustedEquity)}`,
+            '',
+            `Accounting Equation Check: ${balancedText}`,
+            `Assets: ${money(totalAssets)}`,
+            `Liabilities + Adjusted Equity: ${money(totalLE)}`
+          ];
+          root.file(`balance-sheet-${year}.pdf`, await buildPdfBlob(`Balance Sheet ${year}`, lines));
+        }
+
+        if (selected.includes('pnl_pdf')) {
+          const lines = [
+            'Income:',
+            ...(stData.incomeStatement?.income || []).map(a => `${a.code} ${a.name} ${money(a.balance_cents)}`),
+            '',
+            'Expenses:',
+            ...(stData.incomeStatement?.expenses || []).map(a => `${a.code} ${a.name} ${money(a.balance_cents)}`),
+            '',
+            `Net Income: ${money((Number(stData.totals?.income||0)-Number(stData.totals?.expenses||0)))}`
+          ];
+          root.file(`income-statement-profit-loss-${year}.pdf`, await buildPdfBlob(`Income Statement (Profit & Loss) ${year}`, lines));
+        }
+
+        if (selected.includes('cashflow_pdf')) {
+          const lines = [
+            `Net Cash Change: ${money(stData.cashFlow?.netCashChange)}`,
+            stData.cashFlow?.note || ''
+          ];
+          root.file(`cash-flow-${year}.pdf`, await buildPdfBlob(`Cash Flow ${year}`, lines));
+        }
+
+        if (selected.includes('receipts')) {
+          const recFolder = root.folder('receipts');
+          const allRecords = [
+            ...(txData.expenses || []).map(r => ({ ...r, type: 'expense' })),
+            ...(txData.income || []).map(r => ({ ...r, type: 'income' }))
+          ];
+          for (const r of allRecords) {
+            if (!r.receipt_key) continue;
+            const ext = (r.receipt_key.split('.').pop() || 'bin').slice(0, 5);
+            const fn = `${r.type}-${r.id}-${r.date}.${ext}`;
+            const rr = await fetch(`${TAX_RECEIPT_URL}?key=${encodeURIComponent(r.receipt_key)}&key2=${encodeURIComponent(adminPassword)}`);
+            if (rr.ok) recFolder.file(fn, await rr.blob());
+          }
+        }
+
+        const manifestLines = [
+          `Audit Package Year: ${year}`,
+          `Generated At: ${new Date().toISOString()}`,
+          `Selected Documents: ${selected.join(', ')}`,
+          `Includes Receipts: ${selected.includes('receipts') ? 'yes' : 'no'}`
+        ];
+        root.file('manifest.txt', manifestLines.join('\n'));
+
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `audit-package-${year}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1200);
+        closeAuditPackageModal();
+      } catch (e) {
+        openErrorModal(`Could not build audit package: ${e.message || e}`);
+      } finally {
+        auditGenerateBtn.disabled = false;
+        auditGenerateBtn.textContent = 'Generate ZIP';
+      }
+    }
+
+    async function applyYearCloseWizard() {
+      const year = accountsYearEl?.value;
+      const ok = await openConfirmModal(`Apply formal year-end closing entries for ${year}? Existing close entries for that year will be replaced.`, 'Apply Year-End Close?', 'Apply');
+      if (!ok) return;
+      try {
+        const res = await fetch(ACCOUNTS_YEAR_CLOSE_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify({ year, apply: true })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Year close failed');
+        closeYearCloseWizard();
+        await loadAccountsData();
+        openSuccessModal(`Year-end close applied for ${year}.`, 'Year Closed ✅');
+      } catch (e) {
+        openErrorModal(`Year-end close failed: ${e.message || e}`);
+      }
+    }
+
+    function openUserGuideModal(tab = 'expenses') {
+      if (!userGuideModal) return;
+      setUserGuideTab(tab);
+      userGuideModal.classList.add('active');
+      userGuideModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeUserGuideModal() {
+      if (!userGuideModal) return;
+      userGuideModal.classList.remove('active');
+      userGuideModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function openConfirmModal(text, title = 'Please Confirm', confirmLabel = 'Confirm') {
+      return new Promise((resolve) => {
+        const confirmTitleEl = document.getElementById('confirm-title');
+        confirmTitleEl.textContent = title;
+        confirmDetails.textContent = text;
+        confirmOkBtn.textContent = confirmLabel;
+        confirmModal.classList.add('active');
+        confirmModal.setAttribute('aria-hidden', 'false');
+
+        const cleanup = () => {
+          confirmModal.classList.remove('active');
+          confirmModal.setAttribute('aria-hidden', 'true');
+          confirmOkBtn.removeEventListener('click', onOk);
+          confirmCancelBtn.removeEventListener('click', onCancel);
+          confirmModal.removeEventListener('click', onOverlay);
+        };
+        const onOk = () => { cleanup(); resolve(true); };
+        const onCancel = () => { cleanup(); resolve(false); };
+        const onOverlay = (e) => { if (e.target === confirmModal) onCancel(); };
+
+        confirmOkBtn.addEventListener('click', onOk);
+        confirmCancelBtn.addEventListener('click', onCancel);
+        confirmModal.addEventListener('click', onOverlay);
+      });
+    }
+
+    successCloseBtn.addEventListener('click', closeSuccessModal);
+    successModal.addEventListener('click', (e) => { if (e.target === successModal) closeSuccessModal(); });
+    errorCloseBtn.addEventListener('click', closeErrorModal);
+    errorModal.addEventListener('click', (e) => { if (e.target === errorModal) closeErrorModal(); });
+    userGuideCloseBtn?.addEventListener('click', closeUserGuideModal);
+    userGuideModal?.addEventListener('click', (e) => { if (e.target === userGuideModal) closeUserGuideModal(); });
+    ownerTransferCloseBtn?.addEventListener('click', closeOwnerTransferModal);
+    ownerTransferModal?.addEventListener('click', (e) => { if (e.target === ownerTransferModal) closeOwnerTransferModal(); });
+
+    yearCloseCancelBtn?.addEventListener('click', closeYearCloseWizard);
+    yearCloseApplyBtn?.addEventListener('click', applyYearCloseWizard);
+    yearCloseModal?.addEventListener('click', (e) => { if (e.target === yearCloseModal) closeYearCloseWizard(); });
+    auditCancelBtn?.addEventListener('click', closeAuditPackageModal);
+    auditGenerateBtn?.addEventListener('click', generateAuditPackage);
+    auditSelectAllBtn?.addEventListener('click', () => {
+      const boxes = Array.from(document.querySelectorAll('#audit-doc-list input[type="checkbox"]'));
+      const allChecked = boxes.every(b => b.checked);
+      boxes.forEach(b => { b.checked = !allChecked; });
+      auditSelectAllBtn.textContent = allChecked ? 'Select All' : 'Clear All';
+    });
+    auditPackageModal?.addEventListener('click', (e) => { if (e.target === auditPackageModal) closeAuditPackageModal(); });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && successModal.classList.contains('active')) closeSuccessModal();
+      if (e.key === 'Escape' && errorModal.classList.contains('active')) closeErrorModal();
+      if (e.key === 'Escape' && userGuideModal?.classList.contains('active')) closeUserGuideModal();
+      if (e.key === 'Escape' && ownerTransferModal?.classList.contains('active')) closeOwnerTransferModal();
+      if (e.key === 'Escape' && yearCloseModal?.classList.contains('active')) closeYearCloseWizard();
+      if (e.key === 'Escape' && auditPackageModal?.classList.contains('active')) closeAuditPackageModal();
+    });
+
+    // ===== Admin Controls =====
+    function setAdminUnlocked(on) {
+      adminUnlocked = !!on;
+      adminLock.style.display = adminUnlocked ? 'none' : 'block';
+      adminControls.classList.toggle('active', adminUnlocked);
+    }
+
+    function renderAdminCalendar(bookings = [], blockedSlots = [], blockedDays = []) {
+      const cursor = adminCalendarCursor || new Date();
+      const year = cursor.getFullYear();
+      const month = cursor.getMonth();
+      const first = new Date(year, month, 1);
+      const last = new Date(year, month + 1, 0);
+      const daysInMonth = last.getDate();
+      const startDow = first.getDay();
+
+      const openclawByDay = new Map();
+      const lessonsByDay = new Map();
+      const blockedByDay = new Map();
+      const blockedWholeDay = new Set();
+
+      for (const b of bookings) {
+        const d = (b.setup_date || '').trim();
+        if (!d) continue;
+        const isLessons = (b.service_type || '').toLowerCase() === 'lessons';
+        if (isLessons) {
+          lessonsByDay.set(d, (lessonsByDay.get(d) || 0) + 1);
+        } else {
+          openclawByDay.set(d, (openclawByDay.get(d) || 0) + 1);
+        }
+      }
+      for (const s of blockedSlots) {
+        if (!s.active) continue;
+        const d = (s.setup_date || '').trim();
+        if (!d) continue;
+        blockedByDay.set(d, (blockedByDay.get(d) || 0) + 1);
+      }
+      for (const d of blockedDays) {
+        if (!d.active) continue;
+        const key = (d.setup_date || '').trim();
+        if (!key) continue;
+        blockedWholeDay.add(key);
+        blockedByDay.set(key, (blockedByDay.get(key) || 0) + 1);
+      }
+
+      const monthName = first.toLocaleString('en-US', { month: 'long' });
+      adminCalendarTitleEl.textContent = `Availability Calendar — ${monthName} ${year}`;
+
+      const parts = [];
+      const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      for (const d of dows) parts.push(`<div class="admin-cal-dow">${d}</div>`);
+
+      for (let i = 0; i < startDow; i++) {
+        parts.push('<div class="admin-cal-day empty"></div>');
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const mm = String(month + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        const key = `${year}-${mm}-${dd}`;
+        const openclawCount = openclawByDay.get(key) || 0;
+        const lessonsCount = lessonsByDay.get(key) || 0;
+        const xCount = blockedByDay.get(key) || 0;
+        const dots = [];
+        for (let i = 0; i < Math.min(3, openclawCount); i++) dots.push('<i class="admin-dot booked-openclaw" title="OpenClaw booking"></i>');
+        for (let i = 0; i < Math.min(3, lessonsCount); i++) dots.push('<i class="admin-dot booked-lessons" title="Lessons booking"></i>');
+        if (blockedWholeDay.has(key)) {
+          dots.push('<i class="admin-dot blocked" title="Entire day blocked"></i>');
+        } else {
+          for (let i = 0; i < Math.min(3, xCount); i++) dots.push('<i class="admin-dot blocked" title="Blocked"></i>');
+        }
+        parts.push(`<div class="admin-cal-day"><div class="admin-cal-day-num">${day}</div><div class="admin-cal-dots">${dots.join('')}</div></div>`);
+      }
+
+      adminCalendarGridEl.innerHTML = parts.join('');
+    }
+
+    async function loadAdminData() {
+      if (!adminUnlocked) return;
+      const key = adminKeyEl.value.trim();
+      try {
+        const res = await fetch(`${BOOKINGS_API_URL}?limit=200`, {
+          headers: { 'X-Admin-Password': key }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        const bookingRows = (data.bookings || []).map((b) => {
+          const svc = b.service_type === 'lessons' ? 'LESSONS' : 'OPENCLAW';
+          return `<div>[BOOKING:${svc}] ${b.status} | ${b.setup_at || '(n/a)'} | ${b.customer_name || '(no name)'}</div>`;
+        });
+
+        const blockedSlotRows = (data.blockedSlots || []).map((s) => {
+          const k = `${s.setup_date || ''}|${s.setup_time || ''}`;
+          return `<div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem;"><span>[BLOCKED SLOT] ${s.active ? 'active' : 'inactive'} | ${s.setup_at} | ${s.reason || '(no reason)'}</span><button type="button" class="btn delete" data-blocked-slot-delete="${k}">Delete</button></div>`;
+        });
+
+        const blockedDayRows = (data.blockedDays || []).map((d) => {
+          const k = `${d.setup_date || ''}`;
+          return `<div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem;"><span>[BLOCKED DAY] ${d.active ? 'active' : 'inactive'} | ${d.setup_date} | ${d.reason || '(no reason)'}</span><button type="button" class="btn delete" data-blocked-day-delete="${k}">Delete</button></div>`;
+        });
+
+        const html = [...bookingRows, ...blockedSlotRows, ...blockedDayRows].join('');
+        adminListEl.innerHTML = html || 'No records yet.';
+
+        adminListEl.querySelectorAll('[data-blocked-slot-delete]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const raw = btn.getAttribute('data-blocked-slot-delete') || '';
+            const [setupDate, setupTime] = raw.split('|');
+            if (!setupDate || !setupTime) return;
+            const ok = await openConfirmModal(`Delete blocked slot ${setupDate} ${setupTime}?`, 'Delete Blocked Slot?', 'Delete');
+            if (!ok) return;
+            try {
+              await fetch(`${BLOCK_SLOT_API_URL}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': key },
+                body: JSON.stringify({ setupDate, setupTime, reason: '', active: false })
+              });
+              await loadAdminData();
+              openSuccessModal('Blocked slot deleted successfully.', 'Record Deleted ✅');
+            } catch (e) {
+              openErrorModal(`Could not delete blocked slot: ${e.message || e}`);
+            }
+          });
+        });
+
+        adminListEl.querySelectorAll('[data-blocked-day-delete]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const setupDate = btn.getAttribute('data-blocked-day-delete') || '';
+            if (!setupDate) return;
+            const ok = await openConfirmModal(`Delete blocked day ${setupDate}?`, 'Delete Blocked Day?', 'Delete');
+            if (!ok) return;
+            try {
+              await fetch(`${BLOCK_DAY_API_URL}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Admin-Password': key },
+                body: JSON.stringify({ setupDate, reason: '', active: false })
+              });
+              await loadAdminData();
+              openSuccessModal('Blocked day deleted successfully.', 'Record Deleted ✅');
+            } catch (e) {
+              openErrorModal(`Could not delete blocked day: ${e.message || e}`);
+            }
+          });
+        });
+
+        renderAdminCalendar(data.bookings || [], data.blockedSlots || [], data.blockedDays || []);
+        markMoneyBlurTargets();
+      } catch (e) {
+        adminListEl.textContent = `Error loading admin data: ${e.message || e}`;
+      }
+    }
+
+    async function setBlockedSlot(active) {
+      const key = adminKeyEl.value.trim();
+      const setupDate = adminDateEl.value;
+      const setupTime = adminTimeEl.value;
+      if (!key || !setupDate || !setupTime) {
+        openErrorModal('Admin password + date + time are required.');
+        return;
+      }
+      const proceed = await openConfirmModal(
+        `${active ? 'Block' : 'Unblock'} slot ${setupDate} ${setupTime}?`,
+        active ? 'Block Slot?' : 'Unblock Slot?',
+        active ? 'Block' : 'Unblock'
+      );
+      if (!proceed) return;
+      try {
+        const res = await fetch(`${BLOCK_SLOT_API_URL}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': key },
+          body: JSON.stringify({
+            setupDate,
+            setupTime,
+            reason: adminReasonEl.value.trim(),
+            active
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update slot');
+        await loadAdminData();
+        openSuccessModal(`Slot ${active ? 'blocked' : 'unblocked'} successfully.`, active ? 'Slot Blocked ✅' : 'Slot Unblocked ✅');
+      } catch (e) {
+        openErrorModal(`Could not update slot: ${e.message || e}`);
+      }
+    }
+
+    async function setBlockedDay(active) {
+      const key = adminKeyEl.value.trim();
+      const setupDate = adminDateEl.value;
+      if (!key || !setupDate) {
+        openErrorModal('Admin password + date are required.');
+        return;
+      }
+      const proceed = await openConfirmModal(
+        `${active ? 'Block' : 'Unblock'} day ${setupDate}?`,
+        active ? 'Block Day?' : 'Unblock Day?',
+        active ? 'Block' : 'Unblock'
+      );
+      if (!proceed) return;
+      try {
+        const res = await fetch(`${BLOCK_DAY_API_URL}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': key },
+          body: JSON.stringify({
+            setupDate,
+            reason: adminReasonEl.value.trim(),
+            active
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update day');
+        await loadAdminData();
+        openSuccessModal(`Day ${active ? 'blocked' : 'unblocked'} successfully.`, active ? 'Day Blocked ✅' : 'Day Unblocked ✅');
+      } catch (e) {
+        openErrorModal(`Could not update day: ${e.message || e}`);
+      }
+    }
+
+    async function cleanupOldPendingBookings() {
+      const key = adminKeyEl.value.trim();
+      if (!key) {
+        openErrorModal('Admin password is required.');
+        return;
+      }
+      const proceed = await openConfirmModal(
+        'Delete all pending bookings older than 5 days? This cannot be undone.',
+        'Clear Old Pending Bookings?',
+        'Delete'
+      );
+      if (!proceed) return;
+      try {
+        const res = await fetch(`${CLEANUP_PENDING_BOOKINGS_API_URL}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': key },
+          body: JSON.stringify({ days: 5 })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Cleanup failed');
+        await loadAdminData();
+        openSuccessModal(`Removed ${Number(data.deleted || 0)} pending booking(s) older than ${Number(data.days || 5)} days.`, 'Pending Cleanup Complete ✅');
+      } catch (e) {
+        openErrorModal(`Could not clear pending bookings: ${e.message || e}`);
+      }
+    }
+
+    // ===== Category Management =====
+    const DEFAULT_TAX_EXPENSE_CATEGORIES = [
+      'Startup cost', 'Advertising/Marketing', 'Software/SaaS', 'Hosting/Cloud',
+      'Hardware', 'Research & Development', 'Product Testing', 'Office Supplies', 'Travel', 'Meals', 'Education',
+      'Professional Services', 'Payment Processing Fees', 'Other'
+    ];
+
+    const DEFAULT_TAX_INCOME_CATEGORIES = [
+      'OpenClaw Setup', 'Consulting', 'Website Design', 'AI Lessons', 'Domain Sale', 'Owner Funded (Non-Revenue)', 'Other'
+    ];
+
+    let TAX_EXPENSE_CATEGORIES = [...DEFAULT_TAX_EXPENSE_CATEGORIES];
+    let TAX_INCOME_CATEGORIES = [...DEFAULT_TAX_INCOME_CATEGORIES];
+
+    function escHtml(v) {
+      return String(v == null ? '' : v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function saveCategoryPrefs() {
+      localStorage.setItem('esa_tax_expense_categories', JSON.stringify(TAX_EXPENSE_CATEGORIES));
+      localStorage.setItem('esa_tax_income_categories', JSON.stringify(TAX_INCOME_CATEGORIES));
+    }
+
+    function loadCategoryPrefs() {
+      try {
+        const exp = JSON.parse(localStorage.getItem('esa_tax_expense_categories') || 'null');
+        const inc = JSON.parse(localStorage.getItem('esa_tax_income_categories') || 'null');
+        if (Array.isArray(exp) && exp.length) TAX_EXPENSE_CATEGORIES = [...new Set(exp.map(v => String(v).trim()).filter(Boolean))];
+        if (Array.isArray(inc) && inc.length) TAX_INCOME_CATEGORIES = [...new Set(inc.map(v => String(v).trim()).filter(Boolean))];
+      } catch {}
+      // Ensure newly shipped default categories still appear for existing users with saved prefs.
+      for (const c of DEFAULT_TAX_EXPENSE_CATEGORIES) {
+        if (!TAX_EXPENSE_CATEGORIES.some(v => v.toLowerCase() === c.toLowerCase())) TAX_EXPENSE_CATEGORIES.push(c);
+      }
+      for (const c of DEFAULT_TAX_INCOME_CATEGORIES) {
+        if (!TAX_INCOME_CATEGORIES.some(v => v.toLowerCase() === c.toLowerCase())) TAX_INCOME_CATEGORIES.push(c);
+      }
+    }
+
+    function renderCategoryOptions() {
+      taxExpenseCategoryEl.innerHTML = TAX_EXPENSE_CATEGORIES.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+      taxIncomeCategoryEl.innerHTML = TAX_INCOME_CATEGORIES.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+    }
+
+    function openCategoryEditModal(currentName) {
+      return new Promise((resolve) => {
+        taxCategoryEditInput.value = currentName || '';
+        taxCategoryEditModal.classList.add('active');
+        taxCategoryEditModal.setAttribute('aria-hidden', 'false');
+        taxCategoryEditInput.focus();
+        taxCategoryEditInput.select();
+
+        const cleanup = () => {
+          taxCategoryEditModal.classList.remove('active');
+          taxCategoryEditModal.setAttribute('aria-hidden', 'true');
+          taxCategoryEditSaveBtn.removeEventListener('click', onSave);
+          taxCategoryEditCancelBtn.removeEventListener('click', onCancel);
+          taxCategoryEditModal.removeEventListener('click', onOverlay);
+        };
+        const onSave = () => { const v = (taxCategoryEditInput.value || '').trim(); cleanup(); resolve(v || null); };
+        const onCancel = () => { cleanup(); resolve(null); };
+        const onOverlay = (e) => { if (e.target === taxCategoryEditModal) onCancel(); };
+
+        taxCategoryEditSaveBtn.addEventListener('click', onSave);
+        taxCategoryEditCancelBtn.addEventListener('click', onCancel);
+        taxCategoryEditModal.addEventListener('click', onOverlay);
+      });
+    }
+
+    function renderCategoryManagerLists() {
+      if (!expenseCategoriesListEl || !incomeCategoriesListEl) return;
+      expenseCategoriesListEl.innerHTML = TAX_EXPENSE_CATEGORIES.map(c => `<div style="display:flex; gap:.35rem; align-items:center;"><span style="flex:1;">${escHtml(c)}</span><button type="button" class="btn" data-cat-edit="expense" data-cat-name="${encodeURIComponent(c)}">Edit</button><button type="button" class="btn delete" data-cat-del="expense" data-cat-name="${encodeURIComponent(c)}">Delete</button></div>`).join('');
+      incomeCategoriesListEl.innerHTML = TAX_INCOME_CATEGORIES.map(c => `<div style="display:flex; gap:.35rem; align-items:center;"><span style="flex:1;">${escHtml(c)}</span><button type="button" class="btn" data-cat-edit="income" data-cat-name="${encodeURIComponent(c)}">Edit</button><button type="button" class="btn delete" data-cat-del="income" data-cat-name="${encodeURIComponent(c)}">Delete</button></div>`).join('');
+
+      (taxCategoryModal || document).querySelectorAll('[data-cat-edit]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const type = btn.getAttribute('data-cat-edit');
+          const oldName = decodeURIComponent(btn.getAttribute('data-cat-name') || '');
+          const newName = await openCategoryEditModal(oldName);
+          if (!newName || newName === oldName) return;
+          const list = type === 'income' ? TAX_INCOME_CATEGORIES : TAX_EXPENSE_CATEGORIES;
+          if (list.some(c => c.toLowerCase() === newName.toLowerCase())) {
+            openErrorModal('That category name already exists.');
+            return;
+          }
+          const rows = type === 'income' ? (loadedTaxData.income || []) : (loadedTaxData.expenses || []);
+          if (rows.some(r => String(r.category || '') === oldName)) {
+            openErrorModal(`Can't rename "${oldName}" because records already use it. Reclassify those transactions first.`);
+            return;
+          }
+          if (type === 'income') {
+            TAX_INCOME_CATEGORIES = TAX_INCOME_CATEGORIES.map(c => c === oldName ? newName : c);
+          } else {
+            TAX_EXPENSE_CATEGORIES = TAX_EXPENSE_CATEGORIES.map(c => c === oldName ? newName : c);
+          }
+          saveCategoryPrefs();
+          renderCategoryOptions();
+          renderCategoryManagerLists();
+          openSuccessModal('Category updated.', 'Category Updated ✅');
+        });
+      });
+
+      (taxCategoryModal || document).querySelectorAll('[data-cat-del]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const type = btn.getAttribute('data-cat-del');
+          const name = decodeURIComponent(btn.getAttribute('data-cat-name') || '');
+          const rows = type === 'income' ? (loadedTaxData.income || []) : (loadedTaxData.expenses || []);
+          if (rows.some(r => String(r.category || '') === name)) {
+            openErrorModal(`Can't delete "${name}". Reclassify transactions in this category before deleting it.`);
+            return;
+          }
+          const ok = await openConfirmModal(`Delete category "${name}"?`, 'Delete Category?', 'Delete');
+          if (!ok) return;
+          if (type === 'income') {
+            TAX_INCOME_CATEGORIES = TAX_INCOME_CATEGORIES.filter(c => c !== name);
+          } else {
+            TAX_EXPENSE_CATEGORIES = TAX_EXPENSE_CATEGORIES.filter(c => c !== name);
+          }
+          saveCategoryPrefs();
+          renderCategoryOptions();
+          renderCategoryManagerLists();
+          openSuccessModal('Category deleted.', 'Category Deleted ✅');
+        });
+      });
+    }
+
+    // ===== Tax Ledger =====
+    function formatTaxRowLabel(type, r) {
+      const counterparty = type === 'income' ? (r.source || '') : (r.vendor || '');
+      return `${r.date} | ${r.category || ''} | ${counterparty} | ${r.notes || ''}`;
+    }
+
+    async function editTaxRecord(type, r) {
+      if (type === 'expense') {
+        setTaxEntryMode('expense');
+        editingExpenseId = Number(r.id || 0);
+        taxExpenseDateEl.value = r.date || '';
+        taxExpenseVendorEl.value = r.vendor || '';
+        taxExpenseCategoryEl.value = r.category || TAX_EXPENSE_CATEGORIES[0];
+        taxExpenseAmountEl.value = ((Number(r.amount_cents || 0))/100).toFixed(2);
+        taxExpensePaidViaEl.value = r.paid_via || '';
+        taxExpenseNotesEl.value = r.notes || '';
+        taxAddExpenseBtn.style.display = 'none';
+        taxUpdateExpenseBtn.style.display = '';
+        taxCancelExpenseEditBtn.style.display = '';
+        taxExpenseAmountEl.focus();
+      } else {
+        setTaxEntryMode('income');
+        editingIncomeId = Number(r.id || 0);
+        taxIncomeDateEl.value = r.date || '';
+        taxIncomeSourceEl.value = r.source || '';
+        taxIncomeCategoryEl.value = r.category || TAX_INCOME_CATEGORIES[0];
+        taxIncomeAmountEl.value = ((Number(r.amount_cents || 0))/100).toFixed(2);
+        taxIncomeStripeEl.value = r.stripe_session_id || '';
+        taxIncomeNotesEl.value = r.notes || '';
+        if (taxIncomeOwnerFundedEl) taxIncomeOwnerFundedEl.checked = Number(r.is_owner_funded || 0) === 1;
+        taxAddIncomeBtn.style.display = 'none';
+        taxUpdateIncomeBtn.style.display = '';
+        taxCancelIncomeEditBtn.style.display = '';
+        taxIncomeAmountEl.focus();
+      }
+    }
+
+    function resetExpenseEditMode() {
+      editingExpenseId = null;
+      taxAddExpenseBtn.style.display = '';
+      taxUpdateExpenseBtn.style.display = 'none';
+      taxCancelExpenseEditBtn.style.display = 'none';
+    }
+
+    function resetIncomeEditMode() {
+      editingIncomeId = null;
+      taxAddIncomeBtn.style.display = '';
+      taxUpdateIncomeBtn.style.display = 'none';
+      taxCancelIncomeEditBtn.style.display = 'none';
+    }
+
+    async function deleteTaxRecord(type, r) {
+      const amount = (Number(r.amount_cents||0)/100).toFixed(2);
+      const confirmed = await openConfirmModal(
+        `Delete this ${type} record from ${r.date} for $${amount}? This cannot be undone.`,
+        'Delete Record?',
+        'Delete'
+      );
+      if (!confirmed) return false;
+
+      const url = type === 'income' ? TAX_INCOME_DELETE_API_URL : TAX_EXPENSE_DELETE_API_URL;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        body: JSON.stringify({ id: r.id })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      return true;
+    }
+
+    function setTaxEntryMode(mode) {
+      const showExpense = mode === 'expense';
+      const showOwnerTransfer = mode === 'owner_transfer';
+      const showIncome = mode === 'income';
+      if (taxExpensePanel) taxExpensePanel.style.display = showExpense ? '' : 'none';
+      if (taxOwnerTransferPanel) taxOwnerTransferPanel.style.display = showOwnerTransfer ? '' : 'none';
+      if (taxIncomePanel) taxIncomePanel.style.display = showIncome ? '' : 'none';
+      if (taxExpenseFields) taxExpenseFields.style.display = showExpense ? '' : 'none';
+      if (taxOwnerTransferFields) taxOwnerTransferFields.style.display = showOwnerTransfer ? '' : 'none';
+      if (taxIncomeFields) taxIncomeFields.style.display = showIncome ? '' : 'none';
+      if (taxMinimizeExpenseBtn) taxMinimizeExpenseBtn.textContent = 'Minimize';
+      if (taxMinimizeOwnerTransferBtn) taxMinimizeOwnerTransferBtn.textContent = 'Minimize';
+      if (taxMinimizeIncomeBtn) taxMinimizeIncomeBtn.textContent = 'Minimize';
+      if (taxModeExpenseBtn) taxModeExpenseBtn.classList.toggle('active', showExpense);
+      if (taxModeOwnerTransferBtn) taxModeOwnerTransferBtn.classList.toggle('active', showOwnerTransfer);
+      if (taxModeIncomeBtn) taxModeIncomeBtn.classList.toggle('active', showIncome);
+    }
+
+    function initTaxUiDefaults() {
+      const now = nowEtParts();
+      const thisYear = Number(now.date.split('-')[0] || new Date().getFullYear());
+      const years = [thisYear, thisYear - 1, thisYear - 2, thisYear - 3];
+      const yearOpts = years.map(y => `<option value="${y}">${y}</option>`).join('');
+      taxYearEl.innerHTML = yearOpts;
+      if (taxSummaryYearEl) taxSummaryYearEl.innerHTML = yearOpts;
+      taxYearEl.value = String(thisYear);
+      if (taxSummaryYearEl) taxSummaryYearEl.value = String(thisYear);
+
+      renderCategoryOptions();
+
+      taxExpenseDateEl.value = now.date;
+      if (taxOwnerTransferDateEl) taxOwnerTransferDateEl.value = now.date;
+      taxIncomeDateEl.value = now.date;
+      setTaxEntryMode('none');
+    }
+
+    function renderTxList() {
+      let filtered = allTxItems;
+      if (activeTxFilter !== 'all') {
+        filtered = filtered.filter(r => r.type === activeTxFilter);
+      }
+      const selCat = txCategoryFilterEl.value;
+      if (activeTxFilter === 'expense' && selCat) {
+        filtered = filtered.filter(r => (r.category || '') === selCat);
+      }
+      if (!filtered.length) {
+        taxListEl.textContent = activeTxFilter === 'all' ? 'No transactions yet.' : `No ${activeTxFilter} entries.`;
+        return;
+      }
+      taxListEl.innerHTML = filtered.map((r) => {
+        const receiptBtn = r.receipt_key
+          ? `<a href="${TAX_RECEIPT_URL}?key=${encodeURIComponent(r.receipt_key)}&key2=${encodeURIComponent(adminPassword)}" target="_blank" class="btn" style="font-size:0.78rem; padding:0.2rem 0.5rem;">Receipt ↗</a>`
+          : `<label class="btn" style="font-size:0.78rem; padding:0.2rem 0.5rem; cursor:pointer;" title="Upload receipt">+ Receipt<input type="file" accept=".pdf,.jpg,.jpeg,.png" class="inline-receipt-input" data-upload-type="${r.type}" data-upload-id="${r.id}" style="display:none;"></label>`;
+        return `
+        <div class="tax-row" data-type="${r.type}" data-id="${r.id}">
+          <span class="type">${r.type.toUpperCase()}</span>
+          <span class="desc" title="${escHtml(formatTaxRowLabel(r.type, r))}">${escHtml(formatTaxRowLabel(r.type, r))}</span>
+          <span class="amt">$${(Number(r.amount_cents || 0)/100).toFixed(2)}</span>
+          <div style="display:flex; gap:.3rem; flex-wrap:wrap;">${receiptBtn}<button type="button" class="btn edit" data-tax-edit="1">Edit</button><button type="button" class="btn delete" data-tax-delete="1">Delete</button></div>
+        </div>`;
+      }).join('');
+
+      taxListEl.querySelectorAll('[data-tax-edit="1"]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.tax-row');
+          const id = Number(row?.getAttribute('data-id') || 0);
+          const type = row?.getAttribute('data-type');
+          const sourceList = type === 'income' ? (loadedTaxData.income || []) : (loadedTaxData.expenses || []);
+          const record = sourceList.find(x => Number(x.id) === id);
+          if (!record) return;
+          try {
+            await editTaxRecord(type, record);
+            openSuccessModal('Record loaded into the form. Make your changes and click Update.', 'Edit Mode Ready ✏️');
+          } catch (e) {
+            openErrorModal(`Could not open transaction for edit: ${e.message || e}`);
+          }
+        });
+      });
+
+      taxListEl.querySelectorAll('[data-tax-delete="1"]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const row = btn.closest('.tax-row');
+          const id = Number(row?.getAttribute('data-id') || 0);
+          const type = row?.getAttribute('data-type');
+          const sourceList = type === 'income' ? (loadedTaxData.income || []) : (loadedTaxData.expenses || []);
+          const record = sourceList.find(x => Number(x.id) === id);
+          if (!record) return;
+          try {
+            const deleted = await deleteTaxRecord(type, record);
+            if (!deleted) return;
+            await loadTaxTransactions();
+            await loadAccountsData();
+            openSuccessModal('Transaction deleted successfully.', 'Record Deleted ✅');
+          } catch (e) {
+            openErrorModal(`Could not delete transaction: ${e.message || e}`);
+          }
+        });
+      });
+
+      taxListEl.querySelectorAll('.inline-receipt-input').forEach((input) => {
+        input.addEventListener('change', async () => {
+          if (!input.files[0]) return;
+          const type = input.getAttribute('data-upload-type');
+          const id = input.getAttribute('data-upload-id');
+          try {
+            await uploadReceipt(type, id, input);
+            await loadTaxTransactions();
+          } catch (e) {
+            openErrorModal(`Receipt upload failed: ${e.message || e}`);
+          }
+        });
+      });
+    }
+
+    async function loadTaxTransactions() {
+      if (!adminUnlocked) return;
+      const year = taxYearEl.value;
+      const summaryYear = taxSummaryYearEl?.value || year;
+      const type = taxTypeEl.value;
+      try {
+        const [res, summaryRes] = await Promise.all([
+          fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=${encodeURIComponent(type)}&limit=5000`, {
+            headers: { 'X-Admin-Password': adminPassword }
+          }),
+          fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(summaryYear)}&type=all&limit=5000`, {
+            headers: { 'X-Admin-Password': adminPassword }
+          })
+        ]);
+        const data = await res.json();
+        const summaryData = await summaryRes.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        if (!summaryRes.ok) throw new Error(summaryData.error || 'Failed to load summary');
+
+        const items = [
+          ...(data.income || []).map(r => ({ type: 'income', ...r })),
+          ...(data.expenses || []).map(r => ({ type: 'expense', ...r }))
+        ].sort((a,b) => {
+          const ad = String(a.date || '');
+          const bd = String(b.date || '');
+          if (ad !== bd) return bd.localeCompare(ad);
+          return Number(b.id || 0) - Number(a.id || 0);
+        });
+
+        const incomeByCategory = new Map();
+        const expenseByCategory = new Map();
+        let incomeTotal = 0;
+        let expenseTotal = 0;
+
+        for (const r of (summaryData.income || [])) {
+          const c = r.category || 'Uncategorized';
+          const v = Number(r.amount_cents || 0);
+          incomeTotal += v;
+          incomeByCategory.set(c, (incomeByCategory.get(c) || 0) + v);
+        }
+        for (const r of (summaryData.expenses || [])) {
+          const c = r.category || 'Uncategorized';
+          const v = Number(r.amount_cents || 0);
+          expenseTotal += v;
+          expenseByCategory.set(c, (expenseByCategory.get(c) || 0) + v);
+        }
+
+        const sortedIncome = [...incomeByCategory.entries()].sort((a,b) => b[1]-a[1]);
+        const sortedExpense = [...expenseByCategory.entries()].sort((a,b) => b[1]-a[1]);
+
+        const incomeRows = sortedIncome.length
+          ? sortedIncome.map(([cat, cents]) => `<div class="tax-summary-line"><span>${cat}</span><strong>$${(cents/100).toFixed(2)}</strong></div>`).join('')
+          : '<div class="tax-summary-line"><span>No income entries</span><strong>$0.00</strong></div>';
+
+        const expenseRows = sortedExpense.length
+          ? sortedExpense.map(([cat, cents]) => `<div class="tax-summary-line"><span>${cat}</span><strong>$${(cents/100).toFixed(2)}</strong></div>`).join('')
+          : '<div class="tax-summary-line"><span>No expense entries</span><strong>$0.00</strong></div>';
+
+        taxSummaryListEl.innerHTML = `
+          <div class="tax-summary-col">
+            <h4>Income (${summaryYear})</h4>
+            <div class="tax-summary-line"><span>Total</span><strong>$${(incomeTotal/100).toFixed(2)}</strong></div>
+            ${incomeRows}
+          </div>
+          <div class="tax-summary-col">
+            <h4>Expenses (${summaryYear})</h4>
+            <div class="tax-summary-line"><span>Total</span><strong>$${(expenseTotal/100).toFixed(2)}</strong></div>
+            ${expenseRows}
+            <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Net</span><strong class="money-blur-target">$${((incomeTotal - expenseTotal)/100).toFixed(2)}</strong></div>
+          </div>
+        `;
+        allTxItems = items;
+        loadedTaxData = data;
+        txCategoryFilterEl.innerHTML = '<option value="">All Categories</option>' +
+          TAX_EXPENSE_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
+        renderTxList();
+        markMoneyBlurTargets();
+      } catch (e) {
+        taxSummaryListEl.innerHTML = `<div class="tax-summary-col"><h4>Summary</h4><div class="tax-summary-line"><span>Error</span><strong>${(e.message || e)}</strong></div></div>`;
+        taxListEl.textContent = `Error loading tax transactions: ${e.message || e}`;
+      }
+    }
+
+    function clearTaxExpenseForm() {
+      const now = nowEtParts();
+      taxExpenseDateEl.value = now.date;
+      taxExpenseVendorEl.value = '';
+      taxExpenseAmountEl.value = '';
+      taxExpensePaidViaEl.value = '';
+      taxExpenseNotesEl.value = '';
+      const expReceiptEl = document.getElementById('tax-expense-receipt');
+      if (expReceiptEl) expReceiptEl.value = '';
+      const expReceiptNameEl = document.getElementById('tax-expense-receipt-name');
+      if (expReceiptNameEl) expReceiptNameEl.textContent = 'No file chosen';
+      if (taxExpenseCategoryEl.options.length) taxExpenseCategoryEl.selectedIndex = 0;
+      resetExpenseEditMode();
+    }
+
+    function clearTaxIncomeForm() {
+      const now = nowEtParts();
+      taxIncomeDateEl.value = now.date;
+      taxIncomeSourceEl.value = '';
+      taxIncomeAmountEl.value = '';
+      taxIncomeStripeEl.value = '';
+      taxIncomeNotesEl.value = '';
+      if (taxIncomeOwnerFundedEl) taxIncomeOwnerFundedEl.checked = false;
+      const incReceiptEl = document.getElementById('tax-income-receipt');
+      if (incReceiptEl) incReceiptEl.value = '';
+      const incReceiptNameEl = document.getElementById('tax-income-receipt-name');
+      if (incReceiptNameEl) incReceiptNameEl.textContent = 'No file chosen';
+      if (taxIncomeCategoryEl.options.length) taxIncomeCategoryEl.selectedIndex = 0;
+      resetIncomeEditMode();
+    }
+
+    async function addTaxExpense() {
+      const payload = {
+        date: taxExpenseDateEl.value,
+        vendor: taxExpenseVendorEl.value.trim(),
+        category: taxExpenseCategoryEl.value,
+        amount: taxExpenseAmountEl.value,
+        paidVia: taxExpensePaidViaEl.value.trim(),
+        notes: taxExpenseNotesEl.value.trim()
+      };
+      if (!payload.date || !payload.category || !payload.amount) {
+        openErrorModal('Expense date, category, and amount are required.');
+        return;
+      }
+      const isEdit = !!editingExpenseId;
+      const proceed = await openConfirmModal(
+        isEdit ? 'Save changes to this expense record?' : 'Add this new expense record?',
+        isEdit ? 'Update Expense?' : 'Add Expense?',
+        isEdit ? 'Update' : 'Add'
+      );
+      if (!proceed) return;
+      try {
+        const targetUrl = isEdit ? TAX_EXPENSE_UPDATE_API_URL : TAX_EXPENSE_API_URL;
+        if (editingExpenseId) payload.id = editingExpenseId;
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        const receiptInput = document.getElementById('tax-expense-receipt');
+        if (data.id && receiptInput) {
+          await uploadReceipt('expense', data.id, receiptInput).catch(() => {});
+          receiptInput.value = '';
+        }
+        clearTaxExpenseForm();
+        await loadTaxTransactions();
+        await loadAccountsData();
+        openSuccessModal(isEdit ? 'Expense record updated successfully.' : 'Expense record added successfully.', isEdit ? 'Expense Updated ✅' : 'Expense Added ✅');
+      } catch (e) {
+        openErrorModal(`Could not save expense: ${e.message || e}`);
+      }
+    }
+
+    function clearTaxOwnerTransferForm() {
+      const now = nowEtParts();
+      if (taxOwnerTransferDateEl) taxOwnerTransferDateEl.value = now.date;
+      if (taxOwnerTransferTypeEl) taxOwnerTransferTypeEl.value = 'personal_to_business';
+      if (taxOwnerTransferAmountEl) taxOwnerTransferAmountEl.value = '';
+      if (taxOwnerTransferNotesEl) taxOwnerTransferNotesEl.value = '';
+    }
+
+    async function addTaxOwnerTransfer() {
+      const payload = {
+        date: taxOwnerTransferDateEl?.value,
+        transferType: taxOwnerTransferTypeEl?.value,
+        amount: taxOwnerTransferAmountEl?.value,
+        notes: taxOwnerTransferNotesEl?.value?.trim() || ''
+      };
+      if (!payload.date || !payload.transferType || !payload.amount) {
+        openErrorModal('Transfer date, type, and amount are required.');
+        return;
+      }
+      const ok = await openConfirmModal('Add this owner transfer journal entry?', 'Add Owner Transfer?', 'Add');
+      if (!ok) return;
+      try {
+        const res = await fetch(TAX_OWNER_TRANSFER_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        clearTaxOwnerTransferForm();
+        closeOwnerTransferModal();
+        await loadAccountsData();
+        openSuccessModal('Owner transfer posted to journal successfully.', 'Owner Transfer Added ✅');
+      } catch (e) {
+        openErrorModal(`Could not add owner transfer: ${e.message || e}`);
+      }
+    }
+
+    async function addTaxIncome() {
+      const payload = {
+        date: taxIncomeDateEl.value,
+        source: taxIncomeSourceEl.value.trim(),
+        category: taxIncomeCategoryEl.value,
+        amount: taxIncomeAmountEl.value,
+        stripeSessionId: taxIncomeStripeEl.value.trim(),
+        notes: taxIncomeNotesEl.value.trim(),
+        isOwnerFunded: !!taxIncomeOwnerFundedEl?.checked
+      };
+      if (!payload.date || !payload.category || !payload.amount) {
+        openErrorModal('Income date, category, and amount are required.');
+        return;
+      }
+      const isEdit = !!editingIncomeId;
+      const proceed = await openConfirmModal(
+        isEdit ? 'Save changes to this income record?' : 'Add this new income record?',
+        isEdit ? 'Update Income?' : 'Add Income?',
+        isEdit ? 'Update' : 'Add'
+      );
+      if (!proceed) return;
+      try {
+        const targetUrl = isEdit ? TAX_INCOME_UPDATE_API_URL : TAX_INCOME_API_URL;
+        if (editingIncomeId) payload.id = editingIncomeId;
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        const receiptInput = document.getElementById('tax-income-receipt');
+        if (data.id && receiptInput) {
+          await uploadReceipt('income', data.id, receiptInput).catch(() => {});
+          receiptInput.value = '';
+        }
+        clearTaxIncomeForm();
+        await loadTaxTransactions();
+        await loadAccountsData();
+        openSuccessModal(isEdit ? 'Income record updated successfully.' : 'Income record added successfully.', isEdit ? 'Income Updated ✅' : 'Income Added ✅');
+      } catch (e) {
+        openErrorModal(`Could not save income: ${e.message || e}`);
+      }
+    }
+
+    async function uploadReceipt(type, id, fileInput) {
+      if (!fileInput.files[0]) return;
+      const fd = new FormData();
+      fd.append('type', type);
+      fd.append('id', String(id));
+      fd.append('file', fileInput.files[0]);
+      const res = await fetch(TAX_RECEIPT_UPLOAD_URL, {
+        method: 'POST',
+        headers: { 'X-Admin-Password': adminPassword },
+        body: fd
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Receipt upload failed');
+    }
+
+    async function downloadTaxCsv() {
+      const year = taxYearEl.value;
+      const type = taxTypeEl.value;
+      try {
+        const res = await fetch(`${TAX_EXPORT_API_URL}?year=${encodeURIComponent(year)}&type=${encodeURIComponent(type)}`, {
+          headers: { 'X-Admin-Password': adminPassword }
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Export failed');
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `florence-mae-gifts-tax-${year}-${type}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e) {
+        openErrorModal(`Could not export CSV: ${e.message || e}`);
+      }
+    }
+
+    function initAccountsUiDefaults() {
+      const now = nowEtParts();
+      const thisYear = Number(now.date.split('-')[0] || new Date().getFullYear());
+      const years = [thisYear, thisYear - 1, thisYear - 2, thisYear - 3];
+      if (accountsYearEl) {
+        accountsYearEl.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+        accountsYearEl.value = String(thisYear);
+      }
+      if (auditYearEl) {
+        auditYearEl.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+        auditYearEl.value = String(thisYear);
+      }
+      if (reconYearEl) {
+        reconYearEl.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+        reconYearEl.value = String(thisYear);
+      }
+      if (accountsFromEl) accountsFromEl.value = `${thisYear}-01-01`;
+      if (accountsToEl) accountsToEl.value = `${thisYear}-12-31`;
+    }
+
+    function parseCsvRows(text) {
+      const lines = (text || '').split(/\r?\n/).filter(Boolean);
+      if (!lines.length) return [];
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const idxDate = headers.findIndex(h => h.includes('date'));
+      const idxDesc = headers.findIndex(h => h.includes('desc') || h.includes('memo') || h.includes('name'));
+      const idxAmt = headers.findIndex(h => h.includes('amount'));
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        const rawAmount = cols[idxAmt >= 0 ? idxAmt : 0] || '';
+        const amount = Number(String(rawAmount).replace(/[$,]/g, ''));
+        if (!Number.isFinite(amount)) continue;
+        rows.push({
+          date: cols[idxDate >= 0 ? idxDate : 0] || '',
+          description: cols[idxDesc >= 0 ? idxDesc : 1] || '',
+          amountCents: Math.round(Math.abs(amount) * 100),
+          sign: amount >= 0 ? 1 : -1
+        });
+      }
+      return rows;
+    }
+
+    async function runReconciliation() {
+      if (!reconCsvEl?.files?.[0]) { openErrorModal('Select a CSV file first.'); return; }
+      const year = reconYearEl?.value || taxYearEl?.value;
+      const month = reconMonthEl?.value || 'all';
+      const fileText = await reconCsvEl.files[0].text();
+      let statementRows = parseCsvRows(fileText);
+      if (!statementRows.length) { openErrorModal('Could not parse statement rows from CSV.'); return; }
+
+      if (month !== 'all') {
+        statementRows = statementRows.filter((r) => {
+          const d = String(r.date || '').slice(0, 10);
+          return /^\d{4}-\d{2}-\d{2}$/.test(d) && d.startsWith(`${year}-${month}`);
+        });
+      } else {
+        statementRows = statementRows.filter((r) => String(r.date || '').startsWith(`${year}-`));
+      }
+      if (!statementRows.length) { openErrorModal('No statement rows found for the selected period.'); return; }
+
+      const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, {
+        headers: { 'X-Admin-Password': adminPassword }
+      });
+      const data = await res.json();
+      if (!res.ok) { openErrorModal(data.error || 'Failed to load ledger data.'); return; }
+
+      let ledger = [
+        ...(data.expenses || []).map(r => ({ type: 'expense', date: r.date, amountCents: Number(r.amount_cents || 0), label: `${r.category || ''} ${r.vendor || ''}`.trim() })),
+        ...(data.income || []).map(r => ({ type: 'income', date: r.date, amountCents: Number(r.amount_cents || 0), label: `${r.category || ''} ${r.source || ''}`.trim() }))
+      ];
+      if (month !== 'all') {
+        ledger = ledger.filter((l) => String(l.date || '').startsWith(`${year}-${month}`));
+      }
+
+      const used = new Set();
+      let matched = 0;
+      const unmatched = [];
+      const matchedLines = [];
+      for (const s of statementRows) {
+        const idx = ledger.findIndex((l, i) => !used.has(i) && l.amountCents === s.amountCents);
+        if (idx >= 0) {
+          used.add(idx);
+          matched++;
+          matchedLines.push({ statement: s, ledger: ledger[idx] });
+        } else {
+          unmatched.push(s);
+        }
+      }
+
+      const periodLabel = month === 'all' ? `${year} (all months)` : `${year}-${month}`;
+      reconSummaryEl.textContent = `Period: ${periodLabel} | Statement rows: ${statementRows.length} | Ledger rows: ${ledger.length} | Matched: ${matched} | Unmatched: ${unmatched.length}`;
+      reconMatchesEl.innerHTML = `
+        <div><strong>Matched</strong></div>
+        ${(matchedLines.slice(0, 120)).map(m => `<div style="padding:.2rem 0; border-bottom:1px dashed var(--line);">${escHtml(m.statement.date)} | ${escHtml(m.statement.description)} | $${(m.statement.amountCents/100).toFixed(2)} ↔ ${escHtml(m.ledger.type)} ${escHtml(m.ledger.label)}</div>`).join('') || '<div style="color:var(--muted);">No matches.</div>'}
+        <div style="margin-top:.5rem;"><strong>Unmatched</strong></div>
+        ${(unmatched.slice(0, 120)).map(u => `<div style="padding:.2rem 0; border-bottom:1px dashed var(--line);">${escHtml(u.date)} | ${escHtml(u.description)} | $${(u.amountCents/100).toFixed(2)}</div>`).join('') || '<div style="color:var(--muted);">No unmatched rows.</div>'}
+      `;
+      markMoneyBlurTargets();
+    }
+
+    async function loadAccountsData() {
+      if (!adminUnlocked) return;
+      const year = accountsYearEl?.value || '';
+      const from = accountsFromEl?.value || '';
+      const to = accountsToEl?.value || '';
+      const periodQuery = /^\d{4}$/.test(year)
+        ? `year=${encodeURIComponent(year)}`
+        : `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+
+      try {
+        const [summaryRes, statementsRes, journalRes] = await Promise.all([
+          fetch(`${ACCOUNTS_SUMMARY_API_URL}?${periodQuery}`, { headers: { 'X-Admin-Password': adminPassword } }),
+          fetch(`${ACCOUNTS_STATEMENTS_API_URL}?${periodQuery}`, { headers: { 'X-Admin-Password': adminPassword } }),
+          fetch(`${ACCOUNTS_JOURNAL_API_URL}?${periodQuery}&limit=200`, { headers: { 'X-Admin-Password': adminPassword } })
+        ]);
+        const summary = await summaryRes.json();
+        const statements = await statementsRes.json();
+        const journal = await journalRes.json();
+        if (!summaryRes.ok) throw new Error(summary.error || 'Failed to load account summary');
+        if (!statementsRes.ok) throw new Error(statements.error || 'Failed to load statements');
+        if (!journalRes.ok) throw new Error(journal.error || 'Failed to load journal');
+
+        const groups = { asset: [], liability: [], equity: [], income: [], expense: [] };
+        for (const a of (summary.accounts || [])) groups[a.account_type]?.push(a);
+
+        const renderGroup = (title, list) => {
+          if (!list.length) return `<div><strong>${title}</strong><div style="color:var(--muted);">No accounts</div></div>`;
+          return `<div><strong>${title}</strong>${list.map(a => `<div style="display:flex; justify-content:space-between; gap:.5rem;"><span>${a.code} — ${escHtml(a.name || '')}</span><strong>$${(Number(a.balance_cents || 0)/100).toFixed(2)}</strong></div>`).join('')}</div>`;
+        };
+
+        accountsListEl.innerHTML = [
+          renderGroup('Assets', groups.asset),
+          renderGroup('Liabilities', groups.liability),
+          renderGroup('Equity', groups.equity),
+          renderGroup('Income', groups.income),
+          renderGroup('Expenses', groups.expense)
+        ].join('<hr style="border:0; border-top:1px solid var(--line); margin:.6rem 0;" />');
+
+        const t = summary.totals || { debits: 0, credits: 0 };
+        if (activeAccountsTab === 'balances') {
+          accountsBalanceStatusEl.textContent = summary.balanced
+            ? `Trial Balance: Balanced ✅ (Debits $${(t.debits/100).toFixed(2)} = Credits $${(t.credits/100).toFixed(2)})`
+            : `Trial Balance: Out of Balance ❌ (Debits $${(t.debits/100).toFixed(2)} vs Credits $${(t.credits/100).toFixed(2)})`;
+        }
+
+        const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
+        const lineList = (rows = []) => rows.length
+          ? rows.map(r => `<div style="display:flex; justify-content:space-between; gap:.5rem;"><span>${r.code} — ${escHtml(r.name || '')}</span><strong>${money(r.balance_cents)}</strong></div>`).join('')
+          : '<div style="color:var(--muted);">No rows</div>';
+
+        if (activeAccountsTab === 'balance_sheet') {
+          const assets = statements.balanceSheet?.assets || [];
+          const liabilities = statements.balanceSheet?.liabilities || [];
+          const equity = statements.balanceSheet?.equity || [];
+          const totalAssets = Number(statements.totals?.assets || 0);
+          const totalLiabilities = Number(statements.totals?.liabilities || 0);
+          const totalEquity = Number(statements.totals?.equity || 0);
+          const currentEarnings = Number(statements.totals?.income || 0) - Number(statements.totals?.expenses || 0);
+          const adjustedEquity = totalEquity + currentEarnings;
+          const totalLE = totalLiabilities + adjustedEquity;
+          const balancedText = totalAssets === totalLE ? 'Balanced ✅' : 'Out of Balance ❌';
+
+          accountsStatementsListEl.innerHTML = `
+            <div class="bs-grid">
+              <div class="bs-card">
+                <h4>Assets</h4>
+                ${lineList(assets)}
+                <div class="bs-total"><span>Total Assets</span><span>${money(totalAssets)}</span></div>
+              </div>
+              <div class="bs-card">
+                <h4>Liabilities</h4>
+                ${lineList(liabilities)}
+                <div class="bs-total"><span>Total Liabilities</span><span>${money(totalLiabilities)}</span></div>
+              </div>
+              <div class="bs-card">
+                <h4>Equity</h4>
+                ${lineList(equity)}
+                <div class="bs-line"><span>Current Period Earnings</span><strong class="money-blur-target">${money(currentEarnings)}</strong></div>
+                <div class="bs-total"><span>Total Equity (Adjusted)</span><span>${money(adjustedEquity)}</span></div>
+              </div>
+            </div>
+            <div class="bs-card" style="margin-top:.6rem;">
+              <div class="bs-line"><span>Accounting Equation</span><strong>${balancedText}</strong></div>
+              <div class="bs-line"><span>Assets</span><strong>${money(totalAssets)}</strong></div>
+              <div class="bs-line"><span>Liabilities + Equity</span><strong>${money(totalLE)}</strong></div>
+            </div>
+          `;
+        } else if (activeAccountsTab === 'pnl') {
+          accountsStatementsListEl.innerHTML = `
+            <div><strong>Income</strong>${lineList(statements.incomeStatement?.income || [])}</div>
+            <hr style="border:0; border-top:1px solid var(--line); margin:.6rem 0;" />
+            <div><strong>Expenses</strong>${lineList(statements.incomeStatement?.expenses || [])}</div>
+            <hr style="border:0; border-top:1px solid var(--line); margin:.6rem 0;" />
+            <div style="display:flex; justify-content:space-between;"><span>Net Income</span><strong class="money-blur-target">${money((Number(statements.totals?.income||0)-Number(statements.totals?.expenses||0)))}</strong></div>
+          `;
+        } else if (activeAccountsTab === 'cashflow') {
+          accountsStatementsListEl.innerHTML = `
+            <div><strong>Cash Flow (Direct — Simplified)</strong></div>
+            <div style="display:flex; justify-content:space-between;"><span>Net Cash Change</span><strong>${money(statements.cashFlow?.netCashChange)}</strong></div>
+            <div style="color:var(--muted); margin-top:.4rem;">${escHtml(statements.cashFlow?.note || '')}</div>
+          `;
+        }
+
+        const entries = journal.entries || [];
+        accountsJournalListEl.innerHTML = entries.length
+          ? entries.map((e) => {
+              const lines = (e.lines || []).map(l => `<div style="display:flex; justify-content:space-between;"><span>${l.code} — ${escHtml(l.name || '')}</span><span>Dr $${(Number(l.debit_cents||0)/100).toFixed(2)} | Cr $${(Number(l.credit_cents||0)/100).toFixed(2)}</span></div>`).join('');
+              return `<div style="padding:.45rem 0; border-bottom:1px dashed var(--line);"><div><strong>${e.entry_date}</strong> — ${escHtml(e.memo || '(no memo)')}</div>${lines}</div>`;
+            }).join('')
+          : 'No journal entries for selected period.';
+        markMoneyBlurTargets();
+      } catch (e) {
+        accountsListEl.textContent = `Error loading accounts: ${e.message || e}`;
+      }
+    }
+
+    function setAccountsTab(tab) {
+      activeAccountsTab = tab;
+      accountsTabBalancesBtn?.classList.toggle('active', tab === 'balances');
+      accountsTabBalanceSheetBtn?.classList.toggle('active', tab === 'balance_sheet');
+      accountsTabPnlBtn?.classList.toggle('active', tab === 'pnl');
+      accountsTabCashflowBtn?.classList.toggle('active', tab === 'cashflow');
+      accountsTabJournalBtn?.classList.toggle('active', tab === 'journal');
+      if (accountsListEl) accountsListEl.style.display = tab === 'balances' ? '' : 'none';
+      if (accountsStatementsListEl) accountsStatementsListEl.style.display = ['balance_sheet','pnl','cashflow'].includes(tab) ? '' : 'none';
+      if (accountsJournalListEl) accountsJournalListEl.style.display = tab === 'journal' ? '' : 'none';
+      if (tab === 'balances') accountsBalanceStatusEl.textContent = accountsBalanceStatusEl.textContent.replace('Statement View — ', '');
+      else if (tab === 'balance_sheet') accountsBalanceStatusEl.textContent = 'Statement View — Balance Sheet';
+      else if (tab === 'pnl') accountsBalanceStatusEl.textContent = 'Statement View — Profit & Loss';
+      else if (tab === 'cashflow') accountsBalanceStatusEl.textContent = 'Statement View — Cash Flow';
+      else if (tab === 'journal') accountsBalanceStatusEl.textContent = 'Statement View — Journal';
+      if (adminUnlocked) loadAccountsData();
+    }
+
+    function setAdminSectionTab(tab) {
+      activeAdminSectionTab = tab;
+      adminSectionTabBtns.forEach((btn) => btn.classList.toggle('active', btn.getAttribute('data-admin-tab') === tab));
+      const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+      show('booking-controls-card', tab === 'booking');
+      show('tax-ledger-card', tab === 'tax');
+      show('accounts-card', tab === 'accounts');
+      show('reconciliation-card', tab === 'reconciliation');
+      show('year-close-card', tab === 'year-close');
+      show('audit-package-card', tab === 'audit-package');
+    }
+
+    function disableLegacyCollapse() {
+      [bookingCollapseBtn, taxCollapseBtn, accountsCollapseBtn, reconciliationCollapseBtn, yearCloseCollapseBtn, auditPackageCollapseBtn].forEach((btn) => {
+        if (btn) btn.style.display = 'none';
+      });
+      [bookingControlsBody, taxLedgerBody, accountsBody, reconciliationBody, yearCloseBody, auditPackageBody].forEach((body) => {
+        body?.classList.remove('admin-collapsible-body-collapsed');
+      });
+    }
+
+    adminSectionTabBtns.forEach((btn) => btn.addEventListener('click', () => setAdminSectionTab(btn.getAttribute('data-admin-tab'))));
+
+    // ===== Admin Unlock =====
+    adminUnlockBtn.addEventListener('click', async () => {
+      const key = adminKeyEl.value.trim();
+      if (!key) return;
+      try {
+        const res = await fetch(`${BOOKINGS_API_URL}?limit=1`, {
+          headers: { 'X-Admin-Password': key }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Invalid password');
+        adminPassword = key;
+        setAdminUnlocked(true);
+        const n = new Date();
+        adminCalendarCursor = new Date(n.getFullYear(), n.getMonth(), 1);
+        loadCategoryPrefs();
+        initTaxUiDefaults();
+        initAccountsUiDefaults();
+        setAccountsTab('balances');
+        disableLegacyCollapse();
+        setAdminSectionTab('booking');
+        loadBlurMoneyPref();
+        markMoneyBlurTargets();
+        await loadAdminData();
+        await loadTaxTransactions();
+        await loadAccountsData();
+      } catch (e) {
+        openErrorModal(`Admin unlock failed: ${e.message || e}`);
+      }
+    });
+
+    // Also allow Enter key on password input
+    adminKeyEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') adminUnlockBtn.click();
+    });
+
+    // ===== Booking Controls Event Listeners =====
+    adminBlockBtn.addEventListener('click', () => setBlockedSlot(true));
+    adminUnblockBtn.addEventListener('click', () => setBlockedSlot(false));
+    adminBlockDayBtn.addEventListener('click', () => setBlockedDay(true));
+    adminUnblockDayBtn.addEventListener('click', () => setBlockedDay(false));
+    adminRefreshBtn.addEventListener('click', loadAdminData);
+    adminCleanupPendingBtn?.addEventListener('click', cleanupOldPendingBookings);
+    adminCalPrevBtn?.addEventListener('click', () => {
+      const c = adminCalendarCursor || new Date();
+      adminCalendarCursor = new Date(c.getFullYear(), c.getMonth() - 1, 1);
+      loadAdminData();
+    });
+    adminCalNextBtn?.addEventListener('click', () => {
+      const c = adminCalendarCursor || new Date();
+      adminCalendarCursor = new Date(c.getFullYear(), c.getMonth() + 1, 1);
+      loadAdminData();
+    });
+
+    // ===== Tax Ledger Event Listeners =====
+    taxRefreshBtn.addEventListener('click', loadTaxTransactions);
+    taxYearEl.addEventListener('change', loadTaxTransactions);
+    taxSummaryYearEl?.addEventListener('change', loadTaxTransactions);
+    taxTypeEl.addEventListener('change', loadTaxTransactions);
+    taxModeExpenseBtn?.addEventListener('click', () => setTaxEntryMode('expense'));
+    taxModeOwnerTransferBtn?.addEventListener('click', openOwnerTransferModal);
+    taxModeIncomeBtn?.addEventListener('click', () => setTaxEntryMode('income'));
+    adminUserGuideBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
+    adminUserGuideTopBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
+    adminBlurAmountsBtn?.addEventListener('click', () => setBlurMoney(!blurMoneyEnabled));
+    userGuideTabBtns.forEach((btn) => {
+      btn.addEventListener('click', () => setUserGuideTab(btn.getAttribute('data-guide-tab')));
+    });
+
+    window.openTaxCategoryManager = () => {
+      if (!taxCategoryModal) {
+        openErrorModal('Category manager is unavailable on this page load. Please refresh and try again.');
+        return;
+      }
+      taxCategoryModal.classList.add('active');
+      taxCategoryModal.setAttribute('aria-hidden', 'false');
+      try {
+        renderCategoryManagerLists();
+      } catch (e) {
+        openErrorModal(`Could not load category manager: ${e.message || e}`);
+      }
+    };
+    taxManageCategoriesBtn?.addEventListener('click', window.openTaxCategoryManager);
+
+    const closeTaxCategoryModal = () => {
+      taxCategoryModal.classList.remove('active');
+      taxCategoryModal.setAttribute('aria-hidden', 'true');
+    };
+    taxCategoryCloseBtn?.addEventListener('click', closeTaxCategoryModal);
+    taxCategoryXBtn?.addEventListener('click', closeTaxCategoryModal);
+    taxCategoryModal?.addEventListener('click', (e) => {
+      if (e.target === taxCategoryModal) {
+        taxCategoryModal.classList.remove('active');
+        taxCategoryModal.setAttribute('aria-hidden', 'true');
+      }
+    });
+
+    addExpenseCategoryBtn?.addEventListener('click', () => {
+      const name = (newExpenseCategoryEl.value || '').trim();
+      if (!name) return;
+      if (TAX_EXPENSE_CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase())) {
+        openErrorModal('Expense category already exists.');
+        return;
+      }
+      TAX_EXPENSE_CATEGORIES.push(name);
+      newExpenseCategoryEl.value = '';
+      saveCategoryPrefs();
+      renderCategoryOptions();
+      renderCategoryManagerLists();
+      openSuccessModal('Expense category added.', 'Category Added ✅');
+    });
+
+    addIncomeCategoryBtn?.addEventListener('click', () => {
+      const name = (newIncomeCategoryEl.value || '').trim();
+      if (!name) return;
+      if (TAX_INCOME_CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase())) {
+        openErrorModal('Income category already exists.');
+        return;
+      }
+      TAX_INCOME_CATEGORIES.push(name);
+      newIncomeCategoryEl.value = '';
+      saveCategoryPrefs();
+      renderCategoryOptions();
+      renderCategoryManagerLists();
+      openSuccessModal('Income category added.', 'Category Added ✅');
+    });
+
+    taxMinimizeExpenseBtn?.addEventListener('click', () => {
+      const isHidden = taxExpenseFields?.style.display === 'none';
+      if (taxExpenseFields) taxExpenseFields.style.display = isHidden ? '' : 'none';
+      taxMinimizeExpenseBtn.textContent = isHidden ? 'Minimize' : 'Expand';
+    });
+
+    taxMinimizeOwnerTransferBtn?.addEventListener('click', () => {
+      const isHidden = taxOwnerTransferFields?.style.display === 'none';
+      if (taxOwnerTransferFields) taxOwnerTransferFields.style.display = isHidden ? '' : 'none';
+      taxMinimizeOwnerTransferBtn.textContent = isHidden ? 'Minimize' : 'Expand';
+    });
+
+    taxMinimizeIncomeBtn?.addEventListener('click', () => {
+      const isHidden = taxIncomeFields?.style.display === 'none';
+      if (taxIncomeFields) taxIncomeFields.style.display = isHidden ? '' : 'none';
+      taxMinimizeIncomeBtn.textContent = isHidden ? 'Minimize' : 'Expand';
+    });
+
+    txFilterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeTxFilter = btn.getAttribute('data-filter');
+        txFilterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        txCategoryFilterEl.style.display = activeTxFilter === 'expense' ? '' : 'none';
+        if (activeTxFilter !== 'expense') txCategoryFilterEl.value = '';
+        renderTxList();
+      });
+    });
+
+    txCategoryFilterEl.addEventListener('change', renderTxList);
+    taxAddExpenseBtn.addEventListener('click', addTaxExpense);
+    taxUpdateExpenseBtn.addEventListener('click', addTaxExpense);
+    taxCancelExpenseEditBtn.addEventListener('click', clearTaxExpenseForm);
+    taxClearExpenseBtn.addEventListener('click', clearTaxExpenseForm);
+    taxAddOwnerTransferBtn?.addEventListener('click', addTaxOwnerTransfer);
+    taxClearOwnerTransferBtn?.addEventListener('click', clearTaxOwnerTransferForm);
+    taxAddIncomeBtn.addEventListener('click', addTaxIncome);
+    taxUpdateIncomeBtn.addEventListener('click', addTaxIncome);
+    taxCancelIncomeEditBtn.addEventListener('click', clearTaxIncomeForm);
+    taxClearIncomeBtn.addEventListener('click', clearTaxIncomeForm);
+
+    document.getElementById('tax-expense-receipt').addEventListener('change', function() {
+      document.getElementById('tax-expense-receipt-name').textContent = this.files[0] ? this.files[0].name : 'No file chosen';
+    });
+    document.getElementById('tax-income-receipt').addEventListener('change', function() {
+      document.getElementById('tax-income-receipt-name').textContent = this.files[0] ? this.files[0].name : 'No file chosen';
+    });
+
+    taxExportBtn?.addEventListener('click', downloadTaxCsv);
+
+    accountsRefreshBtn?.addEventListener('click', loadAccountsData);
+    accountsYearCloseBtn?.addEventListener('click', openYearCloseWizard);
+    auditPackageBtn?.addEventListener('click', openAuditPackageModal);
+    reconRunBtn?.addEventListener('click', runReconciliation);
+    accountsYearEl?.addEventListener('change', loadAccountsData);
+    accountsFromEl?.addEventListener('change', loadAccountsData);
+    accountsToEl?.addEventListener('change', loadAccountsData);
+    accountsTabBalancesBtn?.addEventListener('click', () => setAccountsTab('balances'));
+    accountsTabBalanceSheetBtn?.addEventListener('click', () => setAccountsTab('balance_sheet'));
+    accountsTabPnlBtn?.addEventListener('click', () => setAccountsTab('pnl'));
+    accountsTabCashflowBtn?.addEventListener('click', () => setAccountsTab('cashflow'));
+    accountsTabJournalBtn?.addEventListener('click', () => setAccountsTab('journal'));
+
+    const taxZipBtn = document.getElementById('tax-zip-btn');
+    if (taxZipBtn) {
+      taxZipBtn.addEventListener('click', async () => {
+        if (typeof JSZip === 'undefined') { openErrorModal('JSZip not loaded — try refreshing the page.'); return; }
+        const year = taxYearEl.value;
+        taxZipBtn.textContent = 'Building…';
+        taxZipBtn.disabled = true;
+        try {
+          const zip = new JSZip();
+          const folder = zip.folder(`florence-mae-gifts-tax-${year}`);
+
+          const csvRes = await fetch(`${TAX_EXPORT_API_URL}?year=${encodeURIComponent(year)}&type=all`, {
+            headers: { 'X-Admin-Password': adminPassword }
+          });
+          if (!csvRes.ok) throw new Error('CSV fetch failed');
+          folder.file(`florence-mae-gifts-tax-${year}.csv`, await csvRes.blob());
+
+          const txRes = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, {
+            headers: { 'X-Admin-Password': adminPassword }
+          });
+          const txData = await txRes.json();
+          const allRecords = [
+            ...(txData.expenses || []).map(r => ({ ...r, recType: 'expense' })),
+            ...(txData.income || []).map(r => ({ ...r, recType: 'income' }))
+          ];
+
+          const receiptsFolder = folder.folder('receipts');
+          for (const r of allRecords) {
+            if (!r.receipt_key) continue;
+            const ext = r.receipt_key.split('.').pop();
+            const filename = `${r.recType}-${r.id}-${r.date || ''}.${ext}`;
+            const rRes = await fetch(`${TAX_RECEIPT_URL}?key=${encodeURIComponent(r.receipt_key)}&key2=${encodeURIComponent(adminPassword)}`);
+            if (rRes.ok) receiptsFolder.file(filename, await rRes.blob());
+          }
+
+          const blob = await zip.generateAsync({ type: 'blob' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `florence-mae-gifts-tax-${year}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        } catch (e) {
+          openErrorModal(`ZIP build failed: ${e.message || e}`);
+        } finally {
+          taxZipBtn.textContent = '⬇ Year Package (.zip)';
+          taxZipBtn.disabled = false;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

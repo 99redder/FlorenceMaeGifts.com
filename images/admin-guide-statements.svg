@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" fill="none">
+  <rect width="960" height="540" fill="#0A0B10"/>
+  <rect x="40" y="40" width="880" height="460" rx="12" fill="#141620" stroke="#2A2D43"/>
+  <text x="70" y="95" fill="#00E5FF" font-family="Arial, sans-serif" font-size="30" font-weight="700">Accounts, Statements, and Journal</text>
+  <rect x="70" y="130" width="170" height="56" rx="8" fill="#1E2235" stroke="#00E5FF"/><text x="87" y="165" fill="#E5E8F5" font-family="Arial" font-size="21">Trial Balance</text>
+  <rect x="255" y="130" width="170" height="56" rx="8" fill="#1E2235" stroke="#00E5FF"/><text x="279" y="165" fill="#E5E8F5" font-family="Arial" font-size="21">Balance Sheet</text>
+  <rect x="440" y="130" width="120" height="56" rx="8" fill="#1E2235" stroke="#00E5FF"/><text x="477" y="165" fill="#E5E8F5" font-family="Arial" font-size="21">P&amp;L</text>
+  <rect x="575" y="130" width="140" height="56" rx="8" fill="#1E2235" stroke="#00E5FF"/><text x="604" y="165" fill="#E5E8F5" font-family="Arial" font-size="21">Cash Flow</text>
+  <rect x="730" y="130" width="160" height="56" rx="8" fill="#1E2235" stroke="#00E5FF"/><text x="779" y="165" fill="#E5E8F5" font-family="Arial" font-size="21">Journal</text>
+  <rect x="70" y="230" width="820" height="210" rx="10" fill="#0F1220" stroke="#2A2D43"/>
+  <text x="95" y="275" fill="#E5E8F5" font-family="Arial" font-size="23">• Trial Balance should remain Balanced ✅</text>
+  <text x="95" y="315" fill="#E5E8F5" font-family="Arial" font-size="23">• Balance Sheet checks Assets = Liabilities + Equity</text>
+  <text x="95" y="355" fill="#E5E8F5" font-family="Arial" font-size="23">• P&amp;L shows Income - Expenses for selected period</text>
+  <text x="95" y="395" fill="#E5E8F5" font-family="Arial" font-size="23">• Journal is your line-by-line transaction source of truth</text>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" fill="none">
+  <rect width="960" height="540" fill="#0A0B10"/>
+  <rect x="40" y="40" width="880" height="460" rx="12" fill="#141620" stroke="#2A2D43"/>
+  <text x="70" y="95" fill="#00E5FF" font-family="Arial, sans-serif" font-size="30" font-weight="700">Admin Booking Controls</text>
+  <rect x="70" y="130" width="390" height="140" rx="10" fill="#0F1220" stroke="#2A2D43"/>
+  <text x="95" y="170" fill="#E5E8F5" font-family="Arial" font-size="24">Block / Unblock Slot</text>
+  <text x="95" y="205" fill="#BFC6E8" font-family="Arial" font-size="21">Set date + time block + reason</text>
+  <text x="95" y="235" fill="#BFC6E8" font-family="Arial" font-size="21">Then click Block or Unblock</text>
+  <rect x="500" y="130" width="390" height="140" rx="10" fill="#0F1220" stroke="#2A2D43"/>
+  <text x="525" y="170" fill="#E5E8F5" font-family="Arial" font-size="24">Block / Unblock Entire Day</text>
+  <text x="525" y="205" fill="#BFC6E8" font-family="Arial" font-size="21">Use when unavailable all day</text>
+  <text x="525" y="235" fill="#BFC6E8" font-family="Arial" font-size="21">Calendar updates after Refresh</text>
+  <rect x="70" y="300" width="820" height="150" rx="10" fill="#0F1220" stroke="#2A2D43"/>
+  <text x="95" y="342" fill="#FFB2F0" font-family="Arial" font-size="24" font-weight="700">Calendar Legend</text>
+  <circle cx="290" cy="334" r="9" fill="#00E5FF"/><text x="307" y="342" fill="#E5E8F5" font-family="Arial" font-size="21">OpenClaw</text>
+  <circle cx="430" cy="334" r="9" fill="#C850FF"/><text x="447" y="342" fill="#E5E8F5" font-family="Arial" font-size="21">Lessons</text>
+  <circle cx="545" cy="334" r="9" fill="#FF7B7B"/><text x="562" y="342" fill="#E5E8F5" font-family="Arial" font-size="21">Blocked</text>
+  <text x="95" y="385" fill="#E5E8F5" font-family="Arial" font-size="21">Use “Clear Pending &gt; 5 Days” periodically to keep stale pending rows cleaned up.</text>
+</svg>

@@ -1,0 +1,1 @@
+ALTER TABLE tax_income ADD COLUMN is_owner_funded INTEGER NOT NULL DEFAULT 0;
