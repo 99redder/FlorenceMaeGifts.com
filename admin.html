@@ -37,9 +37,9 @@
     h4 { font-size:1.05rem; }
     p { color:var(--muted); line-height:1.6; }
     label { display:block; font-size:1rem; color:var(--muted); margin-bottom:.25rem; }
-    .btn { border:1px solid var(--line); background:#fff; color:var(--text); border-radius:8px; padding:.75rem 1.2rem; cursor:pointer; font-weight:600; font-family:'Lora', serif; transition:background 0.15s, color 0.15s, border-color 0.15s; font-size:1rem; }
+    .btn { border:1px solid var(--line); background:#fff; color:var(--text); border-radius:8px; padding:.75rem 1.2rem; cursor:pointer; font-weight:600; font-family:'Lora', serif; transition:background 0.15s, color 0.15s, border-color 0.15s, box-shadow .15s; font-size:1rem; }
     body.dark-theme .btn { background:#3f3f3f; }
-    label.btn:hover { background:#FEA0AE; color:#000; border-color:#FE6666; }
+    .btn:hover, label.btn:hover { border-color:#FE6666; box-shadow:0 0 0 2px rgba(254,102,102,.2); }
     .btn-primary { background:linear-gradient(135deg, #FE6666 0%, #FF6699 100%); border-color:#f35f74; color:#fff; box-shadow:0 3px 8px rgba(254,102,102,.24); }
     .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin-top:.7rem; }
     .form-grid > * { min-width:0; overflow:hidden; }
@@ -94,13 +94,13 @@
     .admin-section-tabs { display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:.7rem; }
     .admin-section-tabs .btn {
       border-color:#f2a6b4;
-      background:var(--card);
-      color:var(--text);
-      box-shadow:none;
+      background:linear-gradient(135deg, #FE6666 0%, #FF6699 100%);
+      color:#fff;
+      box-shadow:0 2px 8px rgba(255,102,153,.2);
     }
-    body.dark-theme .admin-section-tabs .btn { background:var(--card); color:var(--text); border-color:#666; }
-    .admin-section-tabs .btn:hover { background:#FEA0AE; border-color:#FE6666; color:#000; }
-    .admin-section-tabs .btn.active { border-color:#f35f74; background:linear-gradient(135deg, #FE6666 0%, #FF6699 100%); color:#fff; box-shadow:0 4px 10px rgba(254,102,102,.28); }
+    body.dark-theme .admin-section-tabs .btn { border-color:#ff88a8; background:linear-gradient(135deg, #FE6666 0%, #FF6699 100%); color:#fff; }
+    .admin-section-tabs .btn:hover { border-color:#ff4f8f; box-shadow:0 0 0 2px rgba(255,79,143,.25), 0 4px 12px rgba(255,102,153,.32); filter:brightness(1.03); }
+    .admin-section-tabs .btn.active { border-color:#c63e6f; background:linear-gradient(135deg, #f25579 0%, #d64286 100%); color:#fff; box-shadow:0 4px 12px rgba(214,66,134,.35); }
 
     .money-blur-on .money-blur-target { filter: blur(6px); transition: filter .15s ease; user-select: none; }
 
@@ -244,6 +244,7 @@
                 <div class="admin-row" style="gap:.4rem; flex-wrap:wrap; margin-top:.4rem;">
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-expense-btn">Add Expense</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-sale-btn">Add Sale</button>
+                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-import-sales-btn">Import Sales</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-income-btn">Add Income</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-owner-transfer-btn">Add Owner Transfer</button>
                   <button type="button" class="btn btn-primary" id="tax-manage-categories-btn" onclick="window.openTaxCategoryManager && window.openTaxCategoryManager()">Manage Categories</button>
@@ -319,19 +320,25 @@
                       <input id="tax-sale-fee-other" type="number" step="0.01" placeholder="0.00" />
                       <label>Notes</label>
                       <input id="tax-sale-notes" placeholder="optional" />
-                      <div style="margin-top:.5rem; border-top:1px dashed var(--line); padding-top:.55rem;">
-                        <label>Etsy Statement CSV Import (Month)</label>
-                        <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
-                          <input id="tax-sale-etsy-csv" type="file" accept=".csv,text/csv" />
-                          <button type="button" class="btn" id="tax-import-etsy-csv-btn">Import Etsy CSV</button>
-                        </div>
-                        <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports Sale rows + fee rows from Etsy statement and maps fees to expense categories.</div>
-                        <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:200px;">No import preview yet.</div>
-                      </div>
                       <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
                         <button type="button" class="btn btn-primary" id="tax-add-sale-btn">Add Sale</button>
                         <button type="button" class="btn" id="tax-clear-sale-btn">Clear</button>
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tax-entry-wrap" id="tax-import-sales-panel" style="margin-top:.5rem; display:none;">
+                  <div class="admin-calendar-wrap">
+                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Import Sales (CSV)</div><button type="button" class="btn" id="tax-minimize-import-sales-btn">Minimize</button></div>
+                    <div class="admin-row" id="tax-import-sales-fields" style="flex-direction:column; align-items:stretch;">
+                      <label>Etsy Statement CSV (Month)</label>
+                      <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
+                        <input id="tax-sale-etsy-csv" type="file" accept=".csv,text/csv" />
+                        <button type="button" class="btn btn-primary" id="tax-import-etsy-csv-btn">Import Etsy CSV</button>
+                      </div>
+                      <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports sales + fee rows and maps fees to categories automatically.</div>
+                      <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:240px;">No import preview yet.</div>
                     </div>
                   </div>
                 </div>
@@ -723,6 +730,7 @@
     const taxExportBtn = document.getElementById('tax-export-btn');
     const taxModeExpenseBtn = document.getElementById('tax-mode-expense-btn');
     const taxModeSaleBtn = document.getElementById('tax-mode-sale-btn');
+    const taxModeImportSalesBtn = document.getElementById('tax-mode-import-sales-btn');
     const taxModeIncomeBtn = document.getElementById('tax-mode-income-btn');
     const taxModeOwnerTransferBtn = document.getElementById('tax-mode-owner-transfer-btn');
     const taxManageCategoriesBtn = document.getElementById('tax-manage-categories-btn');
@@ -732,14 +740,17 @@
     const adminUserGuideTopBtn = document.getElementById('admin-user-guide-top-btn');
     const taxExpensePanel = document.getElementById('tax-expense-panel');
     const taxSalePanel = document.getElementById('tax-sale-panel');
+    const taxImportSalesPanel = document.getElementById('tax-import-sales-panel');
     const taxOwnerTransferPanel = document.getElementById('tax-owner-transfer-panel');
     const taxIncomePanel = document.getElementById('tax-income-panel');
     const taxExpenseFields = document.getElementById('tax-expense-fields');
     const taxSaleFields = document.getElementById('tax-sale-fields');
+    const taxImportSalesFields = document.getElementById('tax-import-sales-fields');
     const taxOwnerTransferFields = document.getElementById('tax-owner-transfer-fields');
     const taxIncomeFields = document.getElementById('tax-income-fields');
     const taxMinimizeExpenseBtn = document.getElementById('tax-minimize-expense-btn');
     const taxMinimizeSaleBtn = document.getElementById('tax-minimize-sale-btn');
+    const taxMinimizeImportSalesBtn = document.getElementById('tax-minimize-import-sales-btn');
     const taxMinimizeOwnerTransferBtn = document.getElementById('tax-minimize-owner-transfer-btn');
     const taxMinimizeIncomeBtn = document.getElementById('tax-minimize-income-btn');
     const taxCategoryModal = document.getElementById('tax-category-modal');
@@ -990,57 +1001,67 @@
 
     async function loadStatsData() {
       if (!adminUnlocked) return;
-      const year = statsYearEl?.value || taxYearEl?.value || String(new Date().getFullYear());
+      const selectedYear = Number(statsYearEl?.value || taxYearEl?.value || String(new Date().getFullYear()));
 
       const seeded = {
-        '2023': { salesCount: 453, salesVolume: 14341.59, feesCosts: 0, monthly: null },
-        '2024': { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
-        '2025': { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
+        2023: { salesCount: 453, salesVolume: 14341.59, feesCosts: 0, monthly: null },
+        2024: { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
+        2025: { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
       };
 
       const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
-      let salesCount = 0;
-      let salesVolume = 0;
-      let feesCosts = 0;
-      let monthly = Array.from({ length: 12 }, () => ({ cents: 0 }));
+      const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
-      if (seeded[year]) {
-        const s = seeded[year];
-        salesCount = Number(s.salesCount || 0);
-        salesVolume = Math.round(Number(s.salesVolume || 0) * 100);
-        feesCosts = Math.round(Number(s.feesCosts || 0) * 100);
-        if (Array.isArray(s.monthly)) {
-          monthly = s.monthly.map(v => ({ cents: Math.round(Number(v || 0) * 100) }));
+      const getYearStats = async (yearNum) => {
+        if (seeded[yearNum]) {
+          const s = seeded[yearNum];
+          return {
+            year: yearNum,
+            salesCount: Number(s.salesCount || 0),
+            salesVolumeCents: Math.round(Number(s.salesVolume || 0) * 100),
+            feesCostsCents: Math.round(Number(s.feesCosts || 0) * 100),
+            monthlyCents: Array.isArray(s.monthly) ? s.monthly.map(v => Math.round(Number(v || 0) * 100)) : Array(12).fill(0)
+          };
         }
-      } else {
-        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
+
+        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(String(yearNum))}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed loading stats');
+        if (!res.ok) throw new Error(data.error || `Failed loading stats for ${yearNum}`);
 
         const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
         const expenseRows = data.expenses || [];
-        const salesRows = incomeRows;
-
-        for (const r of salesRows) {
+        const monthlyCents = Array(12).fill(0);
+        for (const r of incomeRows) {
           const m = Number(String(r.date || '').slice(5, 7));
-          if (m >= 1 && m <= 12) monthly[m - 1].cents += Number(r.amount_cents || 0);
+          if (m >= 1 && m <= 12) monthlyCents[m - 1] += Number(r.amount_cents || 0);
         }
-        salesCount = salesRows.length;
-        salesVolume = salesRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
-        feesCosts = expenseRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
-      }
+        return {
+          year: yearNum,
+          salesCount: incomeRows.length,
+          salesVolumeCents: incomeRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0),
+          feesCostsCents: expenseRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0),
+          monthlyCents
+        };
+      };
 
-      const profit = salesVolume - feesCosts;
+      const yoyYears = [selectedYear - 2, selectedYear - 1, selectedYear];
+      const yoy = [];
+      for (const y of yoyYears) yoy.push(await getYearStats(y));
+      const current = yoy[yoy.length - 1];
+      const profit = current.salesVolumeCents - current.feesCostsCents;
 
-      if (statsMonthlyTitleEl) statsMonthlyTitleEl.textContent = `Monthly Stats (${year})`;
-      if (statsYearlyTitleEl) statsYearlyTitleEl.textContent = `${year} Stats`;
+      if (statsMonthlyTitleEl) statsMonthlyTitleEl.textContent = `Monthly Stats (YoY: ${yoyYears.join(' / ')})`;
+      if (statsYearlyTitleEl) statsYearlyTitleEl.textContent = `${selectedYear} Stats`;
       if (statsMonthlyGridEl) {
-        const names = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-        statsMonthlyGridEl.innerHTML = monthly.map((m, i) => `<strong>${names[i]}</strong><strong class="money-blur-target">${money(m.cents)}</strong>`).join('');
+        const header = `<strong>Month</strong>${yoy.map(y => `<strong>${y.year}</strong>`).join('')}`;
+        const rows = monthNames.map((name, idx) => `<strong>${name}</strong>${yoy.map(y => `<strong class="money-blur-target">${money(y.monthlyCents[idx])}</strong>`).join('')}`).join('');
+        statsMonthlyGridEl.style.gridTemplateColumns = `1fr repeat(${yoy.length}, auto)`;
+        statsMonthlyGridEl.innerHTML = header + rows;
       }
-      if (statsSalesCountEl) statsSalesCountEl.textContent = String(salesCount);
-      if (statsSalesVolumeEl) statsSalesVolumeEl.textContent = money(salesVolume);
-      if (statsFeesCostsEl) statsFeesCostsEl.textContent = money(feesCosts);
+
+      if (statsSalesCountEl) statsSalesCountEl.textContent = String(current.salesCount);
+      if (statsSalesVolumeEl) statsSalesVolumeEl.textContent = money(current.salesVolumeCents);
+      if (statsFeesCostsEl) statsFeesCostsEl.textContent = money(current.feesCostsCents);
       if (statsProfitEl) statsProfitEl.textContent = money(profit);
 
       // Item stats intentionally deferred until LLC cutover day.
@@ -1795,22 +1816,27 @@
     function setTaxEntryMode(mode) {
       const showExpense = mode === 'expense';
       const showSale = mode === 'sale';
+      const showImportSales = mode === 'import_sales';
       const showOwnerTransfer = mode === 'owner_transfer';
       const showIncome = mode === 'income';
       if (taxExpensePanel) taxExpensePanel.style.display = showExpense ? '' : 'none';
       if (taxSalePanel) taxSalePanel.style.display = showSale ? '' : 'none';
+      if (taxImportSalesPanel) taxImportSalesPanel.style.display = showImportSales ? '' : 'none';
       if (taxOwnerTransferPanel) taxOwnerTransferPanel.style.display = showOwnerTransfer ? '' : 'none';
       if (taxIncomePanel) taxIncomePanel.style.display = showIncome ? '' : 'none';
       if (taxExpenseFields) taxExpenseFields.style.display = showExpense ? '' : 'none';
       if (taxSaleFields) taxSaleFields.style.display = showSale ? '' : 'none';
+      if (taxImportSalesFields) taxImportSalesFields.style.display = showImportSales ? '' : 'none';
       if (taxOwnerTransferFields) taxOwnerTransferFields.style.display = showOwnerTransfer ? '' : 'none';
       if (taxIncomeFields) taxIncomeFields.style.display = showIncome ? '' : 'none';
       if (taxMinimizeExpenseBtn) taxMinimizeExpenseBtn.textContent = 'Minimize';
       if (taxMinimizeSaleBtn) taxMinimizeSaleBtn.textContent = 'Minimize';
+      if (taxMinimizeImportSalesBtn) taxMinimizeImportSalesBtn.textContent = 'Minimize';
       if (taxMinimizeOwnerTransferBtn) taxMinimizeOwnerTransferBtn.textContent = 'Minimize';
       if (taxMinimizeIncomeBtn) taxMinimizeIncomeBtn.textContent = 'Minimize';
       if (taxModeExpenseBtn) taxModeExpenseBtn.classList.toggle('active', showExpense);
       if (taxModeSaleBtn) taxModeSaleBtn.classList.toggle('active', showSale);
+      if (taxModeImportSalesBtn) taxModeImportSalesBtn.classList.toggle('active', showImportSales);
       if (taxModeOwnerTransferBtn) taxModeOwnerTransferBtn.classList.toggle('active', showOwnerTransfer);
       if (taxModeIncomeBtn) taxModeIncomeBtn.classList.toggle('active', showIncome);
     }
@@ -2712,6 +2738,7 @@
     taxTypeEl.addEventListener('change', loadTaxTransactions);
     taxModeExpenseBtn?.addEventListener('click', () => setTaxEntryMode('expense'));
     taxModeSaleBtn?.addEventListener('click', () => setTaxEntryMode('sale'));
+    taxModeImportSalesBtn?.addEventListener('click', () => setTaxEntryMode('import_sales'));
     taxModeOwnerTransferBtn?.addEventListener('click', openOwnerTransferModal);
     taxModeIncomeBtn?.addEventListener('click', () => setTaxEntryMode('income'));
     adminUserGuideBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
@@ -2790,6 +2817,12 @@
       const isHidden = taxSaleFields?.style.display === 'none';
       if (taxSaleFields) taxSaleFields.style.display = isHidden ? '' : 'none';
       taxMinimizeSaleBtn.textContent = isHidden ? 'Minimize' : 'Expand';
+    });
+
+    taxMinimizeImportSalesBtn?.addEventListener('click', () => {
+      const isHidden = taxImportSalesFields?.style.display === 'none';
+      if (taxImportSalesFields) taxImportSalesFields.style.display = isHidden ? '' : 'none';
+      taxMinimizeImportSalesBtn.textContent = isHidden ? 'Minimize' : 'Expand';
     });
 
     taxMinimizeOwnerTransferBtn?.addEventListener('click', () => {
