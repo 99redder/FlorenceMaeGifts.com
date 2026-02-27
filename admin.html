@@ -902,6 +902,7 @@
     let blurMoneyEnabled = false;
     let pendingEtsyImportSales = [];
     let pendingEtsyImportExpenses = [];
+    let etsyImportInProgress = false;
 
     // ===== Time Slots =====
 
@@ -2492,17 +2493,21 @@
     }
 
     async function importEtsyStatementCsv() {
+      if (etsyImportInProgress) return;
       if (!pendingEtsyImportSales.length && !pendingEtsyImportExpenses.length) {
         openErrorModal('Preview transactions first.');
         return;
       }
 
+      etsyImportInProgress = true;
       const importBtn = taxImportEtsyCsvBtn;
       const prevText = importBtn?.textContent || 'Import Transactions';
       if (importBtn) {
         importBtn.disabled = true;
         importBtn.textContent = 'Importing…';
       }
+      if (taxPreviewEtsyCsvBtn) taxPreviewEtsyCsvBtn.disabled = true;
+      if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.disabled = true;
 
       try {
         for (const s of pendingEtsyImportSales) {
@@ -2530,10 +2535,13 @@
       } catch (err) {
         openErrorModal(`Etsy import failed: ${err.message || err}`);
       } finally {
+        etsyImportInProgress = false;
         if (importBtn) {
           importBtn.disabled = false;
           importBtn.textContent = prevText;
         }
+        if (taxPreviewEtsyCsvBtn) taxPreviewEtsyCsvBtn.disabled = false;
+        if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.disabled = false;
       }
     }
 
