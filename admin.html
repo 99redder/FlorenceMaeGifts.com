@@ -142,6 +142,13 @@
     /* ===== Admin Calendar ===== */
     .admin-calendar-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; gap:.45rem; }
     .admin-calendar-title { font-size:1.05rem; color:var(--cyan); }
+    body.dark-theme .admin-collapsible-head h3,
+    body.dark-theme .admin-calendar-title,
+    body.dark-theme .tax-summary-col h4,
+    body.dark-theme .bs-card h4,
+    body.dark-theme .success-modal h3 {
+      color: var(--violet) !important;
+    }
     .admin-calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.25rem; }
     .admin-cal-dow { font-size:.85rem; color:var(--muted); text-align:center; padding:.2rem 0; }
     .admin-cal-day { min-height:58px; border:1px solid var(--line); border-radius:2px; padding:.25rem; font-size:.85rem; color:var(--text); position:relative; background:var(--card); }
