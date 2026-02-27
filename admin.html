@@ -79,7 +79,22 @@
       box-shadow:0 0 0 2px rgba(255,102,153,.25);
     }
     body.dark-theme input[type="file"]::file-selector-button {
-      color:#fff;
+      color:#000;
+    }
+
+    body:not(.dark-theme) .admin-collapsible-head h3,
+    body:not(.dark-theme) .admin-calendar-title,
+    body:not(.dark-theme) .tax-summary-col h4,
+    body:not(.dark-theme) .bs-card h4,
+    body:not(.dark-theme) .success-modal h3 {
+      color:#000;
+      background:linear-gradient(135deg, #fff3f6 0%, #ffe4ea 100%);
+      border:1px solid #fecac4;
+      border-radius:0;
+      padding:.28rem .55rem;
+      display:block;
+      width:100%;
+      box-sizing:border-box;
     }
     textarea { min-height:120px; resize:vertical; }
     .form-actions { display:flex; justify-content:flex-end; margin-top:.9rem; }
