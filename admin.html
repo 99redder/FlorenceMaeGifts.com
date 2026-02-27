@@ -17,7 +17,7 @@
 
     * { box-sizing:border-box; }
     html { scroll-behavior:smooth; overflow-x:hidden; max-width:100vw; }
-    body { margin:0; font-family:'Titillium Web',system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--text);
+    body { margin:0; font-family:'Lora',serif; color:var(--text);
       background:linear-gradient(180deg,var(--bg),var(--bg2)); overflow-x:hidden; max-width:100vw; font-size:1.08rem; }
     main { display:block; overflow-x:hidden; position:relative; width:100%; }
     .container { max-width:1440px; margin:0 auto; padding:1.2rem; overflow-x:clip; }
@@ -305,8 +305,28 @@
                       <select id="tax-sale-channel"><option value="Etsy">Etsy</option><option value="Website">Website</option><option value="In Person">In Person</option><option value="Other">Other</option></select>
                       <label>Sale Amount (USD)</label>
                       <input id="tax-sale-amount" type="number" step="0.01" placeholder="0.00" />
+                      <label>Processing Fee (USD)</label>
+                      <input id="tax-sale-fee-processing" type="number" step="0.01" placeholder="0.00" />
+                      <label>Transaction Fee (USD)</label>
+                      <input id="tax-sale-fee-transaction" type="number" step="0.01" placeholder="0.00" />
+                      <label>Listing Fee (USD)</label>
+                      <input id="tax-sale-fee-listing" type="number" step="0.01" placeholder="0.00" />
+                      <label>Shipping Cost (USD)</label>
+                      <input id="tax-sale-fee-shipping" type="number" step="0.01" placeholder="0.00" />
+                      <label>Marketing / Ads Fee (USD)</label>
+                      <input id="tax-sale-fee-marketing" type="number" step="0.01" placeholder="0.00" />
+                      <label>Other Fee (USD)</label>
+                      <input id="tax-sale-fee-other" type="number" step="0.01" placeholder="0.00" />
                       <label>Notes</label>
                       <input id="tax-sale-notes" placeholder="optional" />
+                      <div style="margin-top:.5rem; border-top:1px dashed var(--line); padding-top:.55rem;">
+                        <label>Etsy Statement CSV Import (Month)</label>
+                        <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
+                          <input id="tax-sale-etsy-csv" type="file" accept=".csv,text/csv" />
+                          <button type="button" class="btn" id="tax-import-etsy-csv-btn">Import Etsy CSV</button>
+                        </div>
+                        <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports Sale rows + fee rows from Etsy statement and maps fees to expense categories.</div>
+                      </div>
                       <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
                         <button type="button" class="btn btn-primary" id="tax-add-sale-btn">Add Sale</button>
                         <button type="button" class="btn" id="tax-clear-sale-btn">Clear</button>
@@ -807,7 +827,15 @@
     const taxSaleItemEl = document.getElementById('tax-sale-item');
     const taxSaleChannelEl = document.getElementById('tax-sale-channel');
     const taxSaleAmountEl = document.getElementById('tax-sale-amount');
+    const taxSaleFeeProcessingEl = document.getElementById('tax-sale-fee-processing');
+    const taxSaleFeeTransactionEl = document.getElementById('tax-sale-fee-transaction');
+    const taxSaleFeeListingEl = document.getElementById('tax-sale-fee-listing');
+    const taxSaleFeeShippingEl = document.getElementById('tax-sale-fee-shipping');
+    const taxSaleFeeMarketingEl = document.getElementById('tax-sale-fee-marketing');
+    const taxSaleFeeOtherEl = document.getElementById('tax-sale-fee-other');
     const taxSaleNotesEl = document.getElementById('tax-sale-notes');
+    const taxSaleEtsyCsvEl = document.getElementById('tax-sale-etsy-csv');
+    const taxImportEtsyCsvBtn = document.getElementById('tax-import-etsy-csv-btn');
     const taxAddSaleBtn = document.getElementById('tax-add-sale-btn');
     const taxClearSaleBtn = document.getElementById('tax-clear-sale-btn');
 
@@ -1553,7 +1581,7 @@
     const DEFAULT_TAX_EXPENSE_CATEGORIES = [
       'Startup cost', 'Advertising/Marketing', 'Software/SaaS', 'Hosting/Cloud',
       'Hardware', 'Research & Development', 'Product Testing', 'Office Supplies', 'Travel', 'Meals', 'Education',
-      'Professional Services', 'Payment Processing Fees', 'Other'
+      'Professional Services', 'Payment Processing Fees', 'Etsy Listing Fees', 'Etsy Transaction Fees', 'Shipping Costs', 'Other'
     ];
 
     const DEFAULT_TAX_INCOME_CATEGORIES = [
@@ -2040,36 +2068,84 @@
       if (taxSaleItemEl) taxSaleItemEl.value = '';
       if (taxSaleChannelEl) taxSaleChannelEl.value = 'Etsy';
       if (taxSaleAmountEl) taxSaleAmountEl.value = '';
+      if (taxSaleFeeProcessingEl) taxSaleFeeProcessingEl.value = '';
+      if (taxSaleFeeTransactionEl) taxSaleFeeTransactionEl.value = '';
+      if (taxSaleFeeListingEl) taxSaleFeeListingEl.value = '';
+      if (taxSaleFeeShippingEl) taxSaleFeeShippingEl.value = '';
+      if (taxSaleFeeMarketingEl) taxSaleFeeMarketingEl.value = '';
+      if (taxSaleFeeOtherEl) taxSaleFeeOtherEl.value = '';
       if (taxSaleNotesEl) taxSaleNotesEl.value = '';
+      if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.value = '';
+    }
+
+    async function postTaxExpenseEntry({ date, vendor, category, amount, notes, paidVia = 'etsy' }) {
+      if (!Number(amount) || Number(amount) <= 0) return;
+      const res = await fetch(TAX_EXPENSE_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        body: JSON.stringify({ date, vendor, category, amount: Number(amount).toFixed(2), paidVia, notes: notes || '' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed adding expense (${category})`);
+    }
+
+    async function postTaxIncomeEntry({ date, source, category, amount, notes }) {
+      const res = await fetch(TAX_INCOME_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        body: JSON.stringify({ date, source, category, amount: Number(amount).toFixed(2), notes: notes || '' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add sale');
     }
 
     async function addTaxSale() {
       const item = taxSaleItemEl?.value?.trim() || '';
       const channel = taxSaleChannelEl?.value || 'Other';
-      const payload = {
-        date: taxSaleDateEl?.value,
-        source: item ? `${item} (${channel})` : `Sale (${channel})`,
-        category: 'Product Sale',
-        amount: taxSaleAmountEl?.value,
-        notes: taxSaleNotesEl?.value?.trim() || ''
-      };
-      if (!payload.date || !payload.amount) {
+      const date = taxSaleDateEl?.value;
+      const gross = Number(taxSaleAmountEl?.value || 0);
+      const notes = taxSaleNotesEl?.value?.trim() || '';
+
+      if (!date || !Number.isFinite(gross) || gross <= 0) {
         openErrorModal('Sale date and amount are required.');
         return;
       }
+
       try {
-        const res = await fetch(TAX_INCOME_API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
-          body: JSON.stringify(payload)
+        await postTaxIncomeEntry({
+          date,
+          source: item ? `${item} (${channel})` : `Sale (${channel})`,
+          category: 'Product Sale',
+          amount: gross,
+          notes
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to add sale');
+
+        const feeDefs = [
+          { amount: Number(taxSaleFeeProcessingEl?.value || 0), category: 'Payment Processing Fees', label: 'Processing fee' },
+          { amount: Number(taxSaleFeeTransactionEl?.value || 0), category: 'Etsy Transaction Fees', label: 'Transaction fee' },
+          { amount: Number(taxSaleFeeListingEl?.value || 0), category: 'Etsy Listing Fees', label: 'Listing fee' },
+          { amount: Number(taxSaleFeeShippingEl?.value || 0), category: 'Shipping Costs', label: 'Shipping cost' },
+          { amount: Number(taxSaleFeeMarketingEl?.value || 0), category: 'Advertising/Marketing', label: 'Marketing fee' },
+          { amount: Number(taxSaleFeeOtherEl?.value || 0), category: 'Other', label: 'Other fee' }
+        ];
+        for (const f of feeDefs) {
+          if (Number.isFinite(f.amount) && f.amount > 0) {
+            await postTaxExpenseEntry({
+              date,
+              vendor: 'Etsy',
+              category: f.category,
+              amount: f.amount,
+              notes: `${f.label}${item ? ` for ${item}` : ''}${notes ? ` | ${notes}` : ''}`,
+              paidVia: 'etsy'
+            });
+          }
+        }
+
         clearTaxSaleForm();
         await loadTaxTransactions();
         await loadAccountsData();
         await loadStatsData();
-        openSuccessModal('Sale record added successfully.', 'Sale Added ✅');
+        openSuccessModal('Sale and fee records added successfully.', 'Sale Added ✅');
       } catch (e) {
         openErrorModal(`Could not add sale: ${e.message || e}`);
       }
@@ -2241,6 +2317,112 @@
         });
       }
       return rows;
+    }
+
+    function parseCsvTable(text) {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let inQuotes = false;
+      const s = (text || '').replace(/^\uFEFF/, '');
+      for (let i = 0; i < s.length; i++) {
+        const ch = s[i];
+        const next = s[i + 1];
+        if (ch === '"') {
+          if (inQuotes && next === '"') { cell += '"'; i++; }
+          else inQuotes = !inQuotes;
+          continue;
+        }
+        if (ch === ',' && !inQuotes) { row.push(cell); cell = ''; continue; }
+        if ((ch === '\n' || ch === '\r') && !inQuotes) {
+          if (ch === '\r' && next === '\n') i++;
+          row.push(cell); cell = '';
+          if (row.some(v => String(v).trim() !== '')) rows.push(row);
+          row = [];
+          continue;
+        }
+        cell += ch;
+      }
+      if (cell.length || row.length) { row.push(cell); if (row.some(v => String(v).trim() !== '')) rows.push(row); }
+      return rows;
+    }
+
+    function parseUsd(raw) {
+      if (!raw || raw === '--') return 0;
+      const n = Number(String(raw).replace(/[$,]/g, '').replace(/\u2212/g, '-'));
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function etsyDateToIso(raw) {
+      const d = new Date(raw);
+      if (!Number.isFinite(d.getTime())) return '';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    async function importEtsyStatementCsv() {
+      const file = taxSaleEtsyCsvEl?.files?.[0];
+      if (!file) { openErrorModal('Choose an Etsy statement CSV first.'); return; }
+      const rows = parseCsvTable(await file.text());
+      if (rows.length < 2) { openErrorModal('CSV appears empty.'); return; }
+
+      const header = rows[0].map(h => String(h).trim().toLowerCase());
+      const idxDate = header.indexOf('date');
+      const idxType = header.indexOf('type');
+      const idxTitle = header.indexOf('title');
+      const idxAmount = header.indexOf('amount');
+      const idxFees = header.findIndex(h => h.includes('fees'));
+      const idxNet = header.indexOf('net');
+      if ([idxDate, idxType, idxTitle].some(i => i < 0)) { openErrorModal('Unrecognized Etsy CSV format.'); return; }
+
+      const parsed = [];
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const type = String(r[idxType] || '').trim();
+        const title = String(r[idxTitle] || '').trim();
+        const isoDate = etsyDateToIso(String(r[idxDate] || '').trim());
+        if (!isoDate || !type) continue;
+        const amount = parseUsd(r[idxAmount]);
+        const fee = parseUsd(r[idxFees]);
+        const net = parseUsd(r[idxNet]);
+        parsed.push({ isoDate, type, title, amount, fee, net });
+      }
+
+      const sales = parsed.filter(p => p.type === 'Sale' && p.amount > 0);
+      const expenses = [];
+      for (const p of parsed) {
+        if (p.type === 'Shipping' && p.fee < 0) expenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Shipping Costs', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
+        if (p.type === 'Marketing' && p.fee < 0) expenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Advertising/Marketing', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
+        if (p.type === 'Fee' && /listing fee/i.test(p.title) && p.fee < 0) expenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Listing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
+        if (p.type === 'Fee' && /transaction fee/i.test(p.title) && p.fee < 0) expenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Transaction Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
+        if (p.type === 'Fee' && /processing fee/i.test(p.title) && p.fee < 0) expenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Payment Processing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
+      }
+
+      const ok = await openConfirmModal(`Import ${sales.length} sales and ${expenses.length} fee/shipping expense rows from Etsy CSV?`, 'Import Etsy Statement?', 'Import');
+      if (!ok) return;
+
+      try {
+        for (const s of sales) {
+          await postTaxIncomeEntry({
+            date: s.isoDate,
+            source: s.title || 'Etsy Sale',
+            category: 'Product Sale',
+            amount: s.amount,
+            notes: 'Imported from Etsy statement CSV'
+          });
+        }
+        for (const e of expenses) {
+          await postTaxExpenseEntry(e);
+        }
+        await loadTaxTransactions();
+        await loadAccountsData();
+        await loadStatsData();
+        openSuccessModal(`Etsy import complete: ${sales.length} sales, ${expenses.length} expenses.`, 'Import Complete ✅');
+      } catch (err) {
+        openErrorModal(`Etsy import failed: ${err.message || err}`);
+      }
     }
 
     async function runReconciliation() {
@@ -2614,6 +2796,7 @@
     taxClearExpenseBtn.addEventListener('click', clearTaxExpenseForm);
     taxAddSaleBtn?.addEventListener('click', addTaxSale);
     taxClearSaleBtn?.addEventListener('click', clearTaxSaleForm);
+    taxImportEtsyCsvBtn?.addEventListener('click', importEtsyStatementCsv);
     taxAddOwnerTransferBtn?.addEventListener('click', addTaxOwnerTransfer);
     taxClearOwnerTransferBtn?.addEventListener('click', clearTaxOwnerTransferForm);
     taxAddIncomeBtn.addEventListener('click', addTaxIncome);
