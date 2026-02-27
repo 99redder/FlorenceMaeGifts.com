@@ -242,3 +242,96 @@ Avoid keyword stuffing; keep copy readable and specific to real products.
   - `Shop` now points to `index.html#shop` (primary commercial intent page)
   - old `shop.html` relabeled as `Gallery Archive`
 - Reduced `shop.html` sitemap priority/frequency to reduce keyword cannibalization with homepage shop intent.
+
+---
+
+## Session Update — 2026-02-26 (Admin System + Accounting Stack)
+
+### What was added
+
+A full password-gated admin system was added at `/admin.html` for Florence Mae Gifts, based on the Eastern Shore AI admin architecture and then adapted for FMG.
+
+Implemented sections/tabs:
+- Stats (default first tab)
+- Tax Ledger
+- Accounts (Trial Balance, Balance Sheet, Income Statement/P&L, Cash Flow, Journal)
+- Reconciliation
+- Year-End Close
+- Audit Package
+
+Booking Controls were intentionally removed from the Florence admin codebase.
+
+### Admin + backend wiring
+
+- `admin.html` now uses same-origin API wiring (`${window.location.origin}/api/contact` base) for Cloudflare Worker endpoints.
+- `cloudflare/src/worker.js` was ported/expanded with tax/accounting endpoints.
+- D1 migrations copied into `cloudflare/migrations/` (`0001` through `0010`) including accounting/journal tables and owner-funded income flag support.
+
+### Tax/accounting capabilities now available
+
+- Double-entry journal support with auto-posting from tax entries.
+- Owner-funded non-revenue support (boolean flag-backed) and proper equity posting.
+- Owner transfer flow in Tax Ledger (manual owner/business movement entries).
+- Year-End Close Wizard:
+  - preview + apply
+  - step explanations
+  - idempotent replace for same-year close entries.
+- Audit Package builder:
+  - year + document selection + select-all toggle
+  - ZIP output with statement PDFs, CSV exports, optional receipts
+  - includes `manifest.txt` for audit traceability.
+
+### Stats system updates
+
+- Stats tab added as first tab and default view.
+- Historical data seeded from legacy tracker screenshot for:
+  - 2023
+  - 2024
+  - 2025
+- Monthly card now supports 3-year YoY comparison in one card.
+- Item stats intentionally deferred until LLC cutover day (placeholder text shown).
+- Stats auto-calculate from ledger data for non-seeded years.
+
+### Sales entry + import workflow
+
+- `Add Sale` is now manual one-sale entry.
+- Sale form supports fee components:
+  - processing
+  - transaction
+  - listing
+  - shipping
+  - marketing
+  - other
+- Separate `Import Sales` flow added for Etsy monthly CSV statements:
+  - parses Etsy statement CSV format
+  - maps Sale rows to income entries
+  - maps fee/shipping/marketing rows to categorized expense entries
+  - preview panel added before final import confirmation.
+
+### Theming + UX
+
+- FMG-branded visual pass applied to admin (pink/salmon palette aligned to site styling).
+- Light/dark theme toggle added in admin header with persistence.
+- Contrast fixes applied for light and dark modes.
+- Top tab bar converted to pink gradient style with complementary hover edges.
+- Dark mode tab text adjusted to black on pink gradient per user request.
+- Blur toggle added to mask currency amounts for demo use.
+
+### Notable FMG admin commits in this session
+
+- `514cf58` — Initial FMG admin + backend scaffold copied from ESA
+- `912a4e6` — FMG branding pass + hide booking controls in nav
+- `c67074f` — Add Stats tab and pre-LLC dashboard structure
+- `77ecdb6` — Remove booking controls functionality/dependencies
+- `fd2e2b3` — Add theme toggle, live stats calculations, Add Sale flow
+- `93ac77c` — Etsy CSV import + manual sale fee fields
+- `bce254c` — Import preview + color contrast fixes
+- `4f5a290` — Seed historical 2023–2025 stats + defer item stats
+- `54fee2d` — YoY monthly stats + separate Import Sales workflow + pink tab styling
+- `d5b8d1d` — Dark mode pink buttons use black text
+
+### Operational notes for next session
+
+- Before first live accounting use, ensure Cloudflare D1 binding `DB` and migrations are applied in FMG cloudflare project.
+- Keep `wrangler.toml` local environment-specific values consistent with production DB name/id.
+- Item stats should be activated/implemented at LLC cutover (currently intentionally placeholder).
