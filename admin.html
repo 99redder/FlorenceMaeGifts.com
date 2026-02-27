@@ -2420,6 +2420,7 @@
       const idxType = header.indexOf('type');
       const idxTitle = header.indexOf('title');
       const idxAmount = header.indexOf('amount');
+      const idxInfo = header.indexOf('info');
       const idxFees = header.findIndex(h => h.includes('fees'));
       const idxNet = header.indexOf('net');
       if ([idxDate, idxType, idxTitle].some(i => i < 0)) { openErrorModal('Unrecognized Etsy CSV format.'); return; }
@@ -2431,21 +2432,25 @@
         const title = String(r[idxTitle] || '').trim();
         const isoDate = etsyDateToIso(String(r[idxDate] || '').trim());
         if (!isoDate || !type) continue;
+        const info = idxInfo >= 0 ? String(r[idxInfo] || '').trim() : '';
         const amount = parseUsd(r[idxAmount]);
         const fee = parseUsd(r[idxFees]);
         const net = parseUsd(r[idxNet]);
-        parsed.push({ isoDate, type, title, amount, fee, net });
+        parsed.push({ isoDate, type, title, info, amount, fee, net });
       }
 
-      const extractOrderId = (txt) => {
-        const m = String(txt || '').match(/Order\s*#(\d+)/i);
-        return m ? m[1] : null;
+      const extractOrderId = (...vals) => {
+        for (const txt of vals) {
+          const m = String(txt || '').match(/Order\s*#(\d+)/i);
+          if (m) return m[1];
+        }
+        return null;
       };
 
       const taxByOrder = new Map();
       for (const p of parsed) {
         if (p.type === 'Tax' && /sales tax paid by buyer/i.test(p.title || '') && p.fee < 0) {
-          const oid = extractOrderId(p.title);
+          const oid = extractOrderId(p.title, p.info);
           if (oid) taxByOrder.set(oid, (taxByOrder.get(oid) || 0) + Math.abs(p.fee));
         }
       }
@@ -2453,7 +2458,7 @@
       pendingEtsyImportSales = parsed
         .filter(p => p.type === 'Sale' && p.amount > 0)
         .map((p) => {
-          const oid = extractOrderId(p.title);
+          const oid = extractOrderId(p.title, p.info);
           const tax = oid ? Number(taxByOrder.get(oid) || 0) : 0;
           const netSale = Math.max(0, Number(p.amount || 0) - tax);
           return { ...p, orderId: oid, taxDeducted: tax, netAmount: netSale };
