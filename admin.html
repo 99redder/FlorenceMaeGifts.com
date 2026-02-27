@@ -12,8 +12,8 @@
   <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     /* ===== Theme & CSS Variables ===== */
-    :root { --bg:#f3faf5; --bg2:#eaf6ee; --card:#ffffff; --card-soft:#e4f1e8; --text:#1f2d24; --muted:#5d7265; --cyan:#1f8f4d; --line:#c7dfcf; --violet:#2ea85d; --stats-bg:#edf7f0; --stats-text:#1f2d24; }
-    body.dark-theme { --bg:#0f1a14; --bg2:#132119; --card:#1b2a21; --card-soft:#22362a; --text:#e6f3ea; --muted:#9fb7a7; --cyan:#57c77f; --line:#355343; --violet:#7fda9f; --stats-bg:#24392c; --stats-text:#e6f3ea; }
+    :root { --bg:#eef3fb; --bg2:#e4ebf7; --card:#ffffff; --card-soft:#dce5f4; --text:#172033; --muted:#5f6f8f; --cyan:#1f6feb; --line:#c4d0e6; --violet:#22c1c3; --stats-bg:#eaf0fb; --stats-text:#172033; }
+    body.dark-theme { --bg:#0b1220; --bg2:#101a2f; --card:#16233b; --card-soft:#1d2f4d; --text:#e6edf8; --muted:#9bb0d1; --cyan:#4ea1ff; --line:#2b3f63; --violet:#39d0cf; --stats-bg:#1b2b47; --stats-text:#e6edf8; }
 
     * { box-sizing:border-box; }
     html { scroll-behavior:smooth; overflow-x:hidden; max-width:100vw; }
@@ -39,8 +39,8 @@
     label { display:block; font-size:1rem; color:var(--muted); margin-bottom:.25rem; }
     .btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:8px; padding:.75rem 1.2rem; cursor:pointer; font-weight:600; font-family:'Lora', serif; transition:background 0.15s, color 0.15s, border-color 0.15s, box-shadow .15s; font-size:1rem; }
     body.dark-theme .btn { background:var(--card); }
-    .btn:hover, label.btn:hover { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(31,143,77,.2); }
-    .btn-primary { background:linear-gradient(135deg, #1f8f4d 0%, #2ea85d 100%); border-color:#1f8f4d; color:#fff; box-shadow:0 3px 8px rgba(31,143,77,.24); }
+    .btn:hover, label.btn:hover { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(31,111,235,.22); }
+    .btn-primary { background:linear-gradient(135deg, #1f6feb 0%, #22c1c3 100%); border-color:#1f6feb; color:#fff; box-shadow:0 3px 8px rgba(31,111,235,.25); }
     .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin-top:.7rem; }
     .form-grid > * { min-width:0; overflow:hidden; }
     .full { grid-column:1 / -1; }
@@ -82,7 +82,7 @@
     .tax-row .amt { color:var(--text); font-weight:700; }
     .tax-row .edit { padding:.35rem .75rem; font-size:.95rem; }
     .tax-row .delete { padding:.35rem .75rem; font-size:.95rem; border-color:#5a2222; color:#ff9b9b; }
-    .btn.tx-filter-btn.active { background:linear-gradient(135deg, #1f8f4d 0%, #2ea85d 100%); border-color:#1f8f4d; color:#fff; }
+    .btn.tx-filter-btn.active { background:linear-gradient(135deg, #1f6feb 0%, #22c1c3 100%); border-color:#1f6feb; color:#fff; }
     .admin-calendar-wrap { margin-top:.7rem; border:1px solid var(--line); border-radius:8px; background:var(--card); padding:1rem; }
     .tax-summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
     .tax-summary-col { border:1px solid var(--line); border-radius:8px; padding:.6rem; background:var(--card); }
@@ -99,8 +99,8 @@
       box-shadow:none;
     }
     body.dark-theme .admin-section-tabs .btn { border-color:var(--line); background:var(--card); color:var(--text); }
-    .admin-section-tabs .btn:hover { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(31,143,77,.2); }
-    .admin-section-tabs .btn.active { border-color:#1f8f4d; background:linear-gradient(135deg, #1f8f4d 0%, #2ea85d 100%); color:#fff; box-shadow:0 4px 10px rgba(31,143,77,.28); }
+    .admin-section-tabs .btn:hover { border-color:var(--cyan); box-shadow:0 0 0 2px rgba(31,111,235,.22); }
+    .admin-section-tabs .btn.active { border-color:#1f6feb; background:linear-gradient(135deg, #1f6feb 0%, #22c1c3 100%); color:#fff; box-shadow:0 4px 10px rgba(31,111,235,.3); }
 
     .money-blur-on .money-blur-target { filter: blur(6px); transition: filter .15s ease; user-select: none; }
 
@@ -334,13 +334,13 @@
                       <label>Etsy Statement CSV (Month)</label>
                       <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
                         <input id="tax-sale-etsy-csv" type="file" accept=".csv,text/csv" />
+                        <span style="color:var(--muted);">→</span>
                         <button type="button" class="btn" id="tax-preview-etsy-csv-btn">Preview Transactions</button>
+                        <span style="color:var(--muted);">→</span>
+                        <button type="button" class="btn btn-primary" id="tax-import-etsy-csv-btn">Import Transactions</button>
                       </div>
                       <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports sales + fee rows and maps fees to categories automatically.</div>
                       <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
-                      <div class="form-actions" style="justify-content:flex-start; margin-top:.55rem;">
-                        <button type="button" class="btn btn-primary" id="tax-import-etsy-csv-btn">Import Transactions</button>
-                      </div>
                     </div>
                   </div>
                 </div>
