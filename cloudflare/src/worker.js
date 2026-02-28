@@ -2638,7 +2638,24 @@ async function handleQuoteConvert(request, env, corsHeaders, url) {
   if (!id) return json({ ok: false, error: 'Invalid quote id' }, 400, corsHeaders);
   const quote = await env.DB.prepare(`SELECT * FROM quotes WHERE id = ?1`).bind(id).first();
   if (!quote) return json({ ok: false, error: 'Quote not found' }, 404, corsHeaders);
-  if (quote.status === 'accepted' || Number(quote.converted_invoice_id || 0) > 0) return json({ ok: false, error: 'Quote already converted' }, 400, corsHeaders);
+
+  const existingInvoiceId = Number(quote.converted_invoice_id || 0);
+  if (quote.status === 'accepted' || existingInvoiceId > 0) {
+    if (existingInvoiceId > 0) {
+      const existingInvoice = await env.DB.prepare(`SELECT id FROM invoices WHERE id = ?1`).bind(existingInvoiceId).first();
+      if (existingInvoice?.id) {
+        return json({ ok: false, error: 'Quote already converted', invoiceId: existingInvoiceId }, 400, corsHeaders);
+      }
+      // stale pointer: invoice was not created or later removed; allow recovery conversion
+      await env.DB.prepare(`UPDATE quotes SET status = 'draft', accepted_at = NULL, converted_invoice_id = NULL, updated_at = datetime('now') WHERE id = ?1`).bind(id).run();
+      quote.status = 'draft';
+      quote.accepted_at = null;
+      quote.converted_invoice_id = null;
+    } else {
+      return json({ ok: false, error: 'Quote already converted' }, 400, corsHeaders);
+    }
+  }
+
   const result = await convertQuoteToInvoice(env.DB, quote);
   if (!result.ok) return json({ ok: false, error: result.error || 'Failed to convert quote' }, 400, corsHeaders);
   return json({ ok: true, quoteId: id, invoiceId: result.invoiceId }, 200, corsHeaders);
