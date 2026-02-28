@@ -2384,8 +2384,9 @@ async function handleInvoicePaymentLink(request, env, corsHeaders, url) {
   };
 
   const baseUrl = new URL(request.url).origin;
-  const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${baseUrl}/invoice/payment-success`).replace(/\/$/, '');
-  const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${baseUrl}/invoice/payment-cancelled`).replace(/\/$/, '');
+  const siteBase = (env.PUBLIC_SITE_URL || 'https://www.florencemaegifts.com').replace(/\/$/, '');
+  const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${siteBase}/invoice-payment-success.html`).replace(/\/$/, '');
+  const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${siteBase}/invoice-payment-cancelled.html`).replace(/\/$/, '');
 
   const form = new URLSearchParams();
   form.append('mode', 'payment');
@@ -3069,8 +3070,9 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
     const fromEmail = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
     if (env.STRIPE_SECRET_KEY && env.RESEND_API_KEY && fromEmail && customerEmail) {
       const requestBase = new URL(request.url).origin;
-      const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${requestBase}/invoice/payment-success`).replace(/\/$/, '');
-      const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${requestBase}/invoice/payment-cancelled`).replace(/\/$/, '');
+      const siteBase = (env.PUBLIC_SITE_URL || 'https://www.florencemaegifts.com').replace(/\/$/, '');
+      const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${siteBase}/invoice-payment-success.html`).replace(/\/$/, '');
+      const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${siteBase}/invoice-payment-cancelled.html`).replace(/\/$/, '');
       const balanceDueCents = Math.max(0, Number(total || 0));
       let paymentUrl = '';
       let sessionId = '';
