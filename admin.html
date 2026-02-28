@@ -3644,8 +3644,23 @@
         }
         if (action === 'convert') {
           await runAction(async () => {
-            await fetchAdminJson(QUOTE_CONVERT_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, quoteId: id }) });
-            openSuccessModal('Quote converted to invoice.', 'Converted ✅');
+            const res = await fetch(QUOTE_CONVERT_API_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+              body: JSON.stringify({ id, quoteId: id })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              if ((data.error || '').toLowerCase().includes('already converted') && Number(data.invoiceId || 0) > 0) {
+                openSuccessModal(`Quote already converted to Invoice #${data.invoiceId}.`, 'Already Converted');
+                setAdminSectionTab('invoices');
+                await refreshInvoiceList();
+                return;
+              }
+              throw new Error(data.error || 'Failed to convert quote');
+            }
+            openSuccessModal(`Quote converted to Invoice #${data.invoiceId || ''}.`, 'Converted ✅');
+            setAdminSectionTab('invoices');
             await refreshQuoteList();
             await refreshInvoiceList();
           }, 'Converting…');
