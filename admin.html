@@ -331,7 +331,7 @@
                 <div class="admin-row" style="gap:.4rem; flex-wrap:wrap; margin-top:.4rem;">
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-expense-btn">Add Expense</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-sale-btn">Add Sale</button>
-                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-import-sales-btn">Import Sales</button>
+                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-import-sales-btn">Import Etsy Sales</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-owner-transfer-btn">Add Owner Transfer</button>
                   <button type="button" class="btn btn-primary" id="tax-manage-categories-btn" onclick="window.openTaxCategoryManager && window.openTaxCategoryManager()">Manage Categories</button>
                 </div>
@@ -416,7 +416,7 @@
 
                 <div class="tax-entry-wrap" id="tax-import-sales-panel" style="margin-top:.5rem; display:none;">
                   <div class="admin-calendar-wrap">
-                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Import Sales (CSV)</div><button type="button" class="btn" id="tax-minimize-import-sales-btn">Minimize</button></div>
+                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Import Etsy Sales (CSV)</div><button type="button" class="btn" id="tax-minimize-import-sales-btn">Minimize</button></div>
                     <div class="admin-row" id="tax-import-sales-fields" style="flex-direction:column; align-items:stretch;">
                       <label>Etsy Statement CSV (Month)</label>
                       <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
@@ -3305,7 +3305,7 @@
       const q = `?${params.toString()}`;
       const data = await fetchAdminJson(`${INVOICES_API_URL}${q}`);
       const list=data.invoices||data.items||[];
-      invoiceListEl.innerHTML=list.length?list.map(inv=>`<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}</div><div>Customer: ${escHtml(inv.customer_name||'—')}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${escHtml(inv.status||'open')}</div>${invoiceActionButtons(inv)}</div>`).join(''):'No invoices yet.';
+      invoiceListEl.innerHTML=list.length?list.map(inv=>`<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}<div style="font-size:.88rem;color:var(--muted);margin-top:.08rem;">Customer: ${escHtml(inv.customer_name||'—')}</div></div><div style="font-size:.9rem;color:var(--muted);">${escHtml(inv.customer_email||'—')}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${escHtml(inv.status||'open')}</div>${invoiceActionButtons(inv)}</div>`).join(''):'No invoices yet.';
     }
 
     async function refreshQuoteList(){
