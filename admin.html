@@ -3318,7 +3318,7 @@
       const q = `?${params.toString()}`;
       const data = await fetchAdminJson(`${QUOTES_API_URL}${q}`);
       const list=data.quotes||data.items||[];
-      quoteListEl.innerHTML=list.length?list.map(qu=>`<div class="tax-row" data-id="${Number(qu.id||0)}"><div>${escHtml(qu.quote_number||qu.id||'—')}</div><div>${escHtml(qu.customer_name||'')}</div><div class="amt">${qMoney((qu.total_cents||0)/100)}</div><div>${escHtml(qu.status||'draft')}</div>${quoteActionButtons(qu)}</div>`).join(''):'No quotes yet.';
+      quoteListEl.innerHTML=list.length?list.map(qu=>`<div class="tax-row" data-id="${Number(qu.id||0)}"><div>${escHtml(qu.quote_number||qu.id||'—')}</div><div>Customer Name: ${escHtml(qu.customer_name||'—')}<div style="font-size:.9rem;color:var(--muted);margin-top:.08rem;">${escHtml(qu.customer_email||'—')}</div></div><div class="amt">${qMoney((qu.total_cents||0)/100)}</div><div>${escHtml(qu.status||'draft')}</div>${quoteActionButtons(qu)}</div>`).join(''):'No quotes yet.';
     }
 
     async function saveInvoice(){
