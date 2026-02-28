@@ -3296,7 +3296,11 @@
     async function refreshInvoiceList(){
       if(!invoiceListEl) return;
       invoiceListEl.textContent = 'Loading invoices…';
-      const q=`?status=${encodeURIComponent(invoiceFilterEl?.value||'all')}&sort=${encodeURIComponent(invoiceSortEl?.value||'newest')}`;
+      const status = (invoiceFilterEl?.value || 'all');
+      const params = new URLSearchParams();
+      if (status && status !== 'all') params.set('status', status);
+      params.set('sort', (invoiceSortEl?.value || 'newest'));
+      const q = `?${params.toString()}`;
       const data = await fetchAdminJson(`${INVOICES_API_URL}${q}`);
       const list=data.invoices||data.items||[];
       invoiceListEl.innerHTML=list.length?list.map(inv=>`<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}</div><div>${escHtml(inv.customer_name||'')}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${escHtml(inv.status||'open')}</div>${invoiceActionButtons(inv)}</div>`).join(''):'No invoices yet.';
@@ -3305,7 +3309,11 @@
     async function refreshQuoteList(){
       if(!quoteListEl) return;
       quoteListEl.textContent = 'Loading quotes…';
-      const q=`?status=${encodeURIComponent(quoteFilterEl?.value||'all')}&sort=${encodeURIComponent(quoteSortEl?.value||'newest')}`;
+      const status = (quoteFilterEl?.value || 'all');
+      const params = new URLSearchParams();
+      if (status && status !== 'all') params.set('status', status);
+      params.set('sort', (quoteSortEl?.value || 'newest'));
+      const q = `?${params.toString()}`;
       const data = await fetchAdminJson(`${QUOTES_API_URL}${q}`);
       const list=data.quotes||data.items||[];
       quoteListEl.innerHTML=list.length?list.map(qu=>`<div class="tax-row" data-id="${Number(qu.id||0)}"><div>${escHtml(qu.quote_number||qu.id||'—')}</div><div>${escHtml(qu.customer_name||'')}</div><div class="amt">${qMoney((qu.total_cents||0)/100)}</div><div>${escHtml(qu.status||'draft')}</div>${quoteActionButtons(qu)}</div>`).join(''):'No quotes yet.';
