@@ -1865,11 +1865,17 @@
     });
 
     // ===== Admin Controls =====
+    function updateFloatingAddButtons() {
+      if (invoiceFabBtn) invoiceFabBtn.style.display = (adminUnlocked && activeAdminSectionTab === 'invoices') ? 'inline-flex' : 'none';
+      if (quoteFabBtn) quoteFabBtn.style.display = (adminUnlocked && activeAdminSectionTab === 'quotes') ? 'inline-flex' : 'none';
+    }
+
     function setAdminUnlocked(on) {
       adminUnlocked = !!on;
       adminLock.style.display = adminUnlocked ? 'none' : 'block';
       adminControls.classList.toggle('active', adminUnlocked);
       if (adminHeaderTools) adminHeaderTools.style.display = adminUnlocked ? 'flex' : 'none';
+      updateFloatingAddButtons();
     }
 
     function renderAdminCalendar(bookings = [], blockedSlots = [], blockedDays = []) {
@@ -3379,6 +3385,7 @@
       if (tab === 'stats' && adminUnlocked) loadStatsData();
       if (tab === 'invoices' && adminUnlocked) refreshInvoiceList();
       if (tab === 'quotes' && adminUnlocked) refreshQuoteList();
+      updateFloatingAddButtons();
     }
 
     function disableLegacyCollapse() {
