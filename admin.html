@@ -554,11 +554,9 @@
         </div>
         <div id="invoices-body" class="admin-collapsible-body-collapsed">
           <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
-            <div class="invoice-mode-toggle" id="invoice-mode-toggle" role="tablist" aria-label="Invoice views">
-              <button type="button" class="btn active" id="invoice-mode-view-btn" data-invoice-mode="view" role="tab" aria-selected="true">View Invoices</button>
+            <div class="invoice-mode-toggle" id="invoice-mode-toggle" role="tablist" aria-label="Invoice actions">
               <button type="button" class="btn" id="invoice-mode-add-btn" data-invoice-mode="add" role="tab" aria-selected="false">Add New Invoice</button>
             </div>
-            <p class="invoice-flow-note">Use <strong>View Invoices</strong> for filters, status updates, payments, and sending invoice emails. Use <strong>Add New Invoice</strong> to open the branded create-invoice modal.</p>
             <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem; align-items:center;">
               <label for="invoice-filter" style="margin:0;">Filter</label>
               <select id="invoice-filter" style="max-width:160px;">
@@ -3319,7 +3317,7 @@
       const q = `?${params.toString()}`;
       const data = await fetchAdminJson(`${INVOICES_API_URL}${q}`);
       const list=data.invoices||data.items||[];
-      invoiceListEl.innerHTML=list.length?list.map(inv=>{ const balC=(Number(inv.balance_due_cents||0)/100); const isPaid=(String(inv.status||'').toLowerCase()==='paid'||balC<=0); const statusText=isPaid?`Paid <span style="color:#16a34a; font-weight:700;">✓</span>`:escHtml(inv.status||'open'); const paymentLink=(inv.stripe_checkout_url||inv.stripeCheckoutUrl||inv.payment_url||inv.paymentUrl||'').toString().trim(); const paymentLinkRow=paymentLink?`<div style="font-size:.85rem;margin-top:.14rem;"><a href="${escAttr(paymentLink)}" target="_blank" rel="noopener noreferrer">Click Here</a></div>`:''; return `<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}<div style="font-size:.88rem;color:var(--muted);margin-top:.08rem;">Customer: ${escHtml(inv.customer_name||'—')}${inv.customer_email?` - Email: ${escHtml(inv.customer_email)}`:''}${paymentLinkRow}</div></div><div style="font-size:.9rem;color:var(--muted);">Balance ${qMoney(balC)}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${statusText}</div>${invoiceActionButtons(inv)}</div>`; }).join(''):'No invoices yet.';
+      invoiceListEl.innerHTML=list.length?list.map(inv=>{ const balC=(Number(inv.balance_due_cents||0)/100); const isPaid=(String(inv.status||'').toLowerCase()==='paid'||balC<=0); const statusText=isPaid?`Paid <span style="color:#16a34a; font-weight:700;">✓</span>`:escHtml(inv.status||'open'); const paymentLink=(inv.stripe_checkout_url||inv.stripeCheckoutUrl||inv.payment_url||inv.paymentUrl||'').toString().trim(); const paymentLinkRow=paymentLink?`<div style="font-size:.85rem;margin-top:.14rem;">Payment Link: <a href="${escAttr(paymentLink)}" target="_blank" rel="noopener noreferrer">Click Here</a></div>`:''; return `<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}<div style="font-size:.88rem;color:var(--muted);margin-top:.08rem;">Customer: ${escHtml(inv.customer_name||'—')}${inv.customer_email?` - Email: ${escHtml(inv.customer_email)}`:''}${paymentLinkRow}</div></div><div style="font-size:.9rem;color:var(--muted);">Balance ${qMoney(balC)}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${statusText}</div>${invoiceActionButtons(inv)}</div>`; }).join(''):'No invoices yet.';
     }
 
     async function refreshQuoteList(){
