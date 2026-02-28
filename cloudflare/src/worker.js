@@ -236,6 +236,10 @@ export default {
       return handleQuoteSend(request, env, corsHeaders, url);
     }
 
+    if (url.pathname === '/api/accounts/quotes/convert' && request.method === 'POST') {
+      return handleQuoteConvert(request, env, corsHeaders, url);
+    }
+
     // Public quote accept/deny endpoints (no admin auth required, token-based)
     if (url.pathname === '/api/quote/accept' && request.method === 'GET') {
       return handleQuoteAccept(request, env, corsHeaders, url);
