@@ -3262,6 +3262,11 @@
       })).filter((item) => item.quantity > 0 && item.unitAmountCents >= 0);
     }
 
+    function isValidEmailAddress(email) {
+      const e = (email || '').toString().trim();
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+    }
+
     function quoteActionButtons(qu) {
       const id = Number(qu.id || 0);
       return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
@@ -3306,8 +3311,24 @@
       quoteListEl.innerHTML=list.length?list.map(qu=>`<div class="tax-row" data-id="${Number(qu.id||0)}"><div>${escHtml(qu.quote_number||qu.id||'—')}</div><div>${escHtml(qu.customer_name||'')}</div><div class="amt">${qMoney((qu.total_cents||0)/100)}</div><div>${escHtml(qu.status||'draft')}</div>${quoteActionButtons(qu)}</div>`).join(''):'No quotes yet.';
     }
 
-    async function saveInvoice(){ const payload={ id:editingInvoiceId||undefined, invoiceId:editingInvoiceId||undefined, customerName:invoiceCustomerNameEl?.value?.trim()||'', customerEmail:invoiceCustomerEmailEl?.value?.trim()||'', customerPhone:invoiceCustomerPhoneEl?.value?.trim()||'', dueDate:invoiceDueDateEl?.value||'', descriptionOfWork:invoiceDescriptionEl?.value||'', items:toApiItems(invoiceDraftItems) }; const endpoint=editingInvoiceId?INVOICE_UPDATE_API_URL:INVOICES_API_URL; await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); closeInvoiceCreateModal(); await refreshInvoiceList(); }
-    async function saveQuote(){ const payload={ id:editingQuoteId||undefined, quoteId:editingQuoteId||undefined, customerName:quoteCustomerNameEl?.value?.trim()||'', customerEmail:quoteCustomerEmailEl?.value?.trim()||'', customerPhone:quoteCustomerPhoneEl?.value?.trim()||'', validUntil:quoteValidUntilEl?.value||'', descriptionOfWork:quoteDescriptionEl?.value||'', items:toApiItems(quoteDraftItems) }; const endpoint=editingQuoteId?QUOTE_UPDATE_API_URL:QUOTES_API_URL; await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); closeQuoteCreateModal(); await refreshQuoteList(); }
+    async function saveInvoice(){
+      const customerEmail = invoiceCustomerEmailEl?.value?.trim() || '';
+      if (!isValidEmailAddress(customerEmail)) throw new Error('Please enter a valid customer email address before saving the invoice.');
+      const payload={ id:editingInvoiceId||undefined, invoiceId:editingInvoiceId||undefined, customerName:invoiceCustomerNameEl?.value?.trim()||'', customerEmail, customerPhone:invoiceCustomerPhoneEl?.value?.trim()||'', dueDate:invoiceDueDateEl?.value||'', descriptionOfWork:invoiceDescriptionEl?.value||'', items:toApiItems(invoiceDraftItems) };
+      const endpoint=editingInvoiceId?INVOICE_UPDATE_API_URL:INVOICES_API_URL;
+      await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      closeInvoiceCreateModal();
+      await refreshInvoiceList();
+    }
+    async function saveQuote(){
+      const customerEmail = quoteCustomerEmailEl?.value?.trim() || '';
+      if (!isValidEmailAddress(customerEmail)) throw new Error('Please enter a valid customer email address before saving the quote.');
+      const payload={ id:editingQuoteId||undefined, quoteId:editingQuoteId||undefined, customerName:quoteCustomerNameEl?.value?.trim()||'', customerEmail, customerPhone:quoteCustomerPhoneEl?.value?.trim()||'', validUntil:quoteValidUntilEl?.value||'', descriptionOfWork:quoteDescriptionEl?.value||'', items:toApiItems(quoteDraftItems) };
+      const endpoint=editingQuoteId?QUOTE_UPDATE_API_URL:QUOTES_API_URL;
+      await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      closeQuoteCreateModal();
+      await refreshQuoteList();
+    }
 
     async function loadInvoiceIntoModal(id) {
       const data = await fetchAdminJson(`${INVOICE_DETAIL_API_URL}?id=${encodeURIComponent(id)}`);

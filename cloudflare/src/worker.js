@@ -2522,6 +2522,7 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
 
   const customerEmail = (invoice.customer_email || '').toString().trim();
   if (!customerEmail) return json({ ok: false, error: 'Invoice has no customer email' }, 400, corsHeaders);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) return json({ ok: false, error: 'Invoice customer email is invalid' }, 400, corsHeaders);
 
   const itemsRes = await env.DB.prepare(`SELECT item_description, quantity, unit_amount_cents, line_total_cents FROM invoice_line_items WHERE invoice_id = ?1 ORDER BY id ASC`).bind(id).all();
   const items = itemsRes.results || [];
@@ -2834,6 +2835,7 @@ async function handleQuoteSend(request, env, corsHeaders, url) {
 
   const customerEmail = (quote.customer_email || '').toString().trim();
   if (!customerEmail) return json({ ok: false, error: 'Quote has no customer email' }, 400, corsHeaders);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) return json({ ok: false, error: 'Quote customer email is invalid' }, 400, corsHeaders);
 
   const itemsRes = await env.DB.prepare(`SELECT item_description, quantity, unit_amount_cents, line_total_cents FROM quote_line_items WHERE quote_id = ?1 ORDER BY id ASC`).bind(id).all();
   const items = itemsRes.results || [];
