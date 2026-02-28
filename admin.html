@@ -129,7 +129,7 @@
 
     .invoice-mode-toggle { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.65rem; }
     .invoice-flow-note { margin:.1rem 0 .7rem; color:var(--muted); line-height:1.45; }
-    .invoice-action-btn { padding:.45rem .72rem; font-size:.9rem; }
+    .invoice-action-btn { padding:.3rem .52rem; font-size:.78rem; line-height:1.2; white-space:nowrap; }
     .btn.working { opacity:.8; cursor:progress; }
     .invoice-fab { position: fixed; right: 1.1rem; bottom: 1.1rem; z-index: 1325; border-radius: 999px; padding: .8rem 1rem; box-shadow: 0 8px 24px rgba(0,0,0,.28); display: none; }
 
@@ -3327,14 +3327,12 @@
       const convertAttrs = converted
         ? `disabled title="Already converted to an invoice. Edit the quote to re-enable conversion." style="opacity:.5;cursor:not-allowed;"`
         : '';
-      return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
-        <button type="button" class="btn" data-quote-action="view" data-id="${id}">View Quote</button>
-        <button type="button" class="btn" data-quote-action="send" data-id="${id}">Send Quote Email</button>
-        <button type="button" class="btn" data-quote-action="edit" data-id="${id}">Edit</button>
-        <button type="button" class="btn btn-primary" data-quote-action="convert" data-id="${id}" ${convertAttrs}>Convert to Invoice</button>
-      </div>
-      <div style="display:flex; justify-content:flex-end; margin-top:.28rem;">
-        <button type="button" class="btn delete" data-quote-action="delete" data-id="${id}">Delete</button>
+      return `<div style="display:flex; gap:.24rem; flex-wrap:wrap; justify-content:flex-end; align-items:center;">
+        <button type="button" class="btn invoice-action-btn" data-quote-action="view" data-id="${id}">View Quote</button>
+        <button type="button" class="btn invoice-action-btn" data-quote-action="send" data-id="${id}">Send Quote Email</button>
+        <button type="button" class="btn invoice-action-btn" data-quote-action="edit" data-id="${id}">Edit</button>
+        <button type="button" class="btn btn-primary invoice-action-btn" data-quote-action="convert" data-id="${id}" ${convertAttrs}>Convert to Invoice</button>
+        <button type="button" class="btn delete invoice-action-btn" data-quote-action="delete" data-id="${id}">Delete</button>
       </div>`;
     }
 
@@ -3345,22 +3343,21 @@
       const paid = status === 'paid' || balC <= 0;
       const alreadySent = status === 'sent' || Boolean(inv.sent_at || inv.sentAt);
       const hasPaymentLink = Boolean((inv.stripe_checkout_url || inv.stripeCheckoutUrl || inv.payment_url || inv.paymentUrl || '').toString().trim());
-      const markPaidBtn = `<button type="button" class="btn" data-invoice-action="mark-paid" data-id="${id}" ${paid ? 'disabled title="Already paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Paid</button>`;
-      const recordPaymentBtn = `<button type="button" class="btn" data-invoice-action="record-payment" data-id="${id}" ${paid ? 'disabled title="Already fully paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Record Payment</button>`;
-      const markSentBtn = `<button type="button" class="btn" data-invoice-action="mark-sent" data-id="${id}" ${alreadySent ? 'disabled title="Invoice is already marked sent" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Sent</button>`;
-      const copyPaymentLinkBtn = `<button type="button" class="btn" data-invoice-action="payment-link-copy" data-id="${id}" ${hasPaymentLink ? '' : 'disabled title="No payment link yet. Generate one first." style="opacity:.5;cursor:not-allowed;"'}>Copy Payment Link</button>`;
-      const refreshPaymentLinkBtn = `<button type="button" class="btn" data-invoice-action="payment-link-refresh" data-id="${id}">Refresh Payment Link</button>`;
-      return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
-        <button type="button" class="btn" data-invoice-action="view" data-id="${id}">View Invoice</button>
-        <button type="button" class="btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
-        <button type="button" class="btn" data-invoice-action="edit" data-id="${id}">Edit</button>
+      const markPaidBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="mark-paid" data-id="${id}" ${paid ? 'disabled title="Already paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Paid</button>`;
+      const recordPaymentBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="record-payment" data-id="${id}" ${paid ? 'disabled title="Already fully paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Record Payment</button>`;
+      const markSentBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="mark-sent" data-id="${id}" ${alreadySent ? 'disabled title="Invoice is already marked sent" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Sent</button>`;
+      const copyPaymentLinkBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="payment-link-copy" data-id="${id}" ${hasPaymentLink ? '' : 'disabled title="No payment link yet. Generate one first." style="opacity:.5;cursor:not-allowed;"'}>Copy Payment Link</button>`;
+      const refreshPaymentLinkBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="payment-link-refresh" data-id="${id}">Refresh Payment Link</button>`;
+      return `<div style="display:flex; gap:.24rem; flex-wrap:wrap; justify-content:flex-end; align-items:center;">
+        <button type="button" class="btn invoice-action-btn" data-invoice-action="view" data-id="${id}">View Invoice</button>
+        <button type="button" class="btn invoice-action-btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
+        <button type="button" class="btn invoice-action-btn" data-invoice-action="edit" data-id="${id}">Edit</button>
         ${markSentBtn}
         ${markPaidBtn}
         ${recordPaymentBtn}
         ${copyPaymentLinkBtn}
         ${refreshPaymentLinkBtn}
-        <span style="flex:1 1 auto;"></span>
-        <button type="button" class="btn delete" data-invoice-action="delete" data-id="${id}">Delete</button>
+        <button type="button" class="btn delete invoice-action-btn" data-invoice-action="delete" data-id="${id}">Delete</button>
       </div>`;
     }
 
