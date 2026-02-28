@@ -3285,11 +3285,11 @@
       return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
         <button type="button" class="btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
         <button type="button" class="btn" data-invoice-action="edit" data-id="${id}">Edit</button>
-        <button type="button" class="btn delete" data-invoice-action="delete" data-id="${id}">Delete</button>
         <button type="button" class="btn" data-invoice-action="mark-sent" data-id="${id}">Mark Sent</button>
         ${markPaidBtn}
         <button type="button" class="btn" data-invoice-action="record-payment" data-id="${id}">Record Payment</button>
         <button type="button" class="btn" data-invoice-action="payment-link" data-id="${id}">Generate/Refresh/Copy Payment Link</button>
+        <button type="button" class="btn delete" data-invoice-action="delete" data-id="${id}">Delete</button>
       </div>`;
     }
 
