@@ -245,7 +245,6 @@
           <p style="margin:0 0 1rem; color:var(--muted); font-size:0.9rem; letter-spacing:.06em; text-transform:uppercase;">Administrative Access</p>
         </div>
         <div id="admin-header-tools" style="display:none; gap:.45rem; align-items:center; margin-top:.1rem;">
-          <button type="button" class="btn" id="admin-theme-btn">Theme: Light</button>
           <button type="button" class="btn" id="admin-blur-amounts-btn" title="Toggle amount blur" aria-label="Toggle amount blur"></button>
           <button type="button" class="btn" id="admin-user-guide-top-btn">User Guide</button>
         </div>
@@ -1174,7 +1173,6 @@
     const taxModeOwnerTransferBtn = document.getElementById('tax-mode-owner-transfer-btn');
     const taxManageCategoriesBtn = document.getElementById('tax-manage-categories-btn');
     const adminUserGuideBtn = document.getElementById('admin-user-guide-btn');
-    const adminThemeBtn = document.getElementById('admin-theme-btn');
     const adminBlurAmountsBtn = document.getElementById('admin-blur-amounts-btn');
     const adminUserGuideTopBtn = document.getElementById('admin-user-guide-top-btn');
     const taxExpensePanel = document.getElementById('tax-expense-panel');
@@ -1473,23 +1471,13 @@
       }
     }
 
-    function setTheme(mode) {
-      const dark = mode === 'dark';
-      document.body.classList.toggle('dark-theme', dark);
-      if (adminThemeBtn) {
-        adminThemeBtn.textContent = dark ? 'Theme: Dark' : 'Theme: Light';
-        adminThemeBtn.classList.toggle('active', dark);
-      }
-      try { localStorage.setItem('fmg_admin_theme', dark ? 'dark' : 'light'); } catch {}
+    function setTheme() {
+      document.body.classList.remove('dark-theme');
+      try { localStorage.setItem('fmg_admin_theme', 'light'); } catch {}
     }
 
     function loadThemePref() {
-      try {
-        const m = localStorage.getItem('fmg_admin_theme') || 'light';
-        setTheme(m === 'dark' ? 'dark' : 'light');
-      } catch {
-        setTheme('light');
-      }
+      setTheme();
     }
 
     loadThemePref();
@@ -3448,7 +3436,6 @@
     taxModeIncomeBtn?.addEventListener('click', () => setTaxEntryMode('income'));
     adminUserGuideBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
     adminUserGuideTopBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
-    adminThemeBtn?.addEventListener('click', () => setTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark'));
     adminBlurAmountsBtn?.addEventListener('click', () => setBlurMoney(!blurMoneyEnabled));
     userGuideTabBtns.forEach((btn) => {
       btn.addEventListener('click', () => setUserGuideTab(btn.getAttribute('data-guide-tab')));
