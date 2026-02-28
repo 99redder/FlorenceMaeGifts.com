@@ -2977,7 +2977,7 @@ function htmlPage(title, heading, message, success = true) {
     .content { padding: 24px; }
     .content h2 { color: #FE6666; margin-bottom: 12px; }
     .content p { color: #4b4b4b; line-height: 1.6; }
-    .footer { padding: 16px 24px; border-top: 1px solid #d8d8d8; background: #f1f1f1; color:#4b4b4b; }
+    .footer { padding: 16px 24px; border-top: 1px solid #cfcfcf; background: #e3e3e3; color:#3f3f3f; }
     .footer a { color: #FE6666; text-decoration: none; }
   </style>
 </head>
