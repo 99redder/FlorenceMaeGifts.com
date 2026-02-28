@@ -3256,8 +3256,16 @@
       return (Array.isArray(items) ? items : []).map((item) => ({
         description: item.description || item.name || '',
         quantity: Number(item.quantity || 1),
-        unitAmount: Number(item.unit_amount ?? item.unitAmount ?? 0)
+        unitAmount: Number(item.unit_amount ?? item.unitAmount ?? (Number(item.unit_amount_cents ?? item.unitAmountCents ?? 0) / 100) ?? 0)
       }));
+    }
+
+    function toApiItems(items) {
+      return (Array.isArray(items) ? items : []).map((item) => ({
+        description: (item.description || '').toString(),
+        quantity: Math.max(0, Number(item.quantity || 0)),
+        unitAmountCents: Math.max(0, Math.round(Number(item.unitAmount || 0) * 100))
+      })).filter((item) => item.quantity > 0 && item.unitAmountCents >= 0);
     }
 
     function quoteActionButtons(qu) {
@@ -3304,8 +3312,8 @@
       quoteListEl.innerHTML=list.length?list.map(qu=>`<div class="tax-row" data-id="${Number(qu.id||0)}"><div>${escHtml(qu.quote_number||qu.id||'—')}</div><div>${escHtml(qu.customer_name||'')}</div><div class="amt">${qMoney((qu.total_cents||0)/100)}</div><div>${escHtml(qu.status||'draft')}</div>${quoteActionButtons(qu)}</div>`).join(''):'No quotes yet.';
     }
 
-    async function saveInvoice(){ const payload={ id:editingInvoiceId||undefined, invoiceId:editingInvoiceId||undefined, customerName:invoiceCustomerNameEl?.value?.trim()||'', customerEmail:invoiceCustomerEmailEl?.value?.trim()||'', customerPhone:invoiceCustomerPhoneEl?.value?.trim()||'', dueDate:invoiceDueDateEl?.value||'', descriptionOfWork:invoiceDescriptionEl?.value||'', items:invoiceDraftItems }; const endpoint=editingInvoiceId?INVOICE_UPDATE_API_URL:INVOICES_API_URL; await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); closeInvoiceCreateModal(); await refreshInvoiceList(); }
-    async function saveQuote(){ const payload={ id:editingQuoteId||undefined, quoteId:editingQuoteId||undefined, customerName:quoteCustomerNameEl?.value?.trim()||'', customerEmail:quoteCustomerEmailEl?.value?.trim()||'', customerPhone:quoteCustomerPhoneEl?.value?.trim()||'', validUntil:quoteValidUntilEl?.value||'', descriptionOfWork:quoteDescriptionEl?.value||'', items:quoteDraftItems }; const endpoint=editingQuoteId?QUOTE_UPDATE_API_URL:QUOTES_API_URL; await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); closeQuoteCreateModal(); await refreshQuoteList(); }
+    async function saveInvoice(){ const payload={ id:editingInvoiceId||undefined, invoiceId:editingInvoiceId||undefined, customerName:invoiceCustomerNameEl?.value?.trim()||'', customerEmail:invoiceCustomerEmailEl?.value?.trim()||'', customerPhone:invoiceCustomerPhoneEl?.value?.trim()||'', dueDate:invoiceDueDateEl?.value||'', descriptionOfWork:invoiceDescriptionEl?.value||'', items:toApiItems(invoiceDraftItems) }; const endpoint=editingInvoiceId?INVOICE_UPDATE_API_URL:INVOICES_API_URL; await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); closeInvoiceCreateModal(); await refreshInvoiceList(); }
+    async function saveQuote(){ const payload={ id:editingQuoteId||undefined, quoteId:editingQuoteId||undefined, customerName:quoteCustomerNameEl?.value?.trim()||'', customerEmail:quoteCustomerEmailEl?.value?.trim()||'', customerPhone:quoteCustomerPhoneEl?.value?.trim()||'', validUntil:quoteValidUntilEl?.value||'', descriptionOfWork:quoteDescriptionEl?.value||'', items:toApiItems(quoteDraftItems) }; const endpoint=editingQuoteId?QUOTE_UPDATE_API_URL:QUOTES_API_URL; await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); closeQuoteCreateModal(); await refreshQuoteList(); }
 
     async function loadInvoiceIntoModal(id) {
       const data = await fetchAdminJson(`${INVOICE_DETAIL_API_URL}?id=${encodeURIComponent(id)}`);
