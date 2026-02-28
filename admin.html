@@ -3241,10 +3241,118 @@
     function closeInvoiceCreateModal(){ invoiceCreateModal?.classList.remove('active'); invoiceCreateModal?.setAttribute('aria-hidden','true'); resetInvoiceForm(); }
     function openQuoteCreateModal(){ quoteCreateModal?.classList.add('active'); quoteCreateModal?.setAttribute('aria-hidden','false'); }
     function closeQuoteCreateModal(){ quoteCreateModal?.classList.remove('active'); quoteCreateModal?.setAttribute('aria-hidden','true'); resetQuoteForm(); }
-    async function refreshInvoiceList(){ if(!invoiceListEl) return; const q=`?status=${encodeURIComponent(invoiceFilterEl?.value||'all')}&sort=${encodeURIComponent(invoiceSortEl?.value||'newest')}`; const res=await fetch(`${INVOICES_API_URL}${q}`,{headers:{'X-Admin-Password':adminPassword}}); const data=await res.json().catch(()=>({})); const list=data.invoices||data.items||[]; invoiceListEl.innerHTML=list.length?list.map(inv=>`<div class="tax-row"><div>${escHtml(inv.invoice_number||inv.id||'—')}</div><div>${escHtml(inv.customer_name||'')}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${escHtml(inv.status||'open')}</div></div>`).join(''):'No invoices yet.'; }
-    async function refreshQuoteList(){ if(!quoteListEl) return; const q=`?status=${encodeURIComponent(quoteFilterEl?.value||'all')}&sort=${encodeURIComponent(quoteSortEl?.value||'newest')}`; const res=await fetch(`${QUOTES_API_URL}${q}`,{headers:{'X-Admin-Password':adminPassword}}); const data=await res.json().catch(()=>({})); const list=data.quotes||data.items||[]; quoteListEl.innerHTML=list.length?list.map(qu=>`<div class="tax-row"><div>${escHtml(qu.quote_number||qu.id||'—')}</div><div>${escHtml(qu.customer_name||'')}</div><div class="amt">${qMoney((qu.total_cents||0)/100)}</div><div>${escHtml(qu.status||'draft')}</div></div>`).join(''):'No quotes yet.'; }
-    async function saveInvoice(){ const payload={ id:editingInvoiceId||undefined, customerName:invoiceCustomerNameEl?.value?.trim()||'', customerEmail:invoiceCustomerEmailEl?.value?.trim()||'', customerPhone:invoiceCustomerPhoneEl?.value?.trim()||'', dueDate:invoiceDueDateEl?.value||'', descriptionOfWork:invoiceDescriptionEl?.value||'', items:invoiceDraftItems }; const endpoint=editingInvoiceId?INVOICE_UPDATE_API_URL:INVOICES_API_URL; const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Password':adminPassword},body:JSON.stringify(payload)}); if(!res.ok) throw new Error('Failed to save invoice'); closeInvoiceCreateModal(); await refreshInvoiceList(); }
-    async function saveQuote(){ const payload={ id:editingQuoteId||undefined, customerName:quoteCustomerNameEl?.value?.trim()||'', customerEmail:quoteCustomerEmailEl?.value?.trim()||'', customerPhone:quoteCustomerPhoneEl?.value?.trim()||'', validUntil:quoteValidUntilEl?.value||'', descriptionOfWork:quoteDescriptionEl?.value||'', items:quoteDraftItems }; const endpoint=editingQuoteId?QUOTE_UPDATE_API_URL:QUOTES_API_URL; const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Password':adminPassword},body:JSON.stringify(payload)}); if(!res.ok) throw new Error('Failed to save quote'); closeQuoteCreateModal(); await refreshQuoteList(); }
+
+    let pendingInvoicePaymentId = null;
+
+    async function fetchAdminJson(url, options = {}) {
+      const headers = { ...(options.headers || {}), 'X-Admin-Password': adminPassword };
+      const res = await fetch(url, { ...options, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.message || `Request failed (${res.status})`);
+      return data;
+    }
+
+    function normalizeLineItems(items) {
+      return (Array.isArray(items) ? items : []).map((item) => ({
+        description: item.description || item.name || '',
+        quantity: Number(item.quantity || 1),
+        unitAmount: Number(item.unit_amount ?? item.unitAmount ?? 0)
+      }));
+    }
+
+    function quoteActionButtons(qu) {
+      const id = Number(qu.id || 0);
+      return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
+        <button type="button" class="btn" data-quote-action="send" data-id="${id}">Send Quote Email</button>
+        <button type="button" class="btn" data-quote-action="edit" data-id="${id}">Edit</button>
+        <button type="button" class="btn delete" data-quote-action="delete" data-id="${id}">Delete</button>
+        <button type="button" class="btn btn-primary" data-quote-action="convert" data-id="${id}">Convert to Invoice</button>
+      </div>`;
+    }
+
+    function invoiceActionButtons(inv) {
+      const id = Number(inv.id || 0);
+      const status = String(inv.status || 'open').toLowerCase();
+      const paid = status === 'paid';
+      const markPaidBtn = `<button type="button" class="btn" data-invoice-action="mark-paid" data-id="${id}" ${paid ? 'disabled title="Already paid"' : ''}>Mark Paid</button>`;
+      return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
+        <button type="button" class="btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
+        <button type="button" class="btn" data-invoice-action="edit" data-id="${id}">Edit</button>
+        <button type="button" class="btn delete" data-invoice-action="delete" data-id="${id}">Delete</button>
+        <button type="button" class="btn" data-invoice-action="mark-sent" data-id="${id}">Mark Sent</button>
+        ${markPaidBtn}
+        <button type="button" class="btn" data-invoice-action="record-payment" data-id="${id}">Record Payment</button>
+        <button type="button" class="btn" data-invoice-action="payment-link" data-id="${id}">Generate/Refresh/Copy Payment Link</button>
+      </div>`;
+    }
+
+    async function refreshInvoiceList(){
+      if(!invoiceListEl) return;
+      invoiceListEl.textContent = 'Loading invoices…';
+      const q=`?status=${encodeURIComponent(invoiceFilterEl?.value||'all')}&sort=${encodeURIComponent(invoiceSortEl?.value||'newest')}`;
+      const data = await fetchAdminJson(`${INVOICES_API_URL}${q}`);
+      const list=data.invoices||data.items||[];
+      invoiceListEl.innerHTML=list.length?list.map(inv=>`<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}</div><div>${escHtml(inv.customer_name||'')}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${escHtml(inv.status||'open')}</div>${invoiceActionButtons(inv)}</div>`).join(''):'No invoices yet.';
+    }
+
+    async function refreshQuoteList(){
+      if(!quoteListEl) return;
+      quoteListEl.textContent = 'Loading quotes…';
+      const q=`?status=${encodeURIComponent(quoteFilterEl?.value||'all')}&sort=${encodeURIComponent(quoteSortEl?.value||'newest')}`;
+      const data = await fetchAdminJson(`${QUOTES_API_URL}${q}`);
+      const list=data.quotes||data.items||[];
+      quoteListEl.innerHTML=list.length?list.map(qu=>`<div class="tax-row" data-id="${Number(qu.id||0)}"><div>${escHtml(qu.quote_number||qu.id||'—')}</div><div>${escHtml(qu.customer_name||'')}</div><div class="amt">${qMoney((qu.total_cents||0)/100)}</div><div>${escHtml(qu.status||'draft')}</div>${quoteActionButtons(qu)}</div>`).join(''):'No quotes yet.';
+    }
+
+    async function saveInvoice(){ const payload={ id:editingInvoiceId||undefined, invoiceId:editingInvoiceId||undefined, customerName:invoiceCustomerNameEl?.value?.trim()||'', customerEmail:invoiceCustomerEmailEl?.value?.trim()||'', customerPhone:invoiceCustomerPhoneEl?.value?.trim()||'', dueDate:invoiceDueDateEl?.value||'', descriptionOfWork:invoiceDescriptionEl?.value||'', items:invoiceDraftItems }; const endpoint=editingInvoiceId?INVOICE_UPDATE_API_URL:INVOICES_API_URL; await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); closeInvoiceCreateModal(); await refreshInvoiceList(); }
+    async function saveQuote(){ const payload={ id:editingQuoteId||undefined, quoteId:editingQuoteId||undefined, customerName:quoteCustomerNameEl?.value?.trim()||'', customerEmail:quoteCustomerEmailEl?.value?.trim()||'', customerPhone:quoteCustomerPhoneEl?.value?.trim()||'', validUntil:quoteValidUntilEl?.value||'', descriptionOfWork:quoteDescriptionEl?.value||'', items:quoteDraftItems }; const endpoint=editingQuoteId?QUOTE_UPDATE_API_URL:QUOTES_API_URL; await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); closeQuoteCreateModal(); await refreshQuoteList(); }
+
+    async function loadInvoiceIntoModal(id) {
+      const data = await fetchAdminJson(`${INVOICE_DETAIL_API_URL}?id=${encodeURIComponent(id)}`);
+      const inv = data.invoice || data.item || data;
+      editingInvoiceId = Number(inv.id || id);
+      if (invoiceCustomerNameEl) invoiceCustomerNameEl.value = inv.customer_name || inv.customerName || '';
+      if (invoiceCustomerEmailEl) invoiceCustomerEmailEl.value = inv.customer_email || inv.customerEmail || '';
+      if (invoiceCustomerPhoneEl) invoiceCustomerPhoneEl.value = inv.customer_phone || inv.customerPhone || '';
+      if (invoiceDueDateEl) invoiceDueDateEl.value = inv.due_date || inv.dueDate || '';
+      if (invoiceDescriptionEl) invoiceDescriptionEl.value = inv.description_of_work || inv.descriptionOfWork || '';
+      invoiceDraftItems = normalizeLineItems(inv.items || []);
+      if (!invoiceDraftItems.length) invoiceDraftItems = [{ description:'Services', quantity:1, unitAmount:'' }];
+      wireLineItems(invoiceLineItemsEl, invoiceDraftItems, invoiceTotalDisplayEl);
+      if (invoiceCreateBtn) invoiceCreateBtn.textContent = 'Save Invoice';
+      if (invoiceCreateTitleEl) invoiceCreateTitleEl.textContent = 'Edit Invoice';
+      openInvoiceCreateModal();
+    }
+
+    async function loadQuoteIntoModal(id) {
+      const data = await fetchAdminJson(`${QUOTE_DETAIL_API_URL}?id=${encodeURIComponent(id)}`);
+      const qu = data.quote || data.item || data;
+      editingQuoteId = Number(qu.id || id);
+      if (quoteCustomerNameEl) quoteCustomerNameEl.value = qu.customer_name || qu.customerName || '';
+      if (quoteCustomerEmailEl) quoteCustomerEmailEl.value = qu.customer_email || qu.customerEmail || '';
+      if (quoteCustomerPhoneEl) quoteCustomerPhoneEl.value = qu.customer_phone || qu.customerPhone || '';
+      if (quoteValidUntilEl) quoteValidUntilEl.value = qu.valid_until || qu.validUntil || '';
+      if (quoteDescriptionEl) quoteDescriptionEl.value = qu.description_of_work || qu.descriptionOfWork || '';
+      quoteDraftItems = normalizeLineItems(qu.items || []);
+      if (!quoteDraftItems.length) quoteDraftItems = [{ description:'Services', quantity:1, unitAmount:'' }];
+      wireLineItems(quoteLineItemsEl, quoteDraftItems, quoteTotalDisplayEl);
+      if (quoteCreateBtn) quoteCreateBtn.textContent = 'Save Quote';
+      if (quoteCreateTitleEl) quoteCreateTitleEl.textContent = 'Edit Quote';
+      openQuoteCreateModal();
+    }
+
+    function openInvoicePaymentEntry(id) {
+      pendingInvoicePaymentId = Number(id || 0);
+      if (invoicePaymentAmountEl) invoicePaymentAmountEl.value = '';
+      invoicePaymentModal?.classList.add('active');
+      invoicePaymentModal?.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeInvoicePaymentEntry() {
+      pendingInvoicePaymentId = null;
+      invoicePaymentModal?.classList.remove('active');
+      invoicePaymentModal?.setAttribute('aria-hidden', 'true');
+    }
 
 
     function setAdminSectionTab(tab) {
@@ -3474,6 +3582,160 @@
     quoteRefreshBtn?.addEventListener('click', refreshQuoteList);
     quoteFilterEl?.addEventListener('change', refreshQuoteList);
     quoteSortEl?.addEventListener('change', refreshQuoteList);
+
+    quoteListEl?.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-quote-action]');
+      if (!btn) return;
+      const action = btn.getAttribute('data-quote-action');
+      const id = Number(btn.getAttribute('data-id') || 0);
+      if (!id) return;
+      const oldText = btn.textContent;
+      const runAction = async (fn, workingText = 'Working…') => {
+        btn.disabled = true;
+        btn.textContent = workingText;
+        try { await fn(); } finally { btn.disabled = false; btn.textContent = oldText; }
+      };
+
+      try {
+        if (action === 'send') {
+          await runAction(async () => {
+            await fetchAdminJson(QUOTE_SEND_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, quoteId: id }) });
+            openSuccessModal('Quote email sent successfully.', 'Quote Email Sent ✅');
+            await refreshQuoteList();
+          }, 'Sending…');
+          return;
+        }
+        if (action === 'edit') {
+          await runAction(async () => { await loadQuoteIntoModal(id); }, 'Loading…');
+          return;
+        }
+        if (action === 'delete') {
+          const ok = await openConfirmModal('Delete this quote? This cannot be undone.', 'Delete Quote', 'Delete');
+          if (!ok) return;
+          await runAction(async () => {
+            await fetchAdminJson(QUOTE_DELETE_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, quoteId: id }) });
+            openSuccessModal('Quote deleted.', 'Deleted ✅');
+            await refreshQuoteList();
+          }, 'Deleting…');
+          return;
+        }
+        if (action === 'convert') {
+          await runAction(async () => {
+            await fetchAdminJson(QUOTE_CONVERT_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, quoteId: id }) });
+            openSuccessModal('Quote converted to invoice.', 'Converted ✅');
+            await refreshQuoteList();
+            await refreshInvoiceList();
+          }, 'Converting…');
+        }
+      } catch (err) {
+        if (action === 'send') openErrorModal(`Could not send quote email: ${err.message || err}`);
+        else openErrorModal(err.message || String(err));
+      }
+    });
+
+    invoiceListEl?.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-invoice-action]');
+      if (!btn) return;
+      const action = btn.getAttribute('data-invoice-action');
+      const id = Number(btn.getAttribute('data-id') || 0);
+      if (!id) return;
+      const oldText = btn.textContent;
+      const runAction = async (fn, workingText = 'Working…') => {
+        btn.disabled = true;
+        btn.textContent = workingText;
+        try { await fn(); } finally { btn.disabled = false; btn.textContent = oldText; }
+      };
+
+      try {
+        if (action === 'send') {
+          await runAction(async () => {
+            await fetchAdminJson(INVOICE_SEND_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id }) });
+            openSuccessModal('Invoice email sent successfully.', 'Invoice Email Sent ✅');
+            await refreshInvoiceList();
+          }, 'Sending…');
+          return;
+        }
+        if (action === 'edit') {
+          await runAction(async () => { await loadInvoiceIntoModal(id); }, 'Loading…');
+          return;
+        }
+        if (action === 'delete') {
+          const ok = await openConfirmModal('Delete this invoice? This cannot be undone.', 'Delete Invoice', 'Delete');
+          if (!ok) return;
+          await runAction(async () => {
+            await fetchAdminJson(INVOICE_DELETE_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id }) });
+            openSuccessModal('Invoice deleted.', 'Deleted ✅');
+            await refreshInvoiceList();
+          }, 'Deleting…');
+          return;
+        }
+        if (action === 'mark-sent') {
+          await runAction(async () => {
+            await fetchAdminJson(INVOICE_STATUS_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id, status: 'sent' }) });
+            openSuccessModal('Invoice marked as sent.', 'Status Updated ✅');
+            await refreshInvoiceList();
+          });
+          return;
+        }
+        if (action === 'mark-paid') {
+          if (btn.disabled) return;
+          await runAction(async () => {
+            await fetchAdminJson(INVOICE_STATUS_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id, status: 'paid' }) });
+            openSuccessModal('Invoice marked as paid.', 'Status Updated ✅');
+            await refreshInvoiceList();
+          });
+          return;
+        }
+        if (action === 'record-payment') {
+          openInvoicePaymentEntry(id);
+          return;
+        }
+        if (action === 'payment-link') {
+          await runAction(async () => {
+            const data = await fetchAdminJson(INVOICE_PAYMENT_LINK_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id }) });
+            const link = data.paymentUrl || data.payment_url || data.url || data.link || '';
+            if (!link) throw new Error('No payment link returned by server.');
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(link);
+              openSuccessModal(`Payment link copied to clipboard:\n${link}`, 'Payment Link Ready ✅');
+            } else {
+              openSuccessModal(`Payment link generated:\n${link}`, 'Payment Link Ready ✅');
+            }
+          }, 'Generating…');
+          return;
+        }
+      } catch (err) {
+        openErrorModal(err.message || String(err));
+      }
+    });
+
+    invoicePaymentCancelBtn?.addEventListener('click', closeInvoicePaymentEntry);
+    invoicePaymentModal?.addEventListener('click', (e) => { if (e.target === invoicePaymentModal) closeInvoicePaymentEntry(); });
+    invoicePaymentSaveBtn?.addEventListener('click', async () => {
+      const invoiceId = Number(pendingInvoicePaymentId || 0);
+      const amount = Number(invoicePaymentAmountEl?.value || 0);
+      if (!invoiceId) return;
+      if (!amount || amount <= 0) { openErrorModal('Enter a valid payment amount.'); return; }
+      const oldText = invoicePaymentSaveBtn.textContent;
+      invoicePaymentSaveBtn.disabled = true;
+      invoicePaymentSaveBtn.textContent = 'Recording…';
+      try {
+        await fetchAdminJson(INVOICE_PAYMENT_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: invoiceId, invoiceId, amount, amountPaid: amount, amount_paid: amount })
+        });
+        closeInvoicePaymentEntry();
+        openSuccessModal('Payment recorded successfully.', 'Payment Recorded ✅');
+        await refreshInvoiceList();
+      } catch (err) {
+        openErrorModal(err.message || String(err));
+      } finally {
+        invoicePaymentSaveBtn.disabled = false;
+        invoicePaymentSaveBtn.textContent = oldText;
+      }
+    });
+
     wireLineItems(invoiceLineItemsEl, invoiceDraftItems, invoiceTotalDisplayEl);
     wireLineItems(quoteLineItemsEl, quoteDraftItems, quoteTotalDisplayEl);
     accountsYearCloseBtn?.addEventListener('click', openYearCloseWizard);
