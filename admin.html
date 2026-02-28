@@ -5,101 +5,81 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex" />
   <title>Admin — Florence Mae Gifts</title>
-  <link rel="icon" href="images/favicon.png" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/fonts.css" />
   <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     /* ===== Theme & CSS Variables ===== */
-    :root { --bg:#ffffff; --bg2:#f1f1f1; --card:#ffffff; --card-soft:#f1f1f1; --text:#000000; --muted:#4b4b4b; --cyan:#FE6666; --line:#d8d8d8; --violet:#FF6699; --stats-bg:#f1f1f1; --stats-text:#000000; }
-    body.dark-theme { --bg:#303030; --bg2:#3a3a3a; --card:#585858; --card-soft:#4a4a4a; --text:#ffffff; --muted:#d4d4d4; --cyan:#FE6666; --line:#747474; --violet:#FF6699; --stats-bg:#4f4f4f; --stats-text:#ffffff; }
+    :root { --bg:#0a0b10; --bg2:#10121a; --card:#141620; --text:#d8dce8; --muted:#7a7e96; --cyan:#00e5ff; --line:#222438; --violet:#c850ff; }
 
     * { box-sizing:border-box; }
     html { scroll-behavior:smooth; overflow-x:hidden; max-width:100vw; }
-    body { margin:0; font-family:'Lora',serif; color:var(--text);
-      background:linear-gradient(180deg,var(--bg),var(--bg2)); overflow-x:hidden; max-width:100vw; font-size:1.08rem; }
+    body { margin:0; font-family:'Titillium Web',system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--text);
+      background:var(--bg); overflow-x:hidden; max-width:100vw; font-size:1.08rem; }
     main { display:block; overflow-x:hidden; position:relative; width:100%; }
     .container { max-width:1440px; margin:0 auto; padding:1.2rem; overflow-x:clip; }
-    a { color:var(--cyan); }
+    a { color:#ff4fd8; text-shadow:0 0 8px rgba(255,79,216,0.35); }
 
+    /* ===== Battle-Damaged Hull Edges (clip-path) ===== */
     .card,
     .success-modal,
     .admin-calendar-wrap,
-    .admin-lock { border-radius: 8px; }
-    .btn, .btn-primary { clip-path: none; border-radius: 8px; }
+    .admin-lock {
+      clip-path: polygon(
+        0 8px,
+        8px 0,
+        35% 0,
+        35.5% 4px,
+        37% 0,
+        calc(100% - 12px) 0,
+        100% 12px,
+        100% 65%,
+        calc(100% - 3px) 66%,
+        100% 67.5%,
+        100% calc(100% - 6px),
+        calc(100% - 6px) 100%,
+        62% 100%,
+        61.5% calc(100% - 3px),
+        60% 100%,
+        10px 100%,
+        0 calc(100% - 10px),
+        3px calc(100% - 14px),
+        0 calc(100% - 18px)
+      );
+      border-radius: 0 !important;
+    }
+    .btn, .btn-primary { clip-path: none; }
 
     /* ===== Cards, Buttons & Forms ===== */
     .card { background:var(--card); border:1px solid var(--line); border-radius:0; padding:1rem; overflow-x:clip; }
-    h1, h2, h3, h4 { font-family:'Lora', serif; }
+    h1, h2, h3, h4 { font-family:'Titillium Web', system-ui, sans-serif; }
     h1 { margin:.2rem 0 .6rem; color:var(--cyan); }
     h3 { font-size:1.25rem; }
     h4 { font-size:1.05rem; }
     p { color:var(--muted); line-height:1.6; }
     label { display:block; font-size:1rem; color:var(--muted); margin-bottom:.25rem; }
-    .btn { border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:8px; padding:.75rem 1.2rem; cursor:pointer; font-weight:600; font-family:'Lora', serif; transition:background 0.15s, color 0.15s, border-color 0.15s, box-shadow .15s; font-size:1rem; }
-    body.dark-theme .btn { background:var(--card); }
-    .btn:hover, label.btn:hover { border-color:var(--violet); box-shadow:0 0 0 2px rgba(255,102,153,.25); }
-    .btn-primary { background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%); border-color:#FE6666; color:#000; box-shadow:0 3px 8px rgba(254,102,102,.22); }
-    .btn-primary:hover { border-color:var(--violet); box-shadow:0 0 0 2px rgba(255,102,153,.25), 0 3px 8px rgba(254,102,102,.22); }
-    body.dark-theme #admin-unlock-btn {
-      background:var(--card);
-      border-color:var(--line);
-      color:#fff;
-      box-shadow:none;
-    }
-    #admin-unlock-btn:hover,
-    body.dark-theme #admin-unlock-btn:hover {
-      border-color:var(--violet);
-      box-shadow:0 0 0 2px rgba(255,102,153,.25);
-    }
-    body.dark-theme .tx-entry-mode-btn,
-    body.dark-theme #tax-manage-categories-btn,
-    body.dark-theme #accounts-year-close-btn,
-    body.dark-theme #audit-package-btn {
-      color:#fff;
-    }
+    .btn { border:1px solid var(--line); background:transparent; color:var(--text); border-radius:2px; padding:.75rem 1.2rem; cursor:pointer; font-weight:600; font-family:'Titillium Web', system-ui, sans-serif; transition:background 0.15s, color 0.15s, border-color 0.15s; font-size:1rem; }
+    label.btn:hover { background:rgba(255,79,216,0.12); color:#ff4fd8; border-color:#ff4fd8; }
+    .btn-primary { background:linear-gradient(145deg,#ff4fd8,#cc3fb0); border-color:#ff4fd8; color:#fff; box-shadow:0 0 16px rgba(255,79,216,0.35); }
     .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; margin-top:.7rem; }
     .form-grid > * { min-width:0; overflow:hidden; }
     .full { grid-column:1 / -1; }
-    input, textarea, select { width:100%; min-width:0; max-width:100%; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--text); padding:.65rem .7rem; font:inherit; }
-    input[type="file"] { padding:.4rem .5rem; }
-    input[type="file"]::file-selector-button {
-      border:1px solid #FE6666;
-      background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%);
-      color:#000;
-      border-radius:8px;
-      padding:.45rem .8rem;
-      margin-right:.6rem;
-      font:inherit;
-      cursor:pointer;
-    }
-    input[type="file"]::file-selector-button:hover {
-      border-color:var(--violet);
-      box-shadow:0 0 0 2px rgba(255,102,153,.25);
-    }
-    body.dark-theme input[type="file"]::file-selector-button {
-      color:#000;
-    }
-
-    body:not(.dark-theme) .admin-collapsible-head h3,
-    body:not(.dark-theme) .admin-calendar-title,
-    body:not(.dark-theme) .tax-summary-col h4,
-    body:not(.dark-theme) .bs-card h4,
-    body:not(.dark-theme) .success-modal h3 {
-      color:#000;
-      background:linear-gradient(135deg, #fff3f6 0%, #ffe4ea 100%);
-      border:none;
-      border-radius:0;
-      padding:.28rem .55rem;
-      display:block;
-      width:100%;
-      box-sizing:border-box;
-      margin-bottom:.34rem;
-    }
+    input, textarea, select { width:100%; min-width:0; max-width:100%; border:1px solid var(--line); border-radius:2px; background:#10121a; color:var(--text); padding:.65rem .7rem; font:inherit; }
     textarea { min-height:120px; resize:vertical; }
     .form-actions { display:flex; justify-content:flex-end; margin-top:.9rem; }
     .btn.delete { border-color:#5a2222; color:#ff9b9b; }
+    .btn.action-pop {
+      background: linear-gradient(135deg, #7fb6ff 0%, #9cc9ff 100%);
+      border-color: #66a8ff;
+      color: #05284f;
+      box-shadow: 0 2px 8px rgba(102,168,255,.28);
+    }
+    .btn.action-pop:hover {
+      border-color:#4f97f5;
+      box-shadow: 0 0 0 2px rgba(102,168,255,.28), 0 2px 8px rgba(102,168,255,.28);
+    }
 
     /* ===== Site Header ===== */
 
@@ -108,23 +88,40 @@
     .success-modal-overlay.active { display:flex; }
     #tax-category-modal { z-index:1250; }
     #tax-category-edit-modal { z-index:1300; }
+    #invoice-create-modal { z-index:1350; }
     #confirm-modal, #success-modal, #error-modal { z-index:1400; }
-    .success-modal { width:min(560px,96vw); background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1rem; }
+    .success-modal { width:min(560px,96vw); background:linear-gradient(160deg, #141620, #10121a); border:1px solid var(--line); border-radius:0; padding:1rem; }
     .success-modal h3 { margin:.1rem 0 .4rem; color:var(--cyan); }
     .success-modal p { margin:.45rem 0; }
     .error-modal h3 { color:var(--violet); }
 
     /* ===== Admin Panel ===== */
     .admin-panel { margin-top:1rem; }
-    .admin-lock { border:1px solid var(--line); border-radius:8px; padding:.75rem; background:var(--card-soft); margin-top:.6rem; }
+    .admin-lock { border:1px solid var(--line); border-radius:2px; padding:.75rem; background:#10121a; margin-top:.6rem; }
     .admin-controls { display:none; margin-top:.8rem; }
     .admin-controls.active { display:block; }
-    .admin-collapsible-card { border:1px solid var(--line); border-radius:8px; padding:.85rem; background:var(--card-soft); }
+    .admin-collapsible-card { border:1px solid var(--line); border-radius:2px; padding:.85rem; background:#10121a; }
     .admin-collapsible-head { display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.35rem; }
     .admin-collapsible-body-collapsed { display:none; }
     .admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; }
-    .admin-list { max-height:520px; overflow:auto; border:1px solid var(--line); border-radius:8px; padding:.4rem; background:var(--card); font-size:1rem; color:var(--muted); }
+    .admin-list { max-height:520px; overflow:auto; border:1px solid var(--line); border-radius:2px; padding:.4rem; background:#10121a; font-size:1rem; color:var(--muted); }
     .admin-row { display:flex; }
+    .invoice-mode-toggle { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.65rem; }
+    .invoice-mode-toggle .btn.active { background:linear-gradient(145deg,#164277,#2a66b0); border-color:#3d7bc6; color:#d9ecff; box-shadow:0 0 10px rgba(61,123,198,.35); }
+    .invoice-flow-note { margin:.1rem 0 .7rem; color:var(--muted); line-height:1.45; }
+    .invoice-action-btn { padding:.45rem .72rem; font-size:.9rem; }
+    .btn.working { opacity:.8; cursor:progress; }
+    .spin-dot { display:inline-block; width:12px; text-align:left; }
+    .invoice-fab {
+      position: fixed;
+      right: 1.1rem;
+      bottom: 1.1rem;
+      z-index: 1325;
+      border-radius: 999px;
+      padding: .8rem 1rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,.28);
+      display: none;
+    }
 
     /* ===== Tax Ledger ===== */
     .tax-row { display:grid; grid-template-columns:auto 1fr auto auto; gap:.45rem; align-items:center; padding:.55rem .5rem; border-bottom:1px dashed var(--line); gap:.6rem; }
@@ -134,10 +131,10 @@
     .tax-row .amt { color:var(--text); font-weight:700; }
     .tax-row .edit { padding:.35rem .75rem; font-size:.95rem; }
     .tax-row .delete { padding:.35rem .75rem; font-size:.95rem; border-color:#5a2222; color:#ff9b9b; }
-    .btn.tx-filter-btn.active { background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%); border-color:#FE6666; color:#000; }
-    .admin-calendar-wrap { margin-top:.7rem; border:1px solid var(--line); border-radius:8px; background:var(--card); padding:1rem; }
+    .btn.tx-filter-btn.active { background:linear-gradient(145deg,var(--cyan),#007ab5); border-color:var(--cyan); color:#000; }
+    .admin-calendar-wrap { margin-top:.7rem; border:1px solid var(--line); border-radius:2px; background:#10121a; padding:1rem; }
     .tax-summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
-    .tax-summary-col { border:1px solid var(--line); border-radius:8px; padding:.6rem; background:var(--card); }
+    .tax-summary-col { border:1px solid var(--line); border-radius:2px; padding:.6rem; background:#141620; }
     .tax-summary-col h4 { margin:.1rem 0 .45rem; color:var(--cyan); font-size:1rem; }
     .tax-summary-line { display:flex; justify-content:space-between; gap:.6rem; padding:.12rem 0; color:var(--muted); }
     .tax-summary-line strong { color:var(--text); font-weight:700; }
@@ -145,30 +142,21 @@
 
     .admin-section-tabs { display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:.7rem; }
     .admin-section-tabs .btn {
-      border-color:var(--line);
-      background:var(--card);
-      color:var(--text);
-      box-shadow:none;
+      border-color:#1c4f8f;
+      background:linear-gradient(145deg,#0f2f57,#1f4f90);
+      color:#d9ecff;
+      box-shadow:0 0 10px rgba(31,79,144,.35);
     }
-    body.dark-theme .admin-section-tabs .btn { border-color:var(--line); background:var(--card); color:var(--text); }
-    .admin-section-tabs .btn:hover { border-color:var(--violet); box-shadow:0 0 0 2px rgba(255,102,153,.25); }
-    .admin-section-tabs .btn.active { border-color:#FE6666; background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%); color:#000; box-shadow:0 4px 10px rgba(254,102,102,.25); }
-    body.dark-theme .admin-section-tabs .btn.active { border-color:#FE6666; background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%); color:#000; box-shadow:0 4px 10px rgba(254,102,102,.25); }
-    body.dark-theme #accounts-tab-balances.btn.active,
-    body.dark-theme #accounts-tab-balance-sheet.btn.active,
-    body.dark-theme #accounts-tab-pnl.btn.active,
-    body.dark-theme #accounts-tab-cashflow.btn.active,
-    body.dark-theme #accounts-tab-journal.btn.active {
-      border-color:#FE6666;
-      background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%);
-      color:#000;
-      box-shadow:0 4px 10px rgba(254,102,102,.25);
+    .admin-section-tabs .btn:hover {
+      background:linear-gradient(145deg,#164277,#2a66b0);
+      border-color:#3d7bc6;
     }
+    .admin-section-tabs .btn.active { border-color:#7bb6ff; box-shadow:0 0 12px rgba(123,182,255,.45); }
 
     .money-blur-on .money-blur-target { filter: blur(6px); transition: filter .15s ease; user-select: none; }
 
     .bs-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem; }
-    .bs-card { border:1px solid var(--line); border-radius:4px; background:var(--card); padding:.55rem; }
+    .bs-card { border:1px solid var(--line); border-radius:4px; background:#141620; padding:.55rem; }
     .bs-card h4 { margin:.1rem 0 .45rem; color:var(--cyan); font-size:1rem; }
     .bs-line { display:flex; justify-content:space-between; gap:.5rem; padding:.12rem 0; }
     .bs-total { margin-top:.35rem; padding-top:.35rem; border-top:1px solid var(--line); display:flex; justify-content:space-between; font-weight:700; }
@@ -176,31 +164,16 @@
     /* ===== Admin Calendar ===== */
     .admin-calendar-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:.8rem; gap:.45rem; }
     .admin-calendar-title { font-size:1.05rem; color:var(--cyan); }
-    body.dark-theme .admin-collapsible-head h3,
-    body.dark-theme .admin-calendar-title,
-    body.dark-theme .tax-summary-col h4,
-    body.dark-theme .bs-card h4,
-    body.dark-theme .success-modal h3 {
-      color:#000 !important;
-      background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%);
-      border:none;
-      border-radius:0;
-      padding:.3rem .6rem;
-      display:block;
-      width:100%;
-      box-sizing:border-box;
-      margin-bottom:.38rem;
-    }
     .admin-calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:.25rem; }
     .admin-cal-dow { font-size:.85rem; color:var(--muted); text-align:center; padding:.2rem 0; }
-    .admin-cal-day { min-height:58px; border:1px solid var(--line); border-radius:2px; padding:.25rem; font-size:.85rem; color:var(--text); position:relative; background:var(--card); }
+    .admin-cal-day { min-height:58px; border:1px solid var(--line); border-radius:2px; padding:.25rem; font-size:.85rem; color:var(--text); position:relative; background:#141620; }
     .admin-cal-day.empty { background:transparent; border-color:transparent; }
     .admin-cal-day-num { font-size:.85rem; }
     .admin-cal-dots { position:absolute; left:.25rem; right:.25rem; bottom:.25rem; display:flex; gap:.2rem; flex-wrap:wrap; }
     .admin-dot { width:7px; height:7px; border-radius:50%; }
-    .admin-dot.booked-openclaw { background:#FE6666; }
-    .admin-dot.booked-lessons { background:#FF6699; }
-    .admin-dot.blocked { background:#fecac4; }
+    .admin-dot.booked-openclaw { background:#ff5555; }
+    .admin-dot.booked-lessons { background:#c850ff; }
+    .admin-dot.blocked { background:#ffaa2a; }
     .admin-legend { display:flex; gap:.7rem; align-items:center; margin-top:.5rem; color:var(--muted); font-size:.92rem; }
     .admin-legend span { display:inline-flex; align-items:center; gap:.3rem; }
 
@@ -230,15 +203,13 @@
 
     <!-- ===== SECTION: Admin Panel ===== -->
     <section class="card admin-panel" id="admin-panel" style="padding:0; overflow:hidden;">
-      <img src="./images/banner3.png" alt="Florence Mae Gifts admin banner" style="width:100%; aspect-ratio:32/7; object-fit:cover; object-position:center; display:block; border-bottom:1px solid var(--line);" />
-
+      <img src="/carousel.png" alt="" aria-hidden="true" style="width:100%; aspect-ratio:32/5; object-fit:cover; object-position:center top; display:block;" />
       <div style="padding:1.5rem 2rem 0; display:flex; justify-content:space-between; align-items:flex-start; gap:.8rem; flex-wrap:wrap;">
         <div>
           <h2 style="margin:0 0 0.25rem;">Florence Mae Gifts</h2>
           <p style="margin:0 0 1rem; color:var(--muted); font-size:0.9rem; letter-spacing:.06em; text-transform:uppercase;">Administrative Access</p>
         </div>
         <div id="admin-header-tools" style="display:none; gap:.45rem; align-items:center; margin-top:.1rem;">
-          <button type="button" class="btn" id="admin-theme-btn">Theme: Light</button>
           <button type="button" class="btn" id="admin-blur-amounts-btn" title="Toggle amount blur" aria-label="Toggle amount blur"></button>
           <button type="button" class="btn" id="admin-user-guide-top-btn">User Guide</button>
         </div>
@@ -253,50 +224,69 @@
 
       <div class="admin-controls" id="admin-controls" style="padding:0 1rem 1rem;">
         <div class="admin-section-tabs" id="admin-section-tabs">
-          <button type="button" class="btn active" data-admin-tab="stats">Stats</button>
+          <button type="button" class="btn active" data-admin-tab="booking">Booking Controls</button>
           <button type="button" class="btn" data-admin-tab="tax">Tax Ledger</button>
           <button type="button" class="btn" data-admin-tab="accounts">Accounts</button>
           <button type="button" class="btn" data-admin-tab="reconciliation">Reconciliation</button>
+          <button type="button" class="btn" data-admin-tab="invoices">Invoices</button>
+          <button type="button" class="btn" data-admin-tab="quotes">Quotes</button>
           <button type="button" class="btn" data-admin-tab="year-close">Year-End Close</button>
           <button type="button" class="btn" data-admin-tab="audit-package">Audit Package</button>
         </div>
 
-        <div class="admin-collapsible-card" id="stats-card">
+        <div class="admin-collapsible-card" id="booking-controls-card">
           <div class="admin-collapsible-head">
-            <h3 style="margin:0;">Stats</h3>
+            <h3 style="margin:0;">Admin Booking Controls</h3>
+            <button type="button" class="btn" id="booking-collapse-btn" aria-expanded="false">Expand</button>
           </div>
-          <div id="stats-body">
-            <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
-              <div class="admin-row" style="gap:.5rem; align-items:center; margin-bottom:.55rem; flex-wrap:wrap;">
-                <label for="stats-year" style="margin:0;">Year</label>
-                <select id="stats-year" style="max-width:160px;"></select>
-                <button type="button" class="btn" id="stats-refresh-btn">Refresh Stats</button>
+          <div id="booking-controls-body" class="admin-collapsible-body-collapsed">
+        <div class="admin-grid" style="margin-top:.7rem;">
+          <div>
+            <h3 style="margin:.1rem 0 .4rem;">Block / Unblock Slot</h3>
+            <div class="form-grid" style="margin-top:0;">
+              <div>
+                <label for="admin-date">Date</label>
+                <input id="admin-date" type="date" />
               </div>
-              <div class="admin-grid" style="grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem;">
-                <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
-                  <div class="admin-calendar-title" id="stats-monthly-title" style="color:var(--stats-text);">Monthly Stats</div>
-                  <div id="stats-monthly-grid" style="display:grid; grid-template-columns:auto auto; column-gap:1rem; row-gap:.24rem; font-size:.92rem; margin-top:.4rem; align-items:center; justify-content:start;">No data yet.</div>
-                </div>
-
-                <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
-                  <div class="admin-calendar-title" id="stats-yearly-title" style="color:var(--stats-text);">Year Stats</div>
-                  <div class="tax-summary-line"><span>Total Number of Sales</span><strong id="stats-sales-count">0</strong></div>
-                  <div class="tax-summary-line"><span>Total Sales Volume</span><strong id="stats-sales-volume" class="money-blur-target">$0.00</strong></div>
-                  <div class="tax-summary-line"><span>Total Fees and Costs</span><strong id="stats-fees-costs" class="money-blur-target">$0.00</strong></div>
-                  <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Profit</span><strong id="stats-profit" class="money-blur-target">$0.00</strong></div>
-                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">No sales yet (LLC cutover pending). This card auto-calculates from ledger data.</p>
-                </div>
-
-                <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
-                  <div class="admin-calendar-title" style="color:var(--stats-text);">Item Stats</div>
-                  <div class="tax-summary-line"><span>Total Products Sold</span><strong id="stats-products-sold">0</strong></div>
-                  <div class="tax-summary-line"><span>Top Product</span><strong id="stats-top-product">—</strong></div>
-                  <div class="tax-summary-line"><span>Top Category</span><strong id="stats-top-category">—</strong></div>
-                  <div class="tax-summary-line"><span>Pattern Downloads</span><strong id="stats-pattern-downloads">0</strong></div>
-                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">Use Add Sale entries to populate per-item metrics.</p>
-                </div>
+              <div>
+                <label for="admin-time">Time Block</label>
+                <select id="admin-time">
+                  <option value="">Select block…</option>
+                </select>
               </div>
-            </section>
+              <div class="full">
+                <label for="admin-reason">Reason (optional)</label>
+                <input id="admin-reason" placeholder="Unavailable / booked elsewhere" />
+              </div>
+            </div>
+            <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary" id="admin-block-btn">Block Slot</button>
+              <button type="button" class="btn" id="admin-unblock-btn">Unblock Slot</button>
+              <button type="button" class="btn btn-primary" id="admin-block-day-btn">Block Entire Day</button>
+              <button type="button" class="btn" id="admin-unblock-day-btn">Unblock Day</button>
+              <button type="button" class="btn" id="admin-refresh-btn">Refresh</button>
+              <button type="button" class="btn delete" id="admin-cleanup-pending-btn">Clear Pending &gt; 5 Days</button>
+            </div>
+          </div>
+          <div>
+            <h3 style="margin:.1rem 0 .4rem;">Recent Bookings / Blocks</h3>
+            <div class="admin-list" id="admin-list">No data yet.</div>
+            <div class="admin-calendar-wrap">
+              <div class="admin-calendar-head">
+                <button type="button" class="btn" id="admin-cal-prev-btn">← Prev</button>
+                <div class="admin-calendar-title" id="admin-calendar-title">Availability Calendar</div>
+                <button type="button" class="btn" id="admin-cal-next-btn">Next →</button>
+              </div>
+              <div class="admin-calendar-grid" id="admin-calendar-grid"></div>
+              <div class="admin-legend">
+                <span><i class="admin-dot booked-openclaw"></i>OpenClaw</span>
+                <span><i class="admin-dot booked-lessons"></i>Lessons</span>
+                <span><i class="admin-dot blocked"></i>Blocked</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
           </div>
         </div>
 
@@ -322,8 +312,7 @@
 
                 <div class="admin-row" style="gap:.4rem; flex-wrap:wrap; margin-top:.4rem;">
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-expense-btn">Add Expense</button>
-                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-sale-btn">Add Sale</button>
-                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-import-sales-btn">Import Sales</button>
+                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-income-btn">Add Income</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-owner-transfer-btn">Add Owner Transfer</button>
                   <button type="button" class="btn btn-primary" id="tax-manage-categories-btn" onclick="window.openTaxCategoryManager && window.openTaxCategoryManager()">Manage Categories</button>
                 </div>
@@ -368,58 +357,6 @@
                         <button type="button" class="btn" id="tax-cancel-expense-edit-btn" style="display:none;">Cancel Edit</button>
                         <button type="button" class="btn" id="tax-clear-expense-btn">Clear</button>
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="tax-entry-wrap" id="tax-sale-panel" style="margin-top:.5rem; display:none;">
-                  <div class="admin-calendar-wrap">
-                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Add Sale</div><button type="button" class="btn" id="tax-minimize-sale-btn">Minimize</button></div>
-                    <div class="admin-row" id="tax-sale-fields" style="flex-direction:column; align-items:stretch;">
-                      <label>Date</label>
-                      <input id="tax-sale-date" type="date" />
-                      <label>Item Name</label>
-                      <input id="tax-sale-item" placeholder="e.g. Gohan Hat (0-3 months)" />
-                      <label>Channel</label>
-                      <select id="tax-sale-channel"><option value="Etsy">Etsy</option><option value="Website">Website</option><option value="In Person">In Person</option><option value="Other">Other</option></select>
-                      <label>Sale Amount (USD)</label>
-                      <input id="tax-sale-amount" type="number" step="0.01" placeholder="0.00" />
-                      <label>Processing Fee (USD)</label>
-                      <input id="tax-sale-fee-processing" type="number" step="0.01" placeholder="0.00" />
-                      <label>Transaction Fee (USD)</label>
-                      <input id="tax-sale-fee-transaction" type="number" step="0.01" placeholder="0.00" />
-                      <label>Listing Fee (USD)</label>
-                      <input id="tax-sale-fee-listing" type="number" step="0.01" placeholder="0.00" />
-                      <label>Shipping Cost (USD)</label>
-                      <input id="tax-sale-fee-shipping" type="number" step="0.01" placeholder="0.00" />
-                      <label>Marketing / Ads Fee (USD)</label>
-                      <input id="tax-sale-fee-marketing" type="number" step="0.01" placeholder="0.00" />
-                      <label>Other Fee (USD)</label>
-                      <input id="tax-sale-fee-other" type="number" step="0.01" placeholder="0.00" />
-                      <label>Notes</label>
-                      <input id="tax-sale-notes" placeholder="optional" />
-                      <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary" id="tax-add-sale-btn">Add Sale</button>
-                        <button type="button" class="btn" id="tax-clear-sale-btn">Clear</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="tax-entry-wrap" id="tax-import-sales-panel" style="margin-top:.5rem; display:none;">
-                  <div class="admin-calendar-wrap">
-                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Import Sales (CSV)</div><button type="button" class="btn" id="tax-minimize-import-sales-btn">Minimize</button></div>
-                    <div class="admin-row" id="tax-import-sales-fields" style="flex-direction:column; align-items:stretch;">
-                      <label>Etsy Statement CSV (Month)</label>
-                      <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
-                        <input id="tax-sale-etsy-csv" type="file" accept=".csv,text/csv" />
-                        <span style="color:var(--muted);">→</span>
-                        <button type="button" class="btn" id="tax-preview-etsy-csv-btn">Preview Transactions</button>
-                        <span style="color:var(--muted);">→</span>
-                        <button type="button" class="btn btn-primary" id="tax-import-etsy-csv-btn">Import Transactions</button>
-                      </div>
-                      <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports sales + fee rows and maps fees to categories automatically.</div>
-                      <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
                     </div>
                   </div>
                 </div>
@@ -539,6 +476,73 @@
         </div>
       </div>
 
+      <div class="admin-collapsible-card" id="invoices-card" style="margin-top:1rem;">
+        <div class="admin-collapsible-head">
+          <h3 style="margin:0;">Invoices</h3>
+          <button type="button" class="btn" id="invoices-collapse-btn" aria-expanded="false">Expand</button>
+        </div>
+        <div id="invoices-body" class="admin-collapsible-body-collapsed">
+          <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+            <div class="invoice-mode-toggle" id="invoice-mode-toggle" role="tablist" aria-label="Invoice views">
+              <button type="button" class="btn active" id="invoice-mode-view-btn" data-invoice-mode="view" role="tab" aria-selected="true">View Invoices</button>
+              <button type="button" class="btn" id="invoice-mode-add-btn" data-invoice-mode="add" role="tab" aria-selected="false">Add New Invoice</button>
+            </div>
+            <p class="invoice-flow-note">Use <strong>View Invoices</strong> for filters, status updates, payments, and sending invoice emails. Use <strong>Add New Invoice</strong> to open the branded create-invoice modal.</p>
+            <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem; align-items:center;">
+              <label for="invoice-filter" style="margin:0;">Filter</label>
+              <select id="invoice-filter" style="max-width:160px;">
+                <option value="all">All</option>
+                <option value="open">Open</option>
+                <option value="paid">Paid</option>
+              </select>
+              <label for="invoice-sort" style="margin:0;">Sort By</label>
+              <select id="invoice-sort" style="max-width:190px;">
+                <option value="newest">Newest</option>
+                <option value="last-name">Customer Last Name</option>
+                <option value="status">Status</option>
+              </select>
+              <button type="button" class="btn" id="invoice-refresh-btn">Refresh Invoices</button>
+            </div>
+            <div id="invoice-list" class="admin-list">No invoices yet.</div>
+          </section>
+        </div>
+      </div>
+
+      <div class="admin-collapsible-card" id="quotes-card" style="margin-top:1rem;">
+        <div class="admin-collapsible-head">
+          <h3 style="margin:0;">Quotes</h3>
+          <button type="button" class="btn" id="quotes-collapse-btn" aria-expanded="false">Expand</button>
+        </div>
+        <div id="quotes-body" class="admin-collapsible-body-collapsed">
+          <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+            <div class="invoice-mode-toggle" id="quote-mode-toggle" role="tablist" aria-label="Quote views">
+              <button type="button" class="btn active" id="quote-mode-view-btn" data-quote-mode="view" role="tab" aria-selected="true">View Quotes</button>
+              <button type="button" class="btn" id="quote-mode-add-btn" data-quote-mode="add" role="tab" aria-selected="false">Add New Quote</button>
+            </div>
+            <p class="invoice-flow-note">Use <strong>View Quotes</strong> to see existing quotes, send quote emails, and manage status. Use <strong>Add New Quote</strong> to create a new quote with itemized pricing.</p>
+            <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem; align-items:center;">
+              <label for="quote-filter" style="margin:0;">Filter</label>
+              <select id="quote-filter" style="max-width:160px;">
+                <option value="all">All</option>
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="accepted">Accepted</option>
+                <option value="denied">Denied</option>
+                <option value="expired">Expired</option>
+              </select>
+              <label for="quote-sort" style="margin:0;">Sort By</label>
+              <select id="quote-sort" style="max-width:190px;">
+                <option value="newest">Newest</option>
+                <option value="last-name">Customer Last Name</option>
+                <option value="status">Status</option>
+              </select>
+              <button type="button" class="btn" id="quote-refresh-btn">Refresh Quotes</button>
+            </div>
+            <div id="quote-list" class="admin-list">No quotes yet.</div>
+          </section>
+        </div>
+      </div>
+
       <div class="admin-collapsible-card" id="year-close-card" style="margin-top:1rem;">
         <div class="admin-collapsible-head">
           <h3 style="margin:0;">Year-End Close Wizard</h3>
@@ -606,6 +610,18 @@
       <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
         <button type="button" class="btn" id="confirm-cancel-btn">Cancel</button>
         <button type="button" class="btn btn-primary" id="confirm-ok-btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="invoice-payment-modal" aria-hidden="true">
+    <div class="error-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-payment-title">
+      <h3 id="invoice-payment-title">Record Payment</h3>
+      <p style="margin:.2rem 0 .7rem; color:var(--muted);">Enter payment amount (USD)</p>
+      <input id="invoice-payment-amount" type="number" min="0.01" step="0.01" placeholder="e.g. 125.50" />
+      <div class="form-actions" style="display:flex; gap:.5rem; justify-content:flex-end; margin-top:.8rem;">
+        <button type="button" class="btn" id="invoice-payment-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="invoice-payment-save-btn">Record Payment</button>
       </div>
     </div>
   </div>
@@ -735,11 +751,12 @@
       <h3 id="user-guide-title">Admin User Guide</h3>
       <div style="display:flex; gap:.4rem; flex-wrap:wrap; margin:.2rem 0 .8rem;" id="user-guide-tabs">
         <button type="button" class="btn active" data-guide-tab="expenses">Expenses + Journal</button>
+        <button type="button" class="btn" data-guide-tab="bookings">Booking Controls</button>
         <button type="button" class="btn" data-guide-tab="statements">Statements + Accounts</button>
       </div>
 
       <div id="user-guide-panel-expenses" data-guide-panel="expenses" style="display:block; color:var(--text);">
-        <img src="./images/admin-guide-expenses.svg" alt="Guide diagram for adding expense and income entries" style="width:100%; border:1px solid var(--line); border-radius:6px; background:#0a0b10;" />
+        <img src="/images/admin-guide-expenses.svg" alt="Guide diagram for adding expense and income entries" style="width:100%; border:1px solid var(--line); border-radius:6px; background:#0a0b10;" />
         <ul style="margin:.7rem 0 0 1.1rem; padding:0; display:grid; gap:.28rem;">
           <li>Enter date, category, amount first — those are mandatory.</li>
           <li>Use notes/vendor/source for context you’ll need later.</li>
@@ -747,13 +764,22 @@
         </ul>
       </div>
 
+      <div id="user-guide-panel-bookings" data-guide-panel="bookings" style="display:none; color:var(--text);">
+        <img src="/images/admin-guide-bookings.svg" alt="Guide diagram for admin booking controls" style="width:100%; border:1px solid var(--line); border-radius:6px; background:#0a0b10;" />
+        <ul style="margin:.7rem 0 0 1.1rem; padding:0; display:grid; gap:.28rem;">
+          <li>Use block-slot for specific time windows; block-day for all-day closures.</li>
+          <li>Refresh after changes to confirm the calendar state.</li>
+          <li>Clean stale pending bookings periodically.</li>
+        </ul>
+      </div>
 
       <div id="user-guide-panel-statements" data-guide-panel="statements" style="display:none; color:var(--text);">
-        <img src="./images/admin-guide-statements.svg" alt="Guide diagram for trial balance, statements, and journal tabs" style="width:100%; border:1px solid var(--line); border-radius:6px; background:#0a0b10;" />
+        <img src="/images/admin-guide-statements.svg" alt="Guide diagram for trial balance, statements, and journal tabs" style="width:100%; border:1px solid var(--line); border-radius:6px; background:#0a0b10;" />
         <ul style="margin:.7rem 0 0 1.1rem; padding:0; display:grid; gap:.28rem;">
           <li>Trial Balance should remain balanced.</li>
           <li>Use Balance Sheet + P&L for management and tax prep snapshots.</li>
           <li>Use Journal for line-level verification when numbers look off.</li>
+          <li>Invoices tab flow: View Invoices for filters/status/email actions, Add New Invoice to open the create modal.</li>
         </ul>
       </div>
 
@@ -763,10 +789,98 @@
     </div>
   </div>
 
+  <button type="button" class="btn btn-primary invoice-fab" id="invoice-fab-btn" aria-label="Add new invoice">+ New Invoice</button>
+  <button type="button" class="btn btn-primary invoice-fab" id="quote-fab-btn" aria-label="Add new quote" style="display:none; bottom:4.5rem;">+ New Quote</button>
+
+  <div class="success-modal-overlay" id="quote-create-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="quote-create-title" style="width:min(920px,96vw); max-height:90vh; overflow-y:auto;">
+      <h3 id="quote-create-title">Create New Quote</h3>
+      <p style="margin:.1rem 0 .7rem; color:var(--muted);">Build itemized quotes with automatic totals. Quotes can be emailed to customers with Accept/Deny links.</p>
+      <div class="form-grid" style="margin-bottom:.7rem;">
+        <div>
+          <label for="quote-customer-name" style="font-weight:600;">Customer Name</label>
+          <input id="quote-customer-name" placeholder="Customer name" />
+        </div>
+        <div>
+          <label for="quote-customer-email" style="font-weight:600;">Customer Email</label>
+          <input id="quote-customer-email" type="email" placeholder="Customer email" />
+        </div>
+        <div>
+          <label for="quote-customer-phone" style="font-weight:600;">Customer Phone <span style="font-size:.85rem; color:var(--muted); font-weight:400;">(optional)</span></label>
+          <input id="quote-customer-phone" type="tel" placeholder="Customer phone" />
+        </div>
+        <div>
+          <label for="quote-valid-until" style="font-weight:600; color:var(--cyan);">Valid Until <span style="font-size:.85rem; color:var(--muted); font-weight:400;">(defaults to 30 days)</span></label>
+          <input id="quote-valid-until" type="date" style="border-color:var(--cyan);" />
+        </div>
+        <div>
+          <label style="font-weight:600; color:var(--muted);">Created Date</label>
+          <input type="text" value="(auto: today)" disabled style="opacity:0.6;" />
+        </div>
+      </div>
+      <textarea id="quote-description" placeholder="Description of work / scope" rows="3" style="width:100%; margin-bottom:.6rem;"></textarea>
+      <div class="admin-list" style="margin-bottom:.6rem; max-height:none;">
+        <div id="quote-line-items"></div>
+        <div class="admin-row" style="gap:.5rem; margin-top:.5rem; align-items:center; justify-content:space-between;">
+          <button type="button" class="btn" id="quote-add-line-item-btn">+ Add Line Item</button>
+          <div><strong>Total: <span id="quote-total-display">$0.00</span></strong></div>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="quote-create-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="quote-create-btn">Create Quote</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="invoice-create-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-create-title" style="width:min(920px,96vw); max-height:90vh; overflow-y:auto;">
+      <h3 id="invoice-create-title">Create New Invoice</h3>
+      <p style="margin:.1rem 0 .7rem; color:var(--muted);">Build itemized invoices with automatic totals, then create and return to the invoice list.</p>
+      <div class="form-grid" style="margin-bottom:.7rem;">
+        <div>
+          <label for="invoice-customer-name" style="font-weight:600;">Customer Name</label>
+          <input id="invoice-customer-name" placeholder="Customer name" />
+        </div>
+        <div>
+          <label for="invoice-customer-email" style="font-weight:600;">Customer Email</label>
+          <input id="invoice-customer-email" type="email" placeholder="Customer email" />
+        </div>
+        <div>
+          <label for="invoice-customer-phone" style="font-weight:600;">Customer Phone <span style="font-size:.85rem; color:var(--muted); font-weight:400;">(optional)</span></label>
+          <input id="invoice-customer-phone" type="tel" placeholder="Customer phone" />
+        </div>
+        <div>
+          <label for="invoice-due-date" style="font-weight:600; color:var(--cyan);">Due Date <span style="font-size:.85rem; color:var(--muted); font-weight:400;">(required)</span></label>
+          <input id="invoice-due-date" type="date" style="border-color:var(--cyan);" />
+        </div>
+        <div>
+          <label style="font-weight:600; color:var(--muted);">Issue Date</label>
+          <input type="text" value="(auto: today)" disabled style="opacity:0.6;" />
+        </div>
+      </div>
+      <textarea id="invoice-description" placeholder="Description of work" rows="3" style="width:100%; margin-bottom:.6rem;"></textarea>
+      <div class="admin-list" style="margin-bottom:.6rem; max-height:none;">
+        <div id="invoice-line-items"></div>
+        <div class="admin-row" style="gap:.5rem; margin-top:.5rem; align-items:center; justify-content:space-between;">
+          <button type="button" class="btn" id="invoice-add-line-item-btn">+ Add Line Item</button>
+          <div><strong>Total: <span id="invoice-total-display">$0.00</span></strong></div>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="invoice-create-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="invoice-create-btn">Create Invoice</button>
+      </div>
+    </div>
+  </div>
+
   <script>
 // ===== API URL Constants =====
-    const CONTACT_API_URL = window.CONTACT_API_URL || `${window.location.origin}/api/contact`;
-
+    const CONTACT_API_URL = window.CONTACT_API_URL || 'https://www.florencemaegifts.com/api/contact';
+    const BOOKINGS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/bookings');
+    const BLOCK_SLOT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/block-slot');
+    const BLOCK_DAY_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/block-day');
+    const CLEANUP_PENDING_BOOKINGS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/bookings/cleanup-pending');
     const TAX_TX_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/transactions');
     const TAX_EXPENSE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/expense');
     const TAX_INCOME_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/tax/income');
@@ -783,6 +897,20 @@
     const ACCOUNTS_JOURNAL_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/journal');
     const ACCOUNTS_STATEMENTS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/statements');
     const ACCOUNTS_YEAR_CLOSE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/year-close');
+    const INVOICES_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices');
+    const INVOICE_STATUS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/status');
+    const INVOICE_PAYMENT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/payment');
+    const INVOICE_PAYMENT_LINK_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/payment-link');
+    const INVOICE_SEND_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/send');
+    const INVOICE_DELETE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/delete');
+    const INVOICE_DETAIL_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/detail');
+    const INVOICE_UPDATE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/update');
+    const QUOTES_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes');
+    const QUOTE_DETAIL_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/detail');
+    const QUOTE_UPDATE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/update');
+    const QUOTE_DELETE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/delete');
+    const QUOTE_SEND_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/send');
+    const QUOTE_CONVERT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/convert');
 
     // ===== DOM Refs =====
     const adminLock = document.getElementById('admin-lock');
@@ -794,12 +922,16 @@
     const adminSectionTabsEl = document.getElementById('admin-section-tabs');
     const adminSectionTabBtns = document.querySelectorAll('[data-admin-tab]');
 
+    const bookingCollapseBtn = document.getElementById('booking-collapse-btn');
+    const bookingControlsBody = document.getElementById('booking-controls-body');
     const taxCollapseBtn = document.getElementById('tax-collapse-btn');
     const taxLedgerBody = document.getElementById('tax-ledger-body');
     const accountsCollapseBtn = document.getElementById('accounts-collapse-btn');
     const accountsBody = document.getElementById('accounts-body');
     const reconciliationCollapseBtn = document.getElementById('reconciliation-collapse-btn');
     const reconciliationBody = document.getElementById('reconciliation-body');
+    const invoicesCollapseBtn = document.getElementById('invoices-collapse-btn');
+    const invoicesBody = document.getElementById('invoices-body');
     const yearCloseCollapseBtn = document.getElementById('year-close-collapse-btn');
     const yearCloseBody = document.getElementById('year-close-body');
     const auditPackageCollapseBtn = document.getElementById('audit-package-collapse-btn');
@@ -811,28 +943,19 @@
     const taxRefreshBtn = document.getElementById('tax-refresh-btn');
     const taxExportBtn = document.getElementById('tax-export-btn');
     const taxModeExpenseBtn = document.getElementById('tax-mode-expense-btn');
-    const taxModeSaleBtn = document.getElementById('tax-mode-sale-btn');
-    const taxModeImportSalesBtn = document.getElementById('tax-mode-import-sales-btn');
     const taxModeIncomeBtn = document.getElementById('tax-mode-income-btn');
     const taxModeOwnerTransferBtn = document.getElementById('tax-mode-owner-transfer-btn');
     const taxManageCategoriesBtn = document.getElementById('tax-manage-categories-btn');
     const adminUserGuideBtn = document.getElementById('admin-user-guide-btn');
-    const adminThemeBtn = document.getElementById('admin-theme-btn');
     const adminBlurAmountsBtn = document.getElementById('admin-blur-amounts-btn');
     const adminUserGuideTopBtn = document.getElementById('admin-user-guide-top-btn');
     const taxExpensePanel = document.getElementById('tax-expense-panel');
-    const taxSalePanel = document.getElementById('tax-sale-panel');
-    const taxImportSalesPanel = document.getElementById('tax-import-sales-panel');
     const taxOwnerTransferPanel = document.getElementById('tax-owner-transfer-panel');
     const taxIncomePanel = document.getElementById('tax-income-panel');
     const taxExpenseFields = document.getElementById('tax-expense-fields');
-    const taxSaleFields = document.getElementById('tax-sale-fields');
-    const taxImportSalesFields = document.getElementById('tax-import-sales-fields');
     const taxOwnerTransferFields = document.getElementById('tax-owner-transfer-fields');
     const taxIncomeFields = document.getElementById('tax-income-fields');
     const taxMinimizeExpenseBtn = document.getElementById('tax-minimize-expense-btn');
-    const taxMinimizeSaleBtn = document.getElementById('tax-minimize-sale-btn');
-    const taxMinimizeImportSalesBtn = document.getElementById('tax-minimize-import-sales-btn');
     const taxMinimizeOwnerTransferBtn = document.getElementById('tax-minimize-owner-transfer-btn');
     const taxMinimizeIncomeBtn = document.getElementById('tax-minimize-income-btn');
     const taxCategoryModal = document.getElementById('tax-category-modal');
@@ -865,20 +988,6 @@
     const taxCategoryEditInput = document.getElementById('tax-category-edit-input');
     const taxCategoryEditSaveBtn = document.getElementById('tax-category-edit-save-btn');
     const taxCategoryEditCancelBtn = document.getElementById('tax-category-edit-cancel-btn');
-    const statsYearEl = document.getElementById('stats-year');
-    const statsRefreshBtn = document.getElementById('stats-refresh-btn');
-    const statsMonthlyTitleEl = document.getElementById('stats-monthly-title');
-    const statsMonthlyGridEl = document.getElementById('stats-monthly-grid');
-    const statsYearlyTitleEl = document.getElementById('stats-yearly-title');
-    const statsSalesCountEl = document.getElementById('stats-sales-count');
-    const statsSalesVolumeEl = document.getElementById('stats-sales-volume');
-    const statsFeesCostsEl = document.getElementById('stats-fees-costs');
-    const statsProfitEl = document.getElementById('stats-profit');
-    const statsProductsSoldEl = document.getElementById('stats-products-sold');
-    const statsTopProductEl = document.getElementById('stats-top-product');
-    const statsTopCategoryEl = document.getElementById('stats-top-category');
-    const statsPatternDownloadsEl = document.getElementById('stats-pattern-downloads');
-
     const taxSummaryListEl = document.getElementById('tax-summary-list');
     const taxListEl = document.getElementById('tax-list');
     const txCategoryFilterEl = document.getElementById('tx-category-filter');
@@ -897,7 +1006,53 @@
     const reconCsvEl = document.getElementById('recon-csv');
     const reconRunBtn = document.getElementById('recon-run-btn');
     const reconSummaryEl = document.getElementById('recon-summary');
+    const invoiceModeViewBtn = document.getElementById('invoice-mode-view-btn');
+    const invoiceModeAddBtn = document.getElementById('invoice-mode-add-btn');
+    const invoiceFabBtn = document.getElementById('invoice-fab-btn');
+    const invoiceCreateModal = document.getElementById('invoice-create-modal');
+    const invoiceCreateTitleEl = document.getElementById('invoice-create-title');
+    const invoiceCreateCancelBtn = document.getElementById('invoice-create-cancel-btn');
+    const invoiceCustomerNameEl = document.getElementById('invoice-customer-name');
+    const invoiceCustomerEmailEl = document.getElementById('invoice-customer-email');
+    const invoiceCustomerPhoneEl = document.getElementById('invoice-customer-phone');
+    const invoiceDueDateEl = document.getElementById('invoice-due-date');
+    const invoiceDescriptionEl = document.getElementById('invoice-description');
+    const invoiceLineItemsEl = document.getElementById('invoice-line-items');
+    const invoiceAddLineItemBtn = document.getElementById('invoice-add-line-item-btn');
+    const invoiceTotalDisplayEl = document.getElementById('invoice-total-display');
+    const invoiceCreateBtn = document.getElementById('invoice-create-btn');
+    const invoiceFilterEl = document.getElementById('invoice-filter');
+    const invoiceSortEl = document.getElementById('invoice-sort');
+    const invoiceRefreshBtn = document.getElementById('invoice-refresh-btn');
+    const invoiceListEl = document.getElementById('invoice-list');
+    const invoicePaymentModal = document.getElementById('invoice-payment-modal');
+    const invoicePaymentAmountEl = document.getElementById('invoice-payment-amount');
+    const invoicePaymentCancelBtn = document.getElementById('invoice-payment-cancel-btn');
+    const invoicePaymentSaveBtn = document.getElementById('invoice-payment-save-btn');
     const reconMatchesEl = document.getElementById('recon-matches');
+
+    // Quotes DOM refs
+    const quotesCollapseBtn = document.getElementById('quotes-collapse-btn');
+    const quotesBody = document.getElementById('quotes-body');
+    const quoteModeViewBtn = document.getElementById('quote-mode-view-btn');
+    const quoteModeAddBtn = document.getElementById('quote-mode-add-btn');
+    const quoteFabBtn = document.getElementById('quote-fab-btn');
+    const quoteCreateModal = document.getElementById('quote-create-modal');
+    const quoteCreateTitleEl = document.getElementById('quote-create-title');
+    const quoteCreateCancelBtn = document.getElementById('quote-create-cancel-btn');
+    const quoteCustomerNameEl = document.getElementById('quote-customer-name');
+    const quoteCustomerEmailEl = document.getElementById('quote-customer-email');
+    const quoteCustomerPhoneEl = document.getElementById('quote-customer-phone');
+    const quoteValidUntilEl = document.getElementById('quote-valid-until');
+    const quoteDescriptionEl = document.getElementById('quote-description');
+    const quoteLineItemsEl = document.getElementById('quote-line-items');
+    const quoteAddLineItemBtn = document.getElementById('quote-add-line-item-btn');
+    const quoteTotalDisplayEl = document.getElementById('quote-total-display');
+    const quoteCreateBtn = document.getElementById('quote-create-btn');
+    const quoteFilterEl = document.getElementById('quote-filter');
+    const quoteSortEl = document.getElementById('quote-sort');
+    const quoteRefreshBtn = document.getElementById('quote-refresh-btn');
+    const quoteListEl = document.getElementById('quote-list');
 
     const accountsYearCloseBtn = document.getElementById('accounts-year-close-btn');
     const auditPackageBtn = document.getElementById('audit-package-btn');
@@ -916,24 +1071,6 @@
     const taxUpdateExpenseBtn = document.getElementById('tax-update-expense-btn');
     const taxCancelExpenseEditBtn = document.getElementById('tax-cancel-expense-edit-btn');
     const taxClearExpenseBtn = document.getElementById('tax-clear-expense-btn');
-
-    const taxSaleDateEl = document.getElementById('tax-sale-date');
-    const taxSaleItemEl = document.getElementById('tax-sale-item');
-    const taxSaleChannelEl = document.getElementById('tax-sale-channel');
-    const taxSaleAmountEl = document.getElementById('tax-sale-amount');
-    const taxSaleFeeProcessingEl = document.getElementById('tax-sale-fee-processing');
-    const taxSaleFeeTransactionEl = document.getElementById('tax-sale-fee-transaction');
-    const taxSaleFeeListingEl = document.getElementById('tax-sale-fee-listing');
-    const taxSaleFeeShippingEl = document.getElementById('tax-sale-fee-shipping');
-    const taxSaleFeeMarketingEl = document.getElementById('tax-sale-fee-marketing');
-    const taxSaleFeeOtherEl = document.getElementById('tax-sale-fee-other');
-    const taxSaleNotesEl = document.getElementById('tax-sale-notes');
-    const taxSaleEtsyCsvEl = document.getElementById('tax-sale-etsy-csv');
-    const taxPreviewEtsyCsvBtn = document.getElementById('tax-preview-etsy-csv-btn');
-    const taxImportEtsyCsvBtn = document.getElementById('tax-import-etsy-csv-btn');
-    const taxSaleImportPreviewEl = document.getElementById('tax-sale-import-preview');
-    const taxAddSaleBtn = document.getElementById('tax-add-sale-btn');
-    const taxClearSaleBtn = document.getElementById('tax-clear-sale-btn');
 
     const taxOwnerTransferDateEl = document.getElementById('tax-owner-transfer-date');
     const taxOwnerTransferTypeEl = document.getElementById('tax-owner-transfer-type');
@@ -954,7 +1091,20 @@
     const taxCancelIncomeEditBtn = document.getElementById('tax-cancel-income-edit-btn');
     const taxClearIncomeBtn = document.getElementById('tax-clear-income-btn');
 
-
+    const adminDateEl = document.getElementById('admin-date');
+    const adminTimeEl = document.getElementById('admin-time');
+    const adminReasonEl = document.getElementById('admin-reason');
+    const adminListEl = document.getElementById('admin-list');
+    const adminCalendarGridEl = document.getElementById('admin-calendar-grid');
+    const adminCalendarTitleEl = document.getElementById('admin-calendar-title');
+    const adminCalPrevBtn = document.getElementById('admin-cal-prev-btn');
+    const adminCalNextBtn = document.getElementById('admin-cal-next-btn');
+    const adminBlockBtn = document.getElementById('admin-block-btn');
+    const adminUnblockBtn = document.getElementById('admin-unblock-btn');
+    const adminBlockDayBtn = document.getElementById('admin-block-day-btn');
+    const adminUnblockDayBtn = document.getElementById('admin-unblock-day-btn');
+    const adminRefreshBtn = document.getElementById('admin-refresh-btn');
+    const adminCleanupPendingBtn = document.getElementById('admin-cleanup-pending-btn');
 
     const successModal = document.getElementById('success-modal');
     const successTitle = document.getElementById('success-title');
@@ -978,14 +1128,32 @@
     let editingExpenseId = null;
     let editingIncomeId = null;
     let activeAccountsTab = 'balances';
-    let activeAdminSectionTab = 'stats';
+    let activeAdminSectionTab = 'booking';
     let blurMoneyEnabled = false;
-    let pendingEtsyImportSales = [];
-    let pendingEtsyImportExpenses = [];
-    let etsyImportInProgress = false;
+    let activeInvoiceMode = 'view';
+    let invoiceDraftItems = [{ description: 'Services', quantity: 1, unitAmount: '' }];
+    let editingInvoiceId = null;
+    let activeQuoteMode = 'view';
+    let quoteDraftItems = [{ description: 'Services', quantity: 1, unitAmount: '' }];
+    let editingQuoteId = null;
 
     // ===== Time Slots =====
+    const TIME_SLOTS = [
+      { value: '10:00-12:00', label: '1000 - 1200' },
+      { value: '12:00-14:00', label: '1200 - 1400' },
+      { value: '14:00-16:00', label: '1400 - 1600' },
+      { value: '16:00-18:00', label: '1600 - 1800' },
+      { value: '18:00-20:00', label: '1800 - 2000' }
+    ];
 
+    function initAdminTimeDropdown() {
+      const opts = ['<option value="">Select block…</option>'];
+      for (const slot of TIME_SLOTS) {
+        opts.push(`<option value="${slot.value}">${slot.label}</option>`);
+      }
+      adminTimeEl.innerHTML = opts.join('');
+    }
+    initAdminTimeDropdown();
 
     // ===== Time Utilities =====
     function nowEtParts() {
@@ -1023,6 +1191,48 @@
     function closeErrorModal() {
       errorModal.classList.remove('active');
       errorModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function resetInvoiceForm() {
+      if (invoiceDescriptionEl) invoiceDescriptionEl.value = '';
+      if (invoiceCustomerEmailEl) invoiceCustomerEmailEl.value = '';
+      if (invoiceCustomerPhoneEl) invoiceCustomerPhoneEl.value = '';
+      if (invoiceCustomerNameEl) invoiceCustomerNameEl.value = '';
+      if (invoiceDueDateEl) invoiceDueDateEl.value = '';
+      editingInvoiceId = null;
+      invoiceDraftItems = [{ description: 'Services', quantity: 1, unitAmount: '' }];
+      renderInvoiceLineItems();
+      if (invoiceCreateBtn) invoiceCreateBtn.textContent = 'Create Invoice';
+      if (invoiceCreateTitleEl) invoiceCreateTitleEl.textContent = 'Create New Invoice';
+    }
+
+    function openInvoiceCreateModal() {
+      invoiceCreateModal?.classList.add('active');
+      invoiceCreateModal?.setAttribute('aria-hidden', 'false');
+      invoiceCustomerNameEl?.focus();
+    }
+
+    function closeInvoiceCreateModal() {
+      invoiceCreateModal?.classList.remove('active');
+      invoiceCreateModal?.setAttribute('aria-hidden', 'true');
+      resetInvoiceForm();
+    }
+
+    function setInvoiceMode(mode = 'view') {
+      activeInvoiceMode = mode === 'add' ? 'add' : 'view';
+      invoiceModeViewBtn?.classList.toggle('active', activeInvoiceMode === 'view');
+      invoiceModeAddBtn?.classList.toggle('active', activeInvoiceMode === 'add');
+      invoiceModeViewBtn?.setAttribute('aria-selected', activeInvoiceMode === 'view' ? 'true' : 'false');
+      invoiceModeAddBtn?.setAttribute('aria-selected', activeInvoiceMode === 'add' ? 'true' : 'false');
+      if (activeInvoiceMode === 'add') {
+        resetInvoiceForm();
+        openInvoiceCreateModal();
+        activeInvoiceMode = 'view';
+        invoiceModeViewBtn?.classList.add('active');
+        invoiceModeAddBtn?.classList.remove('active');
+        invoiceModeViewBtn?.setAttribute('aria-selected', 'true');
+        invoiceModeAddBtn?.setAttribute('aria-selected', 'false');
+      }
     }
 
     function setUserGuideTab(tab) {
@@ -1066,103 +1276,6 @@
       } catch {
         setBlurMoney(false);
       }
-    }
-
-    function setTheme(mode) {
-      const dark = mode === 'dark';
-      document.body.classList.toggle('dark-theme', dark);
-      if (adminThemeBtn) {
-        adminThemeBtn.textContent = dark ? 'Theme: Dark' : 'Theme: Light';
-        adminThemeBtn.classList.toggle('active', dark);
-      }
-      try { localStorage.setItem('fmg_admin_theme', dark ? 'dark' : 'light'); } catch {}
-    }
-
-    function loadThemePref() {
-      try {
-        const m = localStorage.getItem('fmg_admin_theme') || 'light';
-        setTheme(m === 'dark' ? 'dark' : 'light');
-      } catch {
-        setTheme('light');
-      }
-    }
-
-    loadThemePref();
-
-    async function loadStatsData() {
-      if (!adminUnlocked) return;
-      const selectedYear = Number(statsYearEl?.value || taxYearEl?.value || String(new Date().getFullYear()));
-
-      const seeded = {
-        2023: { salesCount: 453, salesVolume: 14341.59, feesCosts: 0, monthly: null },
-        2024: { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
-        2025: { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
-      };
-
-      const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
-      const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-
-      const getYearStats = async (yearNum) => {
-        if (seeded[yearNum]) {
-          const s = seeded[yearNum];
-          return {
-            year: yearNum,
-            salesCount: Number(s.salesCount || 0),
-            salesVolumeCents: Math.round(Number(s.salesVolume || 0) * 100),
-            feesCostsCents: Math.round(Number(s.feesCosts || 0) * 100),
-            monthlyCents: Array.isArray(s.monthly) ? s.monthly.map(v => Math.round(Number(v || 0) * 100)) : Array(12).fill(0)
-          };
-        }
-
-        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(String(yearNum))}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `Failed loading stats for ${yearNum}`);
-
-        const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
-        const expenseRows = data.expenses || [];
-        const monthlyCents = Array(12).fill(0);
-        for (const r of incomeRows) {
-          const m = Number(String(r.date || '').slice(5, 7));
-          if (m >= 1 && m <= 12) monthlyCents[m - 1] += Number(r.amount_cents || 0);
-        }
-        return {
-          year: yearNum,
-          salesCount: incomeRows.length,
-          salesVolumeCents: incomeRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0),
-          feesCostsCents: expenseRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0),
-          monthlyCents
-        };
-      };
-
-      const yoyYears = [selectedYear - 2, selectedYear - 1, selectedYear];
-      const yoy = [];
-      for (const y of yoyYears) yoy.push(await getYearStats(y));
-      const current = yoy[yoy.length - 1];
-      const profit = current.salesVolumeCents - current.feesCostsCents;
-
-      if (statsMonthlyTitleEl) statsMonthlyTitleEl.textContent = `Monthly Stats (YoY: ${yoyYears.join(' / ')})`;
-      if (statsYearlyTitleEl) statsYearlyTitleEl.textContent = `${selectedYear} Stats`;
-      if (statsMonthlyGridEl) {
-        const header = `<strong>Month</strong>${yoy.map(y => `<strong>${y.year}</strong>`).join('')}`;
-        const rows = monthNames.map((name, idx) => `<strong>${name}</strong>${yoy.map(y => `<strong class="money-blur-target">${money(y.monthlyCents[idx])}</strong>`).join('')}`).join('');
-        statsMonthlyGridEl.style.gridTemplateColumns = `auto repeat(${yoy.length}, auto)`;
-        statsMonthlyGridEl.style.columnGap = '1rem';
-        statsMonthlyGridEl.style.rowGap = '.24rem';
-        statsMonthlyGridEl.style.justifyContent = 'start';
-        statsMonthlyGridEl.innerHTML = header + rows;
-      }
-
-      if (statsSalesCountEl) statsSalesCountEl.textContent = String(current.salesCount);
-      if (statsSalesVolumeEl) statsSalesVolumeEl.textContent = money(current.salesVolumeCents);
-      if (statsFeesCostsEl) statsFeesCostsEl.textContent = money(current.feesCostsCents);
-      if (statsProfitEl) statsProfitEl.textContent = money(profit);
-
-      // Item stats intentionally deferred until LLC cutover day.
-      if (statsProductsSoldEl) statsProductsSoldEl.textContent = '—';
-      if (statsTopProductEl) statsTopProductEl.textContent = 'Pending LLC cutover';
-      if (statsTopCategoryEl) statsTopCategoryEl.textContent = 'Pending LLC cutover';
-      if (statsPatternDownloadsEl) statsPatternDownloadsEl.textContent = '—';
-      markMoneyBlurTargets();
     }
 
     function openOwnerTransferModal() {
@@ -1428,6 +1541,41 @@
       });
     }
 
+    let pendingInvoicePayment = null;
+    function openInvoicePaymentModal(invoiceId) {
+      pendingInvoicePayment = Number(invoiceId || 0) || null;
+      if (invoicePaymentAmountEl) invoicePaymentAmountEl.value = '';
+      invoicePaymentModal?.classList.add('active');
+      invoicePaymentModal?.setAttribute('aria-hidden', 'false');
+      setTimeout(() => invoicePaymentAmountEl?.focus(), 0);
+    }
+    function closeInvoicePaymentModal() {
+      invoicePaymentModal?.classList.remove('active');
+      invoicePaymentModal?.setAttribute('aria-hidden', 'true');
+      pendingInvoicePayment = null;
+    }
+    async function submitInvoicePaymentModal() {
+      const id = Number(pendingInvoicePayment || 0);
+      const amt = Number(invoicePaymentAmountEl?.value || 0);
+      if (!id) { closeInvoicePaymentModal(); return; }
+      if (!Number.isFinite(amt) || amt <= 0) { openErrorModal('Invalid payment amount.'); return; }
+      const eventId = (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : `pay-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const res = await fetch(INVOICE_PAYMENT_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        body: JSON.stringify({ id, paymentCents: Math.round(amt * 100), paymentEventId: eventId })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { openErrorModal(data.error || 'Payment update failed'); return; }
+      closeInvoicePaymentModal();
+      if (data.duplicateEvent) {
+        openSuccessModal('Payment already recorded', 'This payment event was already posted to books.');
+      } else {
+        openSuccessModal('Payment recorded', 'Invoice payment was recorded and books were updated.');
+      }
+      await refreshInvoiceList();
+    }
+
     successCloseBtn.addEventListener('click', closeSuccessModal);
     successModal.addEventListener('click', (e) => { if (e.target === successModal) closeSuccessModal(); });
     errorCloseBtn.addEventListener('click', closeErrorModal);
@@ -1436,6 +1584,8 @@
     userGuideModal?.addEventListener('click', (e) => { if (e.target === userGuideModal) closeUserGuideModal(); });
     ownerTransferCloseBtn?.addEventListener('click', closeOwnerTransferModal);
     ownerTransferModal?.addEventListener('click', (e) => { if (e.target === ownerTransferModal) closeOwnerTransferModal(); });
+    invoiceCreateCancelBtn?.addEventListener('click', closeInvoiceCreateModal);
+    invoiceCreateModal?.addEventListener('click', (e) => { if (e.target === invoiceCreateModal) closeInvoiceCreateModal(); });
 
     yearCloseCancelBtn?.addEventListener('click', closeYearCloseWizard);
     yearCloseApplyBtn?.addEventListener('click', applyYearCloseWizard);
@@ -1455,16 +1605,25 @@
       if (e.key === 'Escape' && errorModal.classList.contains('active')) closeErrorModal();
       if (e.key === 'Escape' && userGuideModal?.classList.contains('active')) closeUserGuideModal();
       if (e.key === 'Escape' && ownerTransferModal?.classList.contains('active')) closeOwnerTransferModal();
+      if (e.key === 'Escape' && invoiceCreateModal?.classList.contains('active')) closeInvoiceCreateModal();
+      if (e.key === 'Escape' && invoicePaymentModal?.classList.contains('active')) closeInvoicePaymentModal();
       if (e.key === 'Escape' && yearCloseModal?.classList.contains('active')) closeYearCloseWizard();
       if (e.key === 'Escape' && auditPackageModal?.classList.contains('active')) closeAuditPackageModal();
     });
 
     // ===== Admin Controls =====
+    function updateInvoiceFabVisibility() {
+      if (!invoiceFabBtn) return;
+      const shouldShow = adminUnlocked && activeAdminSectionTab === 'invoices';
+      invoiceFabBtn.style.display = shouldShow ? 'inline-flex' : 'none';
+    }
+
     function setAdminUnlocked(on) {
       adminUnlocked = !!on;
       adminLock.style.display = adminUnlocked ? 'none' : 'block';
       adminControls.classList.toggle('active', adminUnlocked);
       if (adminHeaderTools) adminHeaderTools.style.display = adminUnlocked ? 'flex' : 'none';
+      updateInvoiceFabVisibility();
     }
 
     function renderAdminCalendar(bookings = [], blockedSlots = [], blockedDays = []) {
@@ -1709,7 +1868,7 @@
     const DEFAULT_TAX_EXPENSE_CATEGORIES = [
       'Startup cost', 'Advertising/Marketing', 'Software/SaaS', 'Hosting/Cloud',
       'Hardware', 'Research & Development', 'Product Testing', 'Office Supplies', 'Travel', 'Meals', 'Education',
-      'Professional Services', 'Payment Processing Fees', 'Etsy Listing Fees', 'Etsy Transaction Fees', 'Shipping Costs', 'Other'
+      'Professional Services', 'Payment Processing Fees', 'Other'
     ];
 
     const DEFAULT_TAX_INCOME_CATEGORIES = [
@@ -1909,28 +2068,18 @@
 
     function setTaxEntryMode(mode) {
       const showExpense = mode === 'expense';
-      const showSale = mode === 'sale';
-      const showImportSales = mode === 'import_sales';
       const showOwnerTransfer = mode === 'owner_transfer';
       const showIncome = mode === 'income';
       if (taxExpensePanel) taxExpensePanel.style.display = showExpense ? '' : 'none';
-      if (taxSalePanel) taxSalePanel.style.display = showSale ? '' : 'none';
-      if (taxImportSalesPanel) taxImportSalesPanel.style.display = showImportSales ? '' : 'none';
       if (taxOwnerTransferPanel) taxOwnerTransferPanel.style.display = showOwnerTransfer ? '' : 'none';
       if (taxIncomePanel) taxIncomePanel.style.display = showIncome ? '' : 'none';
       if (taxExpenseFields) taxExpenseFields.style.display = showExpense ? '' : 'none';
-      if (taxSaleFields) taxSaleFields.style.display = showSale ? '' : 'none';
-      if (taxImportSalesFields) taxImportSalesFields.style.display = showImportSales ? '' : 'none';
       if (taxOwnerTransferFields) taxOwnerTransferFields.style.display = showOwnerTransfer ? '' : 'none';
       if (taxIncomeFields) taxIncomeFields.style.display = showIncome ? '' : 'none';
       if (taxMinimizeExpenseBtn) taxMinimizeExpenseBtn.textContent = 'Minimize';
-      if (taxMinimizeSaleBtn) taxMinimizeSaleBtn.textContent = 'Minimize';
-      if (taxMinimizeImportSalesBtn) taxMinimizeImportSalesBtn.textContent = 'Minimize';
       if (taxMinimizeOwnerTransferBtn) taxMinimizeOwnerTransferBtn.textContent = 'Minimize';
       if (taxMinimizeIncomeBtn) taxMinimizeIncomeBtn.textContent = 'Minimize';
       if (taxModeExpenseBtn) taxModeExpenseBtn.classList.toggle('active', showExpense);
-      if (taxModeSaleBtn) taxModeSaleBtn.classList.toggle('active', showSale);
-      if (taxModeImportSalesBtn) taxModeImportSalesBtn.classList.toggle('active', showImportSales);
       if (taxModeOwnerTransferBtn) taxModeOwnerTransferBtn.classList.toggle('active', showOwnerTransfer);
       if (taxModeIncomeBtn) taxModeIncomeBtn.classList.toggle('active', showIncome);
     }
@@ -1942,18 +2091,14 @@
       const yearOpts = years.map(y => `<option value="${y}">${y}</option>`).join('');
       taxYearEl.innerHTML = yearOpts;
       if (taxSummaryYearEl) taxSummaryYearEl.innerHTML = yearOpts;
-      if (statsYearEl) statsYearEl.innerHTML = yearOpts;
       taxYearEl.value = String(thisYear);
       if (taxSummaryYearEl) taxSummaryYearEl.value = String(thisYear);
-      if (statsYearEl) statsYearEl.value = String(thisYear);
 
       renderCategoryOptions();
 
       taxExpenseDateEl.value = now.date;
-      if (taxSaleDateEl) taxSaleDateEl.value = now.date;
       if (taxOwnerTransferDateEl) taxOwnerTransferDateEl.value = now.date;
       taxIncomeDateEl.value = now.date;
-      if (statsYearEl) statsYearEl.value = String(thisYear);
       setTaxEntryMode('none');
     }
 
@@ -2013,7 +2158,6 @@
             if (!deleted) return;
             await loadTaxTransactions();
             await loadAccountsData();
-            await loadStatsData();
             openSuccessModal('Transaction deleted successfully.', 'Record Deleted ✅');
           } catch (e) {
             openErrorModal(`Could not delete transaction: ${e.message || e}`);
@@ -2188,102 +2332,9 @@
         clearTaxExpenseForm();
         await loadTaxTransactions();
         await loadAccountsData();
-        await loadStatsData();
         openSuccessModal(isEdit ? 'Expense record updated successfully.' : 'Expense record added successfully.', isEdit ? 'Expense Updated ✅' : 'Expense Added ✅');
       } catch (e) {
         openErrorModal(`Could not save expense: ${e.message || e}`);
-      }
-    }
-
-    function clearTaxSaleForm() {
-      const now = nowEtParts();
-      if (taxSaleDateEl) taxSaleDateEl.value = now.date;
-      if (taxSaleItemEl) taxSaleItemEl.value = '';
-      if (taxSaleChannelEl) taxSaleChannelEl.value = 'Etsy';
-      if (taxSaleAmountEl) taxSaleAmountEl.value = '';
-      if (taxSaleFeeProcessingEl) taxSaleFeeProcessingEl.value = '';
-      if (taxSaleFeeTransactionEl) taxSaleFeeTransactionEl.value = '';
-      if (taxSaleFeeListingEl) taxSaleFeeListingEl.value = '';
-      if (taxSaleFeeShippingEl) taxSaleFeeShippingEl.value = '';
-      if (taxSaleFeeMarketingEl) taxSaleFeeMarketingEl.value = '';
-      if (taxSaleFeeOtherEl) taxSaleFeeOtherEl.value = '';
-      if (taxSaleNotesEl) taxSaleNotesEl.value = '';
-      if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.value = '';
-      pendingEtsyImportSales = [];
-      pendingEtsyImportExpenses = [];
-      if (taxSaleImportPreviewEl) taxSaleImportPreviewEl.textContent = 'No import preview yet.';
-    }
-
-    async function postTaxExpenseEntry({ date, vendor, category, amount, notes, paidVia = 'etsy' }) {
-      if (!Number(amount) || Number(amount) <= 0) return;
-      const res = await fetch(TAX_EXPENSE_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
-        body: JSON.stringify({ date, vendor, category, amount: Number(amount).toFixed(2), paidVia, notes: notes || '' })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Failed adding expense (${category})`);
-    }
-
-    async function postTaxIncomeEntry({ date, source, category, amount, notes }) {
-      const res = await fetch(TAX_INCOME_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
-        body: JSON.stringify({ date, source, category, amount: Number(amount).toFixed(2), notes: notes || '' })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to add sale');
-    }
-
-    async function addTaxSale() {
-      const item = taxSaleItemEl?.value?.trim() || '';
-      const channel = taxSaleChannelEl?.value || 'Other';
-      const date = taxSaleDateEl?.value;
-      const gross = Number(taxSaleAmountEl?.value || 0);
-      const notes = taxSaleNotesEl?.value?.trim() || '';
-
-      if (!date || !Number.isFinite(gross) || gross <= 0) {
-        openErrorModal('Sale date and amount are required.');
-        return;
-      }
-
-      try {
-        await postTaxIncomeEntry({
-          date,
-          source: item ? `${item} (${channel})` : `Sale (${channel})`,
-          category: 'Product Sale',
-          amount: gross,
-          notes
-        });
-
-        const feeDefs = [
-          { amount: Number(taxSaleFeeProcessingEl?.value || 0), category: 'Payment Processing Fees', label: 'Processing fee' },
-          { amount: Number(taxSaleFeeTransactionEl?.value || 0), category: 'Etsy Transaction Fees', label: 'Transaction fee' },
-          { amount: Number(taxSaleFeeListingEl?.value || 0), category: 'Etsy Listing Fees', label: 'Listing fee' },
-          { amount: Number(taxSaleFeeShippingEl?.value || 0), category: 'Shipping Costs', label: 'Shipping cost' },
-          { amount: Number(taxSaleFeeMarketingEl?.value || 0), category: 'Advertising/Marketing', label: 'Marketing fee' },
-          { amount: Number(taxSaleFeeOtherEl?.value || 0), category: 'Other', label: 'Other fee' }
-        ];
-        for (const f of feeDefs) {
-          if (Number.isFinite(f.amount) && f.amount > 0) {
-            await postTaxExpenseEntry({
-              date,
-              vendor: 'Etsy',
-              category: f.category,
-              amount: f.amount,
-              notes: `${f.label}${item ? ` for ${item}` : ''}${notes ? ` | ${notes}` : ''}`,
-              paidVia: 'etsy'
-            });
-          }
-        }
-
-        clearTaxSaleForm();
-        await loadTaxTransactions();
-        await loadAccountsData();
-        await loadStatsData();
-        openSuccessModal('Sale and fee records added successfully.', 'Sale Added ✅');
-      } catch (e) {
-        openErrorModal(`Could not add sale: ${e.message || e}`);
       }
     }
 
@@ -2319,7 +2370,6 @@
         clearTaxOwnerTransferForm();
         closeOwnerTransferModal();
         await loadAccountsData();
-        await loadStatsData();
         openSuccessModal('Owner transfer posted to journal successfully.', 'Owner Transfer Added ✅');
       } catch (e) {
         openErrorModal(`Could not add owner transfer: ${e.message || e}`);
@@ -2365,7 +2415,6 @@
         clearTaxIncomeForm();
         await loadTaxTransactions();
         await loadAccountsData();
-        await loadStatsData();
         openSuccessModal(isEdit ? 'Income record updated successfully.' : 'Income record added successfully.', isEdit ? 'Income Updated ✅' : 'Income Added ✅');
       } catch (e) {
         openErrorModal(`Could not save income: ${e.message || e}`);
@@ -2402,7 +2451,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `florence-mae-gifts-tax-${year}-${type}.csv`;
+        a.download = `fmg-tax-${year}-${type}.csv`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -2453,184 +2502,6 @@
         });
       }
       return rows;
-    }
-
-    function parseCsvTable(text) {
-      const rows = [];
-      let row = [];
-      let cell = '';
-      let inQuotes = false;
-      const s = (text || '').replace(/^\uFEFF/, '');
-      for (let i = 0; i < s.length; i++) {
-        const ch = s[i];
-        const next = s[i + 1];
-        if (ch === '"') {
-          if (inQuotes && next === '"') { cell += '"'; i++; }
-          else inQuotes = !inQuotes;
-          continue;
-        }
-        if (ch === ',' && !inQuotes) { row.push(cell); cell = ''; continue; }
-        if ((ch === '\n' || ch === '\r') && !inQuotes) {
-          if (ch === '\r' && next === '\n') i++;
-          row.push(cell); cell = '';
-          if (row.some(v => String(v).trim() !== '')) rows.push(row);
-          row = [];
-          continue;
-        }
-        cell += ch;
-      }
-      if (cell.length || row.length) { row.push(cell); if (row.some(v => String(v).trim() !== '')) rows.push(row); }
-      return rows;
-    }
-
-    function parseUsd(raw) {
-      if (!raw || raw === '--') return 0;
-      const n = Number(String(raw).replace(/[$,]/g, '').replace(/\u2212/g, '-'));
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    function etsyDateToIso(raw) {
-      const d = new Date(raw);
-      if (!Number.isFinite(d.getTime())) return '';
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    }
-
-    async function previewEtsyStatementCsv() {
-      const file = taxSaleEtsyCsvEl?.files?.[0];
-      if (!file) { openErrorModal('Choose an Etsy statement CSV first.'); return; }
-      const rows = parseCsvTable(await file.text());
-      if (rows.length < 2) { openErrorModal('CSV appears empty.'); return; }
-
-      const header = rows[0].map(h => String(h).trim().toLowerCase());
-      const idxDate = header.indexOf('date');
-      const idxType = header.indexOf('type');
-      const idxTitle = header.indexOf('title');
-      const idxAmount = header.indexOf('amount');
-      const idxInfo = header.indexOf('info');
-      const idxFees = header.findIndex(h => h.includes('fees'));
-      const idxNet = header.indexOf('net');
-      if ([idxDate, idxType, idxTitle].some(i => i < 0)) { openErrorModal('Unrecognized Etsy CSV format.'); return; }
-
-      const parsed = [];
-      for (let i = 1; i < rows.length; i++) {
-        const r = rows[i];
-        const type = String(r[idxType] || '').trim();
-        const title = String(r[idxTitle] || '').trim();
-        const isoDate = etsyDateToIso(String(r[idxDate] || '').trim());
-        if (!isoDate || !type) continue;
-        const info = idxInfo >= 0 ? String(r[idxInfo] || '').trim() : '';
-        const amount = parseUsd(r[idxAmount]);
-        const fee = parseUsd(r[idxFees]);
-        const net = parseUsd(r[idxNet]);
-        parsed.push({ isoDate, type, title, info, amount, fee, net });
-      }
-
-      const extractOrderId = (...vals) => {
-        for (const txt of vals) {
-          const m = String(txt || '').match(/Order\s*#(\d+)/i);
-          if (m) return m[1];
-        }
-        return null;
-      };
-
-      const taxByOrder = new Map();
-      for (const p of parsed) {
-        if (p.type === 'Tax' && /sales tax paid by buyer/i.test(p.title || '') && p.fee < 0) {
-          const oid = extractOrderId(p.title, p.info);
-          if (oid) taxByOrder.set(oid, (taxByOrder.get(oid) || 0) + Math.abs(p.fee));
-        }
-      }
-
-      pendingEtsyImportSales = parsed
-        .filter(p => p.type === 'Sale' && p.amount > 0)
-        .map((p) => {
-          const oid = extractOrderId(p.title, p.info);
-          const tax = oid ? Number(taxByOrder.get(oid) || 0) : 0;
-          const netSale = Math.max(0, Number(p.amount || 0) - tax);
-          return { ...p, orderId: oid, taxDeducted: tax, netAmount: netSale };
-        });
-
-      pendingEtsyImportExpenses = [];
-      for (const p of parsed) {
-        if (p.type === 'Shipping' && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Shipping Costs', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Marketing' && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Advertising/Marketing', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Fee' && /listing fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Listing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Fee' && /transaction fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Transaction Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Fee' && /processing fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Payment Processing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-      }
-
-      const salesGross = pendingEtsyImportSales.reduce((s, r) => s + Number(r.amount || 0), 0);
-      const salesTax = pendingEtsyImportSales.reduce((s, r) => s + Number(r.taxDeducted || 0), 0);
-      const salesTotal = pendingEtsyImportSales.reduce((s, r) => s + Number(r.netAmount || 0), 0);
-      const expTotal = pendingEtsyImportExpenses.reduce((s, r) => s + Number(r.amount || 0), 0);
-
-      if (taxSaleImportPreviewEl) {
-        const allSales = pendingEtsyImportSales.map(s => `<div>${escHtml(s.isoDate)} | SALE | ${escHtml(s.title || 'Etsy Sale')} | Gross $${Number(s.amount||0).toFixed(2)} | Tax -$${Number(s.taxDeducted||0).toFixed(2)} | Net $${Number(s.netAmount||0).toFixed(2)}</div>`).join('');
-        const allExp = pendingEtsyImportExpenses.map(e => `<div>${escHtml(e.date)} | ${escHtml(e.category)} | $${Number(e.amount||0).toFixed(2)}</div>`).join('');
-        taxSaleImportPreviewEl.innerHTML = `
-          <div><strong>Ready to Import</strong> — Sales: ${pendingEtsyImportSales.length} (Gross $${salesGross.toFixed(2)} | Tax -$${salesTax.toFixed(2)} | Net $${salesTotal.toFixed(2)}) | Expenses: ${pendingEtsyImportExpenses.length} ($${expTotal.toFixed(2)})</div>
-          <div style="margin-top:.35rem;"><strong>Sales Transactions</strong>${allSales || '<div>None</div>'}</div>
-          <div style="margin-top:.35rem;"><strong>Expense Transactions</strong>${allExp || '<div>None</div>'}</div>
-        `;
-      }
-
-      markMoneyBlurTargets();
-    }
-
-    async function importEtsyStatementCsv() {
-      if (etsyImportInProgress) return;
-      if (!pendingEtsyImportSales.length && !pendingEtsyImportExpenses.length) {
-        openErrorModal('Preview transactions first.');
-        return;
-      }
-
-      etsyImportInProgress = true;
-      const importBtn = taxImportEtsyCsvBtn;
-      const prevText = importBtn?.textContent || 'Import Transactions';
-      if (importBtn) {
-        importBtn.disabled = true;
-        importBtn.textContent = 'Importing…';
-      }
-      if (taxPreviewEtsyCsvBtn) taxPreviewEtsyCsvBtn.disabled = true;
-      if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.disabled = true;
-
-      try {
-        for (const s of pendingEtsyImportSales) {
-          await postTaxIncomeEntry({
-            date: s.isoDate,
-            source: s.title || 'Etsy Sale',
-            category: 'Product Sale',
-            amount: s.netAmount,
-            notes: `Imported from Etsy statement CSV${s.taxDeducted ? ` (sales tax removed: $${Number(s.taxDeducted).toFixed(2)})` : ''}`
-          });
-        }
-        for (const e of pendingEtsyImportExpenses) {
-          await postTaxExpenseEntry(e);
-        }
-        const cSales = pendingEtsyImportSales.length;
-        const cExp = pendingEtsyImportExpenses.length;
-        pendingEtsyImportSales = [];
-        pendingEtsyImportExpenses = [];
-        if (taxSaleImportPreviewEl) taxSaleImportPreviewEl.textContent = 'Import complete. Run a new preview to import another file.';
-
-        await loadTaxTransactions();
-        await loadAccountsData();
-        await loadStatsData();
-        openSuccessModal(`Etsy import complete: ${cSales} sales, ${cExp} expenses.`, 'Import Complete ✅');
-      } catch (err) {
-        openErrorModal(`Etsy import failed: ${err.message || err}`);
-      } finally {
-        etsyImportInProgress = false;
-        if (importBtn) {
-          importBtn.disabled = false;
-          importBtn.textContent = prevText;
-        }
-        if (taxPreviewEtsyCsvBtn) taxPreviewEtsyCsvBtn.disabled = false;
-        if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.disabled = false;
-      }
     }
 
     async function runReconciliation() {
@@ -2807,6 +2678,628 @@
       }
     }
 
+    function captureInvoiceDraftItems() {
+      const rows = Array.from(invoiceLineItemsEl?.querySelectorAll('[data-invoice-line-item-row]') || []);
+      if (!rows.length) return;
+      invoiceDraftItems = rows.map((row) => ({
+        description: (row.querySelector('[data-line-description]')?.value || '').trim(),
+        quantity: Number(row.querySelector('[data-line-qty]')?.value || 1) || 1,
+        unitAmount: (row.querySelector('[data-line-unit]')?.value || '').trim()
+      }));
+    }
+
+    function buildInvoiceItemsFromForm() {
+      const rows = Array.from(invoiceLineItemsEl?.querySelectorAll('[data-invoice-line-item-row]') || []);
+      return rows.map((row) => {
+        const description = (row.querySelector('[data-line-description]')?.value || '').trim();
+        const qtyRaw = Number(row.querySelector('[data-line-qty]')?.value || 1);
+        const qty = Number.isFinite(qtyRaw) && qtyRaw > 0 ? qtyRaw : 1;
+        const unitRaw = Number(row.querySelector('[data-line-unit]')?.value || 0);
+        const unitAmountCents = Number.isFinite(unitRaw) && unitRaw > 0 ? Math.round(unitRaw * 100) : 0;
+        return { description: description || 'Service', quantity: qty, unitAmountCents };
+      }).filter((item) => item.unitAmountCents > 0 || item.description);
+    }
+
+    function renderInvoiceLineItems() {
+      if (!invoiceLineItemsEl) return;
+      invoiceLineItemsEl.innerHTML = invoiceDraftItems.map((item, index) => `
+        <div class="admin-row" data-invoice-line-item-row style="gap:.45rem; margin-bottom:.45rem; align-items:center; flex-wrap:wrap;">
+          <input data-line-description value="${escHtml(item.description || '')}" placeholder="Line item description" style="min-width:220px; flex:1;" />
+          <input data-line-qty type="number" min="0.01" step="0.01" value="${Number(item.quantity || 1)}" placeholder="Qty" style="max-width:85px;" />
+          <input data-line-unit type="number" min="0" step="0.01" value="${item.unitAmount}" placeholder="Unit $" style="max-width:120px;" />
+          <button type="button" class="btn" data-remove-line-item="${index}">Remove</button>
+        </div>
+      `).join('');
+      updateInvoiceTotalDisplay();
+    }
+
+    function updateInvoiceTotalDisplay() {
+      const items = buildInvoiceItemsFromForm();
+      const totalCents = items.reduce((sum, item) => sum + Math.round(Number(item.quantity || 1) * Number(item.unitAmountCents || 0)), 0);
+      if (invoiceTotalDisplayEl) invoiceTotalDisplayEl.textContent = `$${(totalCents / 100).toFixed(2)}`;
+    }
+
+    async function saveQuickInvoice() {
+      const customerName = (invoiceCustomerNameEl?.value || '').trim();
+      const customerEmail = (invoiceCustomerEmailEl?.value || '').trim();
+      const customerPhone = (invoiceCustomerPhoneEl?.value || '').trim();
+      const dueDate = invoiceDueDateEl?.value;
+      const descriptionOfWork = (invoiceDescriptionEl?.value || '').trim();
+      const items = buildInvoiceItemsFromForm();
+      const totalCents = items.reduce((sum, item) => sum + Math.round(Number(item.quantity || 1) * Number(item.unitAmountCents || 0)), 0);
+
+      if (!customerName || !dueDate || !customerEmail || !/^\S+@\S+\.\S+$/.test(customerEmail)) {
+        openErrorModal('Invoice requires customer name, valid customer email, and due date.');
+        return;
+      }
+      if (!items.length || totalCents <= 0) {
+        openErrorModal('Add at least one line item with an amount.');
+        return;
+      }
+
+      const isEditing = Number(editingInvoiceId || 0) > 0;
+      const payload = {
+        customerName,
+        customerEmail,
+        customerPhone,
+        descriptionOfWork,
+        dueDate,
+        items
+      };
+
+      let endpoint = INVOICES_API_URL;
+      if (isEditing) {
+        endpoint = INVOICE_UPDATE_API_URL;
+        payload.id = Number(editingInvoiceId);
+      } else {
+        payload.issueDate = new Date().toISOString().slice(0, 10);
+        payload.invoiceNumber = `INV-${Date.now()}`;
+        payload.status = 'draft';
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { openErrorModal(data.error || `Failed to ${isEditing ? 'update' : 'create'} invoice`); return; }
+      openSuccessModal(
+        isEditing ? 'Invoice updated' : 'Invoice created',
+        isEditing ? `Invoice #${payload.id} updated.` : `Invoice #${data.invoiceId} created.`
+      );
+      closeInvoiceCreateModal();
+      await refreshInvoiceList();
+    }
+
+    async function startInvoiceEdit(id) {
+      const invoiceId = Number(id || 0);
+      if (!invoiceId) return;
+      const res = await fetch(`${INVOICE_DETAIL_API_URL}?id=${encodeURIComponent(invoiceId)}`, {
+        headers: { 'X-Admin-Password': adminPassword }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.invoice) {
+        openErrorModal(data.error || 'Failed to load invoice details for editing.');
+        return;
+      }
+      const inv = data.invoice;
+      editingInvoiceId = invoiceId;
+      if (invoiceCustomerNameEl) invoiceCustomerNameEl.value = inv.customer_name || '';
+      if (invoiceCustomerEmailEl) invoiceCustomerEmailEl.value = inv.customer_email || '';
+      if (invoiceCustomerPhoneEl) invoiceCustomerPhoneEl.value = inv.customer_phone || '';
+      if (invoiceDueDateEl) invoiceDueDateEl.value = inv.due_date || '';
+      if (invoiceDescriptionEl) invoiceDescriptionEl.value = inv.notes || '';
+      invoiceDraftItems = (Array.isArray(inv.line_items) ? inv.line_items : []).map((item) => ({
+        description: item.item_description || '',
+        quantity: Number(item.quantity || 1),
+        unitAmount: (Number(item.unit_amount_cents || 0) / 100).toFixed(2)
+      }));
+      if (!invoiceDraftItems.length) invoiceDraftItems = [{ description: '', quantity: 1, unitAmount: '' }];
+      renderInvoiceLineItems();
+      if (invoiceCreateBtn) invoiceCreateBtn.textContent = 'Save Invoice Changes';
+      if (invoiceCreateTitleEl) invoiceCreateTitleEl.textContent = 'Edit Invoice';
+      openInvoiceCreateModal();
+    }
+
+    function invoiceStatusBadge(status) {
+      const s = String(status || 'draft').toLowerCase();
+      return `<span class="type" style="text-transform:uppercase;">${escHtml(s)}</span>`;
+    }
+
+    async function refreshInvoiceList() {
+      if (!adminUnlocked) return;
+      const prevTxt = invoiceRefreshBtn?.textContent || 'Refresh Invoices';
+      if (invoiceRefreshBtn) { invoiceRefreshBtn.disabled = true; invoiceRefreshBtn.classList.add('working'); invoiceRefreshBtn.textContent = 'Refreshing…'; }
+      if (invoiceListEl) invoiceListEl.innerHTML = '<div style="color:var(--muted);">Loading invoices…</div>';
+      try {
+      let status = (invoiceFilterEl?.value || 'all').trim();
+      if (status === 'open') status = 'sent';
+      const query = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
+      const res = await fetch(`${INVOICES_API_URL}${query}`, { headers: { 'X-Admin-Password': adminPassword } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { invoiceListEl.textContent = data.error || 'Failed to load invoices.'; return; }
+
+      const rows = Array.isArray(data.invoices) ? data.invoices : [];
+      const filtered = (invoiceFilterEl?.value || 'all') === 'open'
+        ? rows.filter((r) => !['paid', 'void'].includes(String(r.status || '').toLowerCase()))
+        : rows;
+
+      const sortMode = (invoiceSortEl?.value || 'newest').trim();
+      if (sortMode === 'last-name') {
+        filtered.sort((a, b) => {
+          const la = ((a.customer_name || '').toString().trim().split(/\s+/).pop() || '').toLowerCase();
+          const lb = ((b.customer_name || '').toString().trim().split(/\s+/).pop() || '').toLowerCase();
+          if (la < lb) return -1;
+          if (la > lb) return 1;
+          return Number(b.id || 0) - Number(a.id || 0);
+        });
+      } else if (sortMode === 'status') {
+        const rank = { draft: 0, sent: 1, partial: 2, paid: 3, void: 4 };
+        filtered.sort((a, b) => {
+          const sa = (a.status || 'draft').toString().toLowerCase();
+          const sb = (b.status || 'draft').toString().toLowerCase();
+          const ra = Number.isFinite(rank[sa]) ? rank[sa] : 99;
+          const rb = Number.isFinite(rank[sb]) ? rank[sb] : 99;
+          if (ra !== rb) return ra - rb;
+          return Number(b.id || 0) - Number(a.id || 0);
+        });
+      } else {
+        filtered.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+      }
+
+      if (!filtered.length) {
+        invoiceListEl.innerHTML = '<div style="color:var(--muted);">No invoices found for this filter.</div>';
+        return;
+      }
+
+      invoiceListEl.innerHTML = filtered.map((inv) => {
+        const id = Number(inv.id || 0);
+        const due = escHtml(inv.due_date || '');
+        const issue = escHtml(inv.issue_date || '');
+        const customer = escHtml(inv.customer_name || '');
+        const num = escHtml(inv.invoice_number || `INV-${id}`);
+        const total = `$${(Number(inv.total_cents || 0) / 100).toFixed(2)}`;
+        const paid = `$${(Number(inv.amount_paid_cents || 0) / 100).toFixed(2)}`;
+        const bal = `$${(Number(inv.balance_due_cents || 0) / 100).toFixed(2)}`;
+        const status = String(inv.status || 'draft').toLowerCase();
+        const paymentUrl = (inv.stripe_checkout_url || '').toString().trim();
+        const hasPaymentUrl = !!paymentUrl;
+
+        return `<div style="padding:.45rem 0; border-bottom:1px dashed var(--line);">
+          <div style="display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap;">
+            <strong>${num}</strong>
+            ${invoiceStatusBadge(status)}
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap; margin-top:.2rem;">
+            <span>${customer}${inv.customer_email ? ` • ${escHtml(inv.customer_email)}` : ''}${inv.customer_phone ? ` • ${escHtml(inv.customer_phone)}` : ''}</span>
+            <span>Issue: ${issue} | Due: ${due}</span>
+          </div>
+          ${inv.notes ? `<div style="margin-top:.2rem; color:var(--muted);">${escHtml(inv.notes)}</div>` : ''}
+          <div style="display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap; margin-top:.2rem;">
+            <span>Total: ${total} | Paid: ${paid} | Balance: <strong>${bal}</strong></span>
+          </div>
+          <div style="margin-top:.25rem; font-size:.86rem; color:var(--muted); word-break:break-all;">
+            ${hasPaymentUrl ? `Payment Link: <a href="${escHtml(paymentUrl)}" target="_blank" rel="noopener noreferrer">click here</a>` : 'Payment Link: Not generated yet'}
+          </div>
+          <div style="display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.35rem;">
+            ${['draft','sent','partial'].includes(status) ? `<button type="button" class="btn action-pop invoice-action-btn" data-invoice-action="edit" data-invoice-id="${id}">Edit</button>` : ''}
+            ${hasPaymentUrl ? `<button type="button" class="btn action-pop invoice-action-btn" data-invoice-action="copy-payment-link" data-invoice-id="${id}" data-payment-url="${encodeURIComponent(paymentUrl)}">Copy Payment Link</button>` : ''}
+            <button type="button" class="btn action-pop invoice-action-btn" data-invoice-action="email" data-invoice-id="${id}">Send Invoice Email</button>
+            <button type="button" class="btn action-pop invoice-action-btn" data-invoice-action="sent" data-invoice-id="${id}" title="Updates status to 'sent' without sending an email. Use if you sent the invoice another way.">Mark Sent</button>
+            ${status === 'paid' ? `<button type="button" class="btn invoice-action-btn" data-invoice-action="paid" data-invoice-id="${id}" disabled style="opacity:.5; cursor:not-allowed;">Mark Paid</button>` : `<button type="button" class="btn action-pop invoice-action-btn" data-invoice-action="paid" data-invoice-id="${id}">Mark Paid</button>`}
+            ${(Number(inv.balance_due_cents || 0) > 0 && status !== 'paid') ? `<button type="button" class="btn action-pop invoice-action-btn" data-invoice-action="payment" data-invoice-id="${id}">Record Payment</button>` : '<span style="font-size:.82rem; color:var(--muted); padding:.45rem .2rem;">Already paid</span>'}
+            <button type="button" class="btn action-pop invoice-action-btn" data-invoice-action="payment-link" data-invoice-id="${id}" data-regenerate="${hasPaymentUrl ? '1' : '0'}">${hasPaymentUrl ? 'Refresh Payment Link' : 'Generate Payment Link'}</button>
+            <button type="button" class="btn delete invoice-action-btn" data-invoice-action="delete" data-invoice-id="${id}">Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+      } finally {
+        if (invoiceRefreshBtn) { invoiceRefreshBtn.disabled = false; invoiceRefreshBtn.classList.remove('working'); invoiceRefreshBtn.textContent = prevTxt; }
+      }
+    }
+
+    async function handleInvoiceActionClick(e) {
+      const btn = e.target.closest('[data-invoice-action]');
+      if (!btn) return;
+      if (btn.hasAttribute('disabled')) return;
+      const id = Number(btn.getAttribute('data-invoice-id') || 0);
+      const action = btn.getAttribute('data-invoice-action') || '';
+      if (!id || !action) return;
+
+      if (action === 'copy-payment-link') {
+        const paymentUrl = decodeURIComponent((btn.getAttribute('data-payment-url') || '').trim());
+        if (!paymentUrl) { openErrorModal('No payment link found for this invoice yet.'); return; }
+        try {
+          await navigator.clipboard.writeText(paymentUrl);
+          openSuccessModal('Payment link copied', 'Payment link copied to clipboard.');
+        } catch {
+          prompt('Copy payment link:', paymentUrl);
+        }
+        return;
+      }
+
+      if (action === 'payment-link') {
+        const regenerate = btn.getAttribute('data-regenerate') === '1';
+        const res = await fetch(INVOICE_PAYMENT_LINK_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify({ id, regenerate })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { openErrorModal(data.error || 'Failed to create payment link'); return; }
+        openSuccessModal(regenerate ? 'Payment link refreshed' : 'Payment link generated', data.paymentUrl || 'Stripe checkout URL is ready.');
+        await refreshInvoiceList();
+        return;
+      }
+
+      if (action === 'edit') {
+        await startInvoiceEdit(id);
+        return;
+      }
+
+      if (action === 'payment') {
+        openInvoicePaymentModal(id);
+        return;
+      }
+
+      if (action === 'delete') {
+        const yes = await openConfirmModal('Delete this invoice permanently?', 'Delete Invoice?', 'Delete');
+        if (!yes) return;
+        const res = await fetch(INVOICE_DELETE_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { openErrorModal((res.status===404 ? 'Delete endpoint not found yet — deploy the worker, then retry.' : (data.error || 'Failed to delete invoice'))); return; }
+        await refreshInvoiceList();
+        return;
+      }
+
+      if (action === 'email') {
+        const prevTxt = btn.textContent || 'Send Invoice Email';
+        btn.disabled = true;
+        btn.classList.add('working');
+        btn.textContent = 'Sending…';
+        try {
+          // Auto-generate payment link before sending so email includes Pay button when balance is due.
+          const linkRes = await fetch(INVOICE_PAYMENT_LINK_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+            body: JSON.stringify({ id, regenerate: false })
+          });
+          const linkData = await linkRes.json().catch(() => ({}));
+          if (!linkRes.ok) {
+            const msg = String(linkData.error || '');
+            const canIgnore = /no balance due/i.test(msg);
+            if (!canIgnore) { openErrorModal(linkData.error || 'Failed to prepare payment link before sending email'); return; }
+          }
+
+          const res = await fetch(INVOICE_SEND_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+            body: JSON.stringify({ id })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) { openErrorModal(data.error || 'Failed to send invoice email'); return; }
+          openSuccessModal('Invoice email sent', 'Invoice email delivered to customer and status updated to sent.');
+          await refreshInvoiceList();
+          return;
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove('working');
+          btn.textContent = prevTxt;
+        }
+      }
+
+      const targetStatus = action === 'paid' ? 'paid' : 'sent';
+      const res = await fetch(INVOICE_STATUS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        body: JSON.stringify({ id, status: targetStatus })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { openErrorModal(data.error || 'Invoice status update failed'); return; }
+      await refreshInvoiceList();
+    }
+
+    // ===== Quotes Functions =====
+    function updateQuoteFabVisibility() {
+      if (!quoteFabBtn) return;
+      quoteFabBtn.style.display = (activeAdminSectionTab === 'quotes' && adminUnlocked) ? 'flex' : 'none';
+    }
+
+    function openQuoteCreateModal() {
+      if (!quoteCreateModal) return;
+      quoteCreateModal.classList.add('active');
+      quoteCreateModal.setAttribute('aria-hidden', 'false');
+      if (quoteCreateTitleEl) quoteCreateTitleEl.textContent = editingQuoteId ? 'Edit Quote' : 'Create New Quote';
+      if (quoteCreateBtn) quoteCreateBtn.textContent = editingQuoteId ? 'Save Quote' : 'Create Quote';
+    }
+
+    function closeQuoteCreateModal() {
+      if (!quoteCreateModal) return;
+      quoteCreateModal.classList.remove('active');
+      quoteCreateModal.setAttribute('aria-hidden', 'true');
+      resetQuoteForm();
+    }
+
+    function resetQuoteForm() {
+      if (quoteDescriptionEl) quoteDescriptionEl.value = '';
+      if (quoteCustomerEmailEl) quoteCustomerEmailEl.value = '';
+      if (quoteCustomerPhoneEl) quoteCustomerPhoneEl.value = '';
+      if (quoteCustomerNameEl) quoteCustomerNameEl.value = '';
+      if (quoteValidUntilEl) quoteValidUntilEl.value = '';
+      editingQuoteId = null;
+      quoteDraftItems = [{ description: 'Services', quantity: 1, unitAmount: '' }];
+      renderQuoteLineItems();
+    }
+
+    function renderQuoteLineItems() {
+      if (!quoteLineItemsEl) return;
+      quoteLineItemsEl.innerHTML = quoteDraftItems.map((item, idx) => `
+        <div style="display:flex; gap:.4rem; margin-bottom:.35rem; align-items:center; flex-wrap:wrap;" data-quote-line-idx="${idx}">
+          <input type="text" placeholder="Description" value="${escHtml(item.description || '')}" style="flex:1.2; min-width:110px;" data-quote-field="description" />
+          <input type="number" placeholder="Qty" value="${item.quantity || 1}" style="width:60px;" min="1" data-quote-field="quantity" />
+          <input type="number" placeholder="Unit $" value="${item.unitAmount || ''}" style="width:140px;" step="0.01" min="0" data-quote-field="unitAmount" />
+          <button type="button" class="btn delete" style="padding:.35rem .6rem;" data-quote-remove-line="${idx}">×</button>
+        </div>
+      `).join('');
+      updateQuoteTotal();
+    }
+
+    function updateQuoteTotal() {
+      const total = quoteDraftItems.reduce((sum, item) => {
+        const qty = Number(item.quantity || 1);
+        const unit = Number(item.unitAmount || 0);
+        return sum + qty * unit;
+      }, 0);
+      if (quoteTotalDisplayEl) quoteTotalDisplayEl.textContent = `$${total.toFixed(2)}`;
+    }
+
+    function buildQuoteItemsFromForm() {
+      return quoteDraftItems.map((item) => ({
+        description: (item.description || 'Service').toString().trim(),
+        quantity: Number(item.quantity || 1),
+        unitAmountCents: Math.round(Number(item.unitAmount || 0) * 100)
+      }));
+    }
+
+    async function saveQuote() {
+      const customerName = (quoteCustomerNameEl?.value || '').trim();
+      const customerEmail = (quoteCustomerEmailEl?.value || '').trim();
+      const customerPhone = (quoteCustomerPhoneEl?.value || '').trim();
+      let validUntil = quoteValidUntilEl?.value;
+      if (!validUntil) {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        validUntil = d.toISOString().slice(0, 10);
+      }
+      const descriptionOfWork = (quoteDescriptionEl?.value || '').trim();
+      const items = buildQuoteItemsFromForm();
+      const totalCents = items.reduce((sum, item) => sum + Math.round(Number(item.quantity || 1) * Number(item.unitAmountCents || 0)), 0);
+
+      if (!customerName) { openErrorModal('Customer name is required.'); return; }
+      if (!customerEmail) { openErrorModal('Customer email is required.'); return; }
+      if (!items.length || totalCents <= 0) { openErrorModal('At least one line item with a valid amount is required.'); return; }
+
+      const isEditing = !!editingQuoteId;
+      const payload = { customerName, customerEmail, customerPhone, validUntil, descriptionOfWork, items };
+      let endpoint = QUOTES_API_URL;
+      if (isEditing) {
+        endpoint = QUOTE_UPDATE_API_URL;
+        payload.id = Number(editingQuoteId);
+      } else {
+        payload.quoteNumber = `Q-${Date.now()}`;
+      }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { openErrorModal(data.error || 'Failed to save quote'); return; }
+
+      closeQuoteCreateModal();
+      await refreshQuoteList();
+      openSuccessModal(isEditing ? 'Quote updated' : 'Quote created', `Quote ${isEditing ? 'updated' : 'created'} successfully.`);
+    }
+
+    async function startQuoteEdit(quoteId) {
+      const res = await fetch(`${QUOTE_DETAIL_API_URL}?id=${quoteId}`, { headers: { 'X-Admin-Password': adminPassword } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.quote) { openErrorModal(data.error || 'Failed to load quote'); return; }
+      const q = data.quote;
+      editingQuoteId = quoteId;
+      if (quoteCustomerNameEl) quoteCustomerNameEl.value = q.customer_name || '';
+      if (quoteCustomerEmailEl) quoteCustomerEmailEl.value = q.customer_email || '';
+      if (quoteCustomerPhoneEl) quoteCustomerPhoneEl.value = q.customer_phone || '';
+      if (quoteValidUntilEl) quoteValidUntilEl.value = q.valid_until || '';
+      if (quoteDescriptionEl) quoteDescriptionEl.value = q.notes || '';
+      quoteDraftItems = (Array.isArray(q.line_items) ? q.line_items : []).map((item) => ({
+        description: item.item_description || '',
+        quantity: Number(item.quantity || 1),
+        unitAmount: (Number(item.unit_amount_cents || 0) / 100).toFixed(2)
+      }));
+      if (!quoteDraftItems.length) quoteDraftItems = [{ description: 'Services', quantity: 1, unitAmount: '' }];
+      renderQuoteLineItems();
+      openQuoteCreateModal();
+    }
+
+    function quoteStatusBadge(status) {
+      const colors = { draft: '#6b7280', sent: '#2563eb', accepted: '#059669', expired: '#dc2626', denied: '#7c3aed' };
+      const bg = colors[status] || '#6b7280';
+      return `<span style="font-size:.78rem; padding:2px 8px; border-radius:999px; background:${bg}; color:#fff; text-transform:uppercase;">${status}</span>`;
+    }
+
+    async function refreshQuoteList() {
+      if (!adminUnlocked) return;
+      const prevTxt = quoteRefreshBtn?.textContent || 'Refresh Quotes';
+      if (quoteRefreshBtn) { quoteRefreshBtn.disabled = true; quoteRefreshBtn.classList.add('working'); quoteRefreshBtn.textContent = 'Refreshing…'; }
+      if (quoteListEl) quoteListEl.innerHTML = '<div style="color:var(--muted);">Loading quotes…</div>';
+      try {
+      let status = (quoteFilterEl?.value || 'all').trim();
+      const query = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
+      const res = await fetch(`${QUOTES_API_URL}${query}`, { headers: { 'X-Admin-Password': adminPassword } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { quoteListEl.textContent = data.error || 'Failed to load quotes.'; return; }
+
+      const rows = Array.isArray(data.quotes) ? data.quotes : [];
+      const sortMode = (quoteSortEl?.value || 'newest').trim();
+      if (sortMode === 'last-name') {
+        rows.sort((a, b) => {
+          const la = ((a.customer_name || '').toString().trim().split(/\s+/).pop() || '').toLowerCase();
+          const lb = ((b.customer_name || '').toString().trim().split(/\s+/).pop() || '').toLowerCase();
+          if (la < lb) return -1;
+          if (la > lb) return 1;
+          return Number(b.id || 0) - Number(a.id || 0);
+        });
+      } else if (sortMode === 'status') {
+        const rank = { draft: 0, sent: 1, accepted: 2, denied: 3, expired: 4 };
+        rows.sort((a, b) => {
+          const sa = (a.status || 'draft').toString().toLowerCase();
+          const sb = (b.status || 'draft').toString().toLowerCase();
+          const ra = Number.isFinite(rank[sa]) ? rank[sa] : 99;
+          const rb = Number.isFinite(rank[sb]) ? rank[sb] : 99;
+          if (ra !== rb) return ra - rb;
+          return Number(b.id || 0) - Number(a.id || 0);
+        });
+      } else {
+        rows.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+      }
+      if (!rows.length) {
+        quoteListEl.innerHTML = '<div style="color:var(--muted);">No quotes found for this filter.</div>';
+        return;
+      }
+
+      quoteListEl.innerHTML = rows.map((q) => {
+        const id = Number(q.id || 0);
+        const validUntil = escHtml(q.valid_until || '');
+        const customer = escHtml(q.customer_name || '');
+        const num = escHtml(q.quote_number || `Q-${id}`);
+        const total = `$${(Number(q.total_cents || 0) / 100).toFixed(2)}`;
+        const status = String(q.status || 'draft').toLowerCase();
+        const isExpired = new Date(q.valid_until) < new Date();
+        const displayStatus = isExpired && !['accepted', 'denied'].includes(status) ? 'expired' : status;
+
+        return `<div style="padding:.45rem 0; border-bottom:1px dashed var(--line);">
+          <div style="display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap;">
+            <strong>${num}</strong>
+            ${quoteStatusBadge(displayStatus)}
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap; margin-top:.2rem;">
+            <span>${customer}${q.customer_email ? ` • ${escHtml(q.customer_email)}` : ''}${q.customer_phone ? ` • ${escHtml(q.customer_phone)}` : ''}</span>
+            <span>Valid Until: ${validUntil}</span>
+          </div>
+          ${q.notes ? `<div style="margin-top:.2rem; color:var(--muted);">${escHtml(q.notes)}</div>` : ''}
+          <div style="display:flex; justify-content:space-between; gap:.5rem; flex-wrap:wrap; margin-top:.2rem;">
+            <span>Total: <strong>${total}</strong></span>
+          </div>
+          <div style="display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.35rem;">
+            ${['draft','sent'].includes(status) && !isExpired ? `<button type="button" class="btn action-pop" data-quote-action="edit" data-quote-id="${id}">Edit</button>` : ''}
+            ${['draft','sent'].includes(status) && !isExpired ? `<button type="button" class="btn action-pop" data-quote-action="send" data-quote-id="${id}">Send Quote Email</button>` : ''}
+            ${['draft','sent','denied'].includes(status) ? `<button type="button" class="btn action-pop" data-quote-action="convert" data-quote-id="${id}">Convert to Invoice</button>` : ''}
+            <button type="button" class="btn delete" data-quote-action="delete" data-quote-id="${id}">Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+      } finally {
+        if (quoteRefreshBtn) { quoteRefreshBtn.disabled = false; quoteRefreshBtn.classList.remove('working'); quoteRefreshBtn.textContent = prevTxt; }
+      }
+    }
+
+    async function handleQuoteActionClick(e) {
+      const btn = e.target.closest('[data-quote-action]');
+      if (!btn) return;
+      const id = Number(btn.getAttribute('data-quote-id') || 0);
+      const action = btn.getAttribute('data-quote-action') || '';
+      if (!id || !action) return;
+
+      if (action === 'edit') {
+        await startQuoteEdit(id);
+        return;
+      }
+
+      if (action === 'send') {
+        const res = await fetch(QUOTE_SEND_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { openErrorModal(data.error || 'Failed to send quote email'); return; }
+        openSuccessModal('Quote email sent', 'Quote email with Accept/Deny links sent to customer.');
+        await refreshQuoteList();
+        return;
+      }
+
+      if (action === 'delete') {
+        const ok = await openConfirmModal('Are you sure you want to delete this quote?', 'Delete Quote?', 'Delete');
+        if (!ok) return;
+        const res = await fetch(QUOTE_DELETE_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { openErrorModal(data.error || 'Failed to delete quote'); return; }
+        await refreshQuoteList();
+        return;
+      }
+    }
+
+    // Quote line items event handlers
+    if (quoteLineItemsEl) {
+      quoteLineItemsEl.addEventListener('input', (e) => {
+        const lineEl = e.target.closest('[data-quote-line-idx]');
+        if (!lineEl) return;
+        const idx = Number(lineEl.getAttribute('data-quote-line-idx'));
+        const field = e.target.getAttribute('data-quote-field');
+        if (field && quoteDraftItems[idx]) {
+          quoteDraftItems[idx][field] = e.target.value;
+          updateQuoteTotal();
+        }
+      });
+      quoteLineItemsEl.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('[data-quote-remove-line]');
+        if (!removeBtn) return;
+        const idx = Number(removeBtn.getAttribute('data-quote-remove-line'));
+        quoteDraftItems.splice(idx, 1);
+        if (!quoteDraftItems.length) quoteDraftItems = [{ description: 'Services', quantity: 1, unitAmount: '' }];
+        renderQuoteLineItems();
+      });
+    }
+
+    if (quoteAddLineItemBtn) {
+      quoteAddLineItemBtn.addEventListener('click', () => {
+        quoteDraftItems.push({ description: '', quantity: 1, unitAmount: '' });
+        renderQuoteLineItems();
+      });
+    }
+
+    if (quoteCreateBtn) quoteCreateBtn.addEventListener('click', saveQuote);
+    if (quoteCreateCancelBtn) quoteCreateCancelBtn.addEventListener('click', closeQuoteCreateModal);
+    if (quoteFabBtn) quoteFabBtn.addEventListener('click', () => { resetQuoteForm(); openQuoteCreateModal(); });
+    if (quoteModeAddBtn) quoteModeAddBtn.addEventListener('click', () => { resetQuoteForm(); openQuoteCreateModal(); });
+    if (quoteModeViewBtn) quoteModeViewBtn.addEventListener('click', refreshQuoteList);
+    if (quoteRefreshBtn) quoteRefreshBtn.addEventListener('click', refreshQuoteList);
+    if (quoteFilterEl) quoteFilterEl.addEventListener('change', refreshQuoteList);
+    if (quoteListEl) quoteListEl.addEventListener('click', handleQuoteActionClick);
+
+    // Quote mode toggle buttons
+    [quoteModeViewBtn, quoteModeAddBtn].forEach((btn) => {
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const mode = btn.getAttribute('data-quote-mode') || 'view';
+        activeQuoteMode = mode;
+        quoteModeViewBtn?.classList.toggle('active', mode === 'view');
+        quoteModeAddBtn?.classList.toggle('active', mode === 'add');
+        if (mode === 'add') { resetQuoteForm(); openQuoteCreateModal(); }
+      });
+    });
+
     function setAccountsTab(tab) {
       activeAccountsTab = tab;
       accountsTabBalancesBtn?.classList.toggle('active', tab === 'balances');
@@ -2829,21 +3322,25 @@
       activeAdminSectionTab = tab;
       adminSectionTabBtns.forEach((btn) => btn.classList.toggle('active', btn.getAttribute('data-admin-tab') === tab));
       const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
-      show('stats-card', tab === 'stats');
-      show('booking-controls-card', false);
+      show('booking-controls-card', tab === 'booking');
       show('tax-ledger-card', tab === 'tax');
       show('accounts-card', tab === 'accounts');
       show('reconciliation-card', tab === 'reconciliation');
+      show('invoices-card', tab === 'invoices');
+      show('quotes-card', tab === 'quotes');
       show('year-close-card', tab === 'year-close');
       show('audit-package-card', tab === 'audit-package');
-      if (tab === 'stats' && adminUnlocked) loadStatsData();
+      if (tab === 'invoices' && adminUnlocked) refreshInvoiceList();
+      if (tab === 'quotes' && adminUnlocked) refreshQuoteList();
+      updateInvoiceFabVisibility();
+      updateQuoteFabVisibility();
     }
 
     function disableLegacyCollapse() {
-      [taxCollapseBtn, accountsCollapseBtn, reconciliationCollapseBtn, yearCloseCollapseBtn, auditPackageCollapseBtn].forEach((btn) => {
+      [bookingCollapseBtn, taxCollapseBtn, accountsCollapseBtn, reconciliationCollapseBtn, invoicesCollapseBtn, quotesCollapseBtn, yearCloseCollapseBtn, auditPackageCollapseBtn].forEach((btn) => {
         if (btn) btn.style.display = 'none';
       });
-      [taxLedgerBody, accountsBody, reconciliationBody, yearCloseBody, auditPackageBody].forEach((body) => {
+      [bookingControlsBody, taxLedgerBody, accountsBody, reconciliationBody, invoicesBody, quotesBody, yearCloseBody, auditPackageBody].forEach((body) => {
         body?.classList.remove('admin-collapsible-body-collapsed');
       });
     }
@@ -2851,16 +3348,76 @@
     adminSectionTabBtns.forEach((btn) => btn.addEventListener('click', () => setAdminSectionTab(btn.getAttribute('data-admin-tab'))));
 
     // ===== Admin Unlock =====
+    const ADMIN_LOGIN_GUARD_KEY = 'eastern_admin_login_guard_v1';
+    const ADMIN_MAX_TRIES = 3;
+    const ADMIN_TRY_WINDOW_MS = 5 * 60 * 1000;
+    const ADMIN_LOCK_MS = 60 * 60 * 1000;
+
+    function getAdminLoginGuard() {
+      try {
+        const raw = localStorage.getItem(ADMIN_LOGIN_GUARD_KEY);
+        if (!raw) return { attempts: [], lockedUntil: 0 };
+        const parsed = JSON.parse(raw);
+        return {
+          attempts: Array.isArray(parsed?.attempts) ? parsed.attempts : [],
+          lockedUntil: Number(parsed?.lockedUntil || 0)
+        };
+      } catch {
+        return { attempts: [], lockedUntil: 0 };
+      }
+    }
+
+    function setAdminLoginGuard(state) {
+      try { localStorage.setItem(ADMIN_LOGIN_GUARD_KEY, JSON.stringify(state)); } catch {}
+    }
+
+    function clearAdminLoginGuard() {
+      setAdminLoginGuard({ attempts: [], lockedUntil: 0 });
+    }
+
+    function recordFailedAdminAttempt() {
+      const now = Date.now();
+      const state = getAdminLoginGuard();
+      const attempts = [...state.attempts, now].filter((ts) => now - Number(ts || 0) <= ADMIN_TRY_WINDOW_MS);
+      let lockedUntil = Number(state.lockedUntil || 0);
+      if (attempts.length > ADMIN_MAX_TRIES) {
+        lockedUntil = now + ADMIN_LOCK_MS;
+      }
+      const next = { attempts, lockedUntil };
+      setAdminLoginGuard(next);
+      return next;
+    }
+
     adminUnlockBtn.addEventListener('click', async () => {
       const key = adminKeyEl.value.trim();
       if (!key) return;
+
+      const pre = getAdminLoginGuard();
+      const now = Date.now();
+      if (Number(pre.lockedUntil || 0) > now) {
+        const minsLeft = Math.ceil((pre.lockedUntil - now) / 60000);
+        openErrorModal(`Admin unlock failed: Too many wrong attempts. Account locked for ${minsLeft} more minute(s).`);
+        return;
+      }
+
       try {
-        const thisYear = String(new Date().getFullYear());
-        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(thisYear)}&type=all&limit=1`, {
+        const res = await fetch(`${BOOKINGS_API_URL}?limit=1`, {
           headers: { 'X-Admin-Password': key }
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Invalid password');
+        if (!res.ok) {
+          const state = recordFailedAdminAttempt();
+          const now2 = Date.now();
+          if (Number(state.lockedUntil || 0) > now2) {
+            openErrorModal('Admin unlock failed: Too many wrong attempts. Account locked for 60 minutes.');
+            return;
+          }
+          const recentAttempts = state.attempts.filter((ts) => now2 - Number(ts || 0) <= ADMIN_TRY_WINDOW_MS).length;
+          const triesLeft = Math.max(0, (ADMIN_MAX_TRIES + 1) - recentAttempts);
+          openErrorModal(`Admin unlock failed: Wrong password entered, ${triesLeft} more tries available`);
+          return;
+        }
+        clearAdminLoginGuard();
         adminPassword = key;
         setAdminUnlocked(true);
         const n = new Date();
@@ -2870,13 +3427,13 @@
         initAccountsUiDefaults();
         setAccountsTab('balances');
         disableLegacyCollapse();
-        setAdminSectionTab('stats');
-        loadThemePref();
+        setAdminSectionTab('booking');
         loadBlurMoneyPref();
         markMoneyBlurTargets();
+        await loadAdminData();
         await loadTaxTransactions();
         await loadAccountsData();
-        await loadStatsData();
+        await refreshInvoiceList();
       } catch (e) {
         openErrorModal(`Admin unlock failed: ${e.message || e}`);
       }
@@ -2887,19 +3444,34 @@
       if (e.key === 'Enter') adminUnlockBtn.click();
     });
 
+    // ===== Booking Controls Event Listeners =====
+    adminBlockBtn.addEventListener('click', () => setBlockedSlot(true));
+    adminUnblockBtn.addEventListener('click', () => setBlockedSlot(false));
+    adminBlockDayBtn.addEventListener('click', () => setBlockedDay(true));
+    adminUnblockDayBtn.addEventListener('click', () => setBlockedDay(false));
+    adminRefreshBtn.addEventListener('click', loadAdminData);
+    adminCleanupPendingBtn?.addEventListener('click', cleanupOldPendingBookings);
+    adminCalPrevBtn?.addEventListener('click', () => {
+      const c = adminCalendarCursor || new Date();
+      adminCalendarCursor = new Date(c.getFullYear(), c.getMonth() - 1, 1);
+      loadAdminData();
+    });
+    adminCalNextBtn?.addEventListener('click', () => {
+      const c = adminCalendarCursor || new Date();
+      adminCalendarCursor = new Date(c.getFullYear(), c.getMonth() + 1, 1);
+      loadAdminData();
+    });
+
     // ===== Tax Ledger Event Listeners =====
     taxRefreshBtn.addEventListener('click', loadTaxTransactions);
     taxYearEl.addEventListener('change', loadTaxTransactions);
     taxSummaryYearEl?.addEventListener('change', loadTaxTransactions);
     taxTypeEl.addEventListener('change', loadTaxTransactions);
     taxModeExpenseBtn?.addEventListener('click', () => setTaxEntryMode('expense'));
-    taxModeSaleBtn?.addEventListener('click', () => setTaxEntryMode('sale'));
-    taxModeImportSalesBtn?.addEventListener('click', () => setTaxEntryMode('import_sales'));
     taxModeOwnerTransferBtn?.addEventListener('click', openOwnerTransferModal);
     taxModeIncomeBtn?.addEventListener('click', () => setTaxEntryMode('income'));
     adminUserGuideBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
     adminUserGuideTopBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
-    adminThemeBtn?.addEventListener('click', () => setTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark'));
     adminBlurAmountsBtn?.addEventListener('click', () => setBlurMoney(!blurMoneyEnabled));
     userGuideTabBtns.forEach((btn) => {
       btn.addEventListener('click', () => setUserGuideTab(btn.getAttribute('data-guide-tab')));
@@ -2969,18 +3541,6 @@
       taxMinimizeExpenseBtn.textContent = isHidden ? 'Minimize' : 'Expand';
     });
 
-    taxMinimizeSaleBtn?.addEventListener('click', () => {
-      const isHidden = taxSaleFields?.style.display === 'none';
-      if (taxSaleFields) taxSaleFields.style.display = isHidden ? '' : 'none';
-      taxMinimizeSaleBtn.textContent = isHidden ? 'Minimize' : 'Expand';
-    });
-
-    taxMinimizeImportSalesBtn?.addEventListener('click', () => {
-      const isHidden = taxImportSalesFields?.style.display === 'none';
-      if (taxImportSalesFields) taxImportSalesFields.style.display = isHidden ? '' : 'none';
-      taxMinimizeImportSalesBtn.textContent = isHidden ? 'Minimize' : 'Expand';
-    });
-
     taxMinimizeOwnerTransferBtn?.addEventListener('click', () => {
       const isHidden = taxOwnerTransferFields?.style.display === 'none';
       if (taxOwnerTransferFields) taxOwnerTransferFields.style.display = isHidden ? '' : 'none';
@@ -3009,10 +3569,6 @@
     taxUpdateExpenseBtn.addEventListener('click', addTaxExpense);
     taxCancelExpenseEditBtn.addEventListener('click', clearTaxExpenseForm);
     taxClearExpenseBtn.addEventListener('click', clearTaxExpenseForm);
-    taxAddSaleBtn?.addEventListener('click', addTaxSale);
-    taxClearSaleBtn?.addEventListener('click', clearTaxSaleForm);
-    taxPreviewEtsyCsvBtn?.addEventListener('click', previewEtsyStatementCsv);
-    taxImportEtsyCsvBtn?.addEventListener('click', importEtsyStatementCsv);
     taxAddOwnerTransferBtn?.addEventListener('click', addTaxOwnerTransfer);
     taxClearOwnerTransferBtn?.addEventListener('click', clearTaxOwnerTransferForm);
     taxAddIncomeBtn.addEventListener('click', addTaxIncome);
@@ -3030,11 +3586,38 @@
     taxExportBtn?.addEventListener('click', downloadTaxCsv);
 
     accountsRefreshBtn?.addEventListener('click', loadAccountsData);
-    statsRefreshBtn?.addEventListener('click', loadStatsData);
-    statsYearEl?.addEventListener('change', loadStatsData);
     accountsYearCloseBtn?.addEventListener('click', openYearCloseWizard);
     auditPackageBtn?.addEventListener('click', openAuditPackageModal);
     reconRunBtn?.addEventListener('click', runReconciliation);
+    invoiceModeViewBtn?.addEventListener('click', () => setInvoiceMode('view'));
+    invoiceModeAddBtn?.addEventListener('click', () => setInvoiceMode('add'));
+    invoiceFabBtn?.addEventListener('click', () => setInvoiceMode('add'));
+    invoiceCreateBtn?.addEventListener('click', saveQuickInvoice);
+    invoiceAddLineItemBtn?.addEventListener('click', () => {
+      captureInvoiceDraftItems();
+      invoiceDraftItems.push({ description: '', quantity: 1, unitAmount: '' });
+      renderInvoiceLineItems();
+    });
+    invoiceLineItemsEl?.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest('[data-remove-line-item]');
+      if (!removeBtn) return;
+      captureInvoiceDraftItems();
+      const idx = Number(removeBtn.getAttribute('data-remove-line-item') || -1);
+      if (idx < 0) return;
+      invoiceDraftItems.splice(idx, 1);
+      if (!invoiceDraftItems.length) invoiceDraftItems = [{ description: '', quantity: 1, unitAmount: '' }];
+      renderInvoiceLineItems();
+    });
+    invoiceLineItemsEl?.addEventListener('input', updateInvoiceTotalDisplay);
+    setInvoiceMode('view');
+    renderInvoiceLineItems();
+    invoiceRefreshBtn?.addEventListener('click', refreshInvoiceList);
+    invoiceFilterEl?.addEventListener('change', refreshInvoiceList);
+    invoiceSortEl?.addEventListener('change', refreshInvoiceList);
+    invoiceListEl?.addEventListener('click', handleInvoiceActionClick);
+    invoicePaymentCancelBtn?.addEventListener('click', closeInvoicePaymentModal);
+    invoicePaymentSaveBtn?.addEventListener('click', submitInvoicePaymentModal);
+    invoicePaymentModal?.addEventListener('click', (e) => { if (e.target === invoicePaymentModal) closeInvoicePaymentModal(); });
     accountsYearEl?.addEventListener('change', loadAccountsData);
     accountsFromEl?.addEventListener('change', loadAccountsData);
     accountsToEl?.addEventListener('change', loadAccountsData);
@@ -3053,13 +3636,13 @@
         taxZipBtn.disabled = true;
         try {
           const zip = new JSZip();
-          const folder = zip.folder(`florence-mae-gifts-tax-${year}`);
+          const folder = zip.folder(`fmg-tax-${year}`);
 
           const csvRes = await fetch(`${TAX_EXPORT_API_URL}?year=${encodeURIComponent(year)}&type=all`, {
             headers: { 'X-Admin-Password': adminPassword }
           });
           if (!csvRes.ok) throw new Error('CSV fetch failed');
-          folder.file(`florence-mae-gifts-tax-${year}.csv`, await csvRes.blob());
+          folder.file(`fmg-tax-${year}.csv`, await csvRes.blob());
 
           const txRes = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, {
             headers: { 'X-Admin-Password': adminPassword }
@@ -3082,7 +3665,7 @@
           const blob = await zip.generateAsync({ type: 'blob' });
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
-          a.download = `florence-mae-gifts-tax-${year}.zip`;
+          a.download = `fmg-tax-${year}.zip`;
           document.body.appendChild(a);
           a.click();
           a.remove();
