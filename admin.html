@@ -586,11 +586,10 @@
         </div>
         <div id="quotes-body" class="admin-collapsible-body-collapsed">
           <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
-            <div class="invoice-mode-toggle" id="quote-mode-toggle" role="tablist" aria-label="Quote views">
-              <button type="button" class="btn active" id="quote-mode-view-btn" data-quote-mode="view" role="tab" aria-selected="true">View Quotes</button>
+            <div class="invoice-mode-toggle" id="quote-mode-toggle" role="tablist" aria-label="Quote actions">
               <button type="button" class="btn" id="quote-mode-add-btn" data-quote-mode="add" role="tab" aria-selected="false">Add New Quote</button>
             </div>
-            <p class="invoice-flow-note">Use <strong>View Quotes</strong> to see existing quotes, send quote emails, and manage status. Use <strong>Add New Quote</strong> to create a new quote with itemized pricing.</p>
+            <p class="invoice-flow-note">This list is always your quotes view. Use <strong>Add New Quote</strong> to create a new quote with itemized pricing.</p>
             <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem; align-items:center;">
               <label for="quote-filter" style="margin:0;">Filter</label>
               <select id="quote-filter" style="max-width:160px;">
@@ -3269,10 +3268,16 @@
 
     function quoteActionButtons(qu) {
       const id = Number(qu.id || 0);
+      const status = String(qu.status || 'draft').toLowerCase();
+      const convertedInvoiceId = Number(qu.converted_invoice_id || qu.convertedInvoiceId || 0);
+      const converted = convertedInvoiceId > 0 || status === 'accepted';
+      const convertAttrs = converted
+        ? `disabled title="Already converted to an invoice. Edit the quote to re-enable conversion." style="opacity:.5;cursor:not-allowed;"`
+        : '';
       return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
         <button type="button" class="btn" data-quote-action="send" data-id="${id}">Send Quote Email</button>
         <button type="button" class="btn" data-quote-action="edit" data-id="${id}">Edit</button>
-        <button type="button" class="btn btn-primary" data-quote-action="convert" data-id="${id}">Convert to Invoice</button>
+        <button type="button" class="btn btn-primary" data-quote-action="convert" data-id="${id}" ${convertAttrs}>Convert to Invoice</button>
       </div>
       <div style="display:flex; justify-content:flex-end; margin-top:.28rem;">
         <button type="button" class="btn delete" data-quote-action="delete" data-id="${id}">Delete</button>
@@ -3284,15 +3289,19 @@
       const status = String(inv.status || 'open').toLowerCase();
       const balC = Number(inv.balance_due_cents || 0) / 100;
       const paid = status === 'paid' || balC <= 0;
+      const alreadySent = status === 'sent' || Boolean(inv.sent_at || inv.sentAt);
+      const hasPaymentLink = Boolean((inv.stripe_checkout_url || inv.stripeCheckoutUrl || inv.payment_url || inv.paymentUrl || '').toString().trim());
       const markPaidBtn = `<button type="button" class="btn" data-invoice-action="mark-paid" data-id="${id}" ${paid ? 'disabled title="Already paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Paid</button>`;
       const recordPaymentBtn = `<button type="button" class="btn" data-invoice-action="record-payment" data-id="${id}" ${paid ? 'disabled title="Already fully paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Record Payment</button>`;
+      const markSentBtn = `<button type="button" class="btn" data-invoice-action="mark-sent" data-id="${id}" ${alreadySent ? 'disabled title="Invoice is already marked sent" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Sent</button>`;
+      const paymentLinkLabel = hasPaymentLink ? 'Copy/Refresh Payment Link' : 'Generate Payment Link';
       return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
         <button type="button" class="btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
         <button type="button" class="btn" data-invoice-action="edit" data-id="${id}">Edit</button>
-        <button type="button" class="btn" data-invoice-action="mark-sent" data-id="${id}">Mark Sent</button>
+        ${markSentBtn}
         ${markPaidBtn}
         ${recordPaymentBtn}
-        <button type="button" class="btn" data-invoice-action="payment-link" data-id="${id}">Generate/Refresh/Copy Payment Link</button>
+        <button type="button" class="btn" data-invoice-action="payment-link" data-id="${id}">${paymentLinkLabel}</button>
         <span style="flex:1 1 auto;"></span>
         <button type="button" class="btn delete" data-invoice-action="delete" data-id="${id}">Delete</button>
       </div>`;

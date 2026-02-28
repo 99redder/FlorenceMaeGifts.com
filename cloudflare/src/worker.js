@@ -2787,7 +2787,7 @@ async function handleQuoteUpdate(request, env, corsHeaders, url) {
   }
   const total = subtotal;
 
-  await env.DB.prepare(`UPDATE quotes SET customer_name = ?1, customer_email = ?2, customer_phone = ?3, valid_until = ?4, notes = ?5, subtotal_cents = ?6, total_cents = ?7, updated_at = datetime('now') WHERE id = ?8`)
+  await env.DB.prepare(`UPDATE quotes SET customer_name = ?1, customer_email = ?2, customer_phone = ?3, valid_until = ?4, notes = ?5, subtotal_cents = ?6, total_cents = ?7, status = 'draft', accepted_at = NULL, converted_invoice_id = NULL, updated_at = datetime('now') WHERE id = ?8`)
     .bind(customerName, customerEmail, customerPhone || null, validUntil, descriptionOfWork || null, subtotal, total, id).run();
 
   await env.DB.prepare(`DELETE FROM quote_line_items WHERE quote_id = ?1`).bind(id).run();
