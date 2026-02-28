@@ -136,6 +136,10 @@
     /* ===== Tax Ledger ===== */
     .tax-row { display:grid; grid-template-columns:auto 1fr auto auto; gap:.45rem; align-items:center; padding:.55rem .5rem; border-bottom:1px dashed var(--line); gap:.6rem; }
     .tax-row:last-child { border-bottom:none; }
+    #invoice-list .tax-row:nth-child(even),
+    #quote-list .tax-row:nth-child(even) { background: rgba(128,128,128,.08); }
+    body.dark-theme #invoice-list .tax-row:nth-child(even),
+    body.dark-theme #quote-list .tax-row:nth-child(even) { background: rgba(255,255,255,.06); }
     .tax-row .type { font-size:.85rem; padding:.1rem .4rem; border:1px solid var(--line); border-radius:999px; color:var(--text); }
     .tax-row .desc { min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .tax-row .amt { color:var(--text); font-weight:700; }
