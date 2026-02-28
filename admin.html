@@ -3282,14 +3282,16 @@
     function invoiceActionButtons(inv) {
       const id = Number(inv.id || 0);
       const status = String(inv.status || 'open').toLowerCase();
-      const paid = status === 'paid';
-      const markPaidBtn = `<button type="button" class="btn" data-invoice-action="mark-paid" data-id="${id}" ${paid ? 'disabled title="Already paid"' : ''}>Mark Paid</button>`;
+      const balC = Number(inv.balance_due_cents || 0) / 100;
+      const paid = status === 'paid' || balC <= 0;
+      const markPaidBtn = `<button type="button" class="btn" data-invoice-action="mark-paid" data-id="${id}" ${paid ? 'disabled title="Already paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Paid</button>`;
+      const recordPaymentBtn = `<button type="button" class="btn" data-invoice-action="record-payment" data-id="${id}" ${paid ? 'disabled title="Already fully paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Record Payment</button>`;
       return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
         <button type="button" class="btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
         <button type="button" class="btn" data-invoice-action="edit" data-id="${id}">Edit</button>
         <button type="button" class="btn" data-invoice-action="mark-sent" data-id="${id}">Mark Sent</button>
         ${markPaidBtn}
-        <button type="button" class="btn" data-invoice-action="record-payment" data-id="${id}">Record Payment</button>
+        ${recordPaymentBtn}
         <button type="button" class="btn" data-invoice-action="payment-link" data-id="${id}">Generate/Refresh/Copy Payment Link</button>
         <span style="flex:1 1 auto;"></span>
         <button type="button" class="btn delete" data-invoice-action="delete" data-id="${id}">Delete</button>
@@ -3306,7 +3308,7 @@
       const q = `?${params.toString()}`;
       const data = await fetchAdminJson(`${INVOICES_API_URL}${q}`);
       const list=data.invoices||data.items||[];
-      invoiceListEl.innerHTML=list.length?list.map(inv=>{ const paidC=(Number(inv.amount_paid_cents||0)/100); const balC=(Number(inv.balance_due_cents||0)/100); const isPaid=(String(inv.status||'').toLowerCase()==='paid'||balC<=0); const statusText=isPaid?`Paid <span style="color:#16a34a; font-weight:700;">✓</span>`:escHtml(inv.status||'open'); return `<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}<div style="font-size:.88rem;color:var(--muted);margin-top:.08rem;">Customer: ${escHtml(inv.customer_name||'—')}${inv.customer_email?`, ${escHtml(inv.customer_email)}`:''}</div></div><div style="font-size:.9rem;color:var(--muted);">Balance ${qMoney(balC)}, Paid ${qMoney(paidC)}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${statusText}</div>${invoiceActionButtons(inv)}</div>`; }).join(''):'No invoices yet.';
+      invoiceListEl.innerHTML=list.length?list.map(inv=>{ const balC=(Number(inv.balance_due_cents||0)/100); const isPaid=(String(inv.status||'').toLowerCase()==='paid'||balC<=0); const statusText=isPaid?`Paid <span style="color:#16a34a; font-weight:700;">✓</span>`:escHtml(inv.status||'open'); return `<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}<div style="font-size:.88rem;color:var(--muted);margin-top:.08rem;">Customer: ${escHtml(inv.customer_name||'—')}${inv.customer_email?` - Email: ${escHtml(inv.customer_email)}`:''}</div></div><div style="font-size:.9rem;color:var(--muted);">Balance ${qMoney(balC)}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${statusText}</div>${invoiceActionButtons(inv)}</div>`; }).join(''):'No invoices yet.';
     }
 
     async function refreshQuoteList(){
