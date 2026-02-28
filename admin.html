@@ -3294,14 +3294,16 @@
       const markPaidBtn = `<button type="button" class="btn" data-invoice-action="mark-paid" data-id="${id}" ${paid ? 'disabled title="Already paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Paid</button>`;
       const recordPaymentBtn = `<button type="button" class="btn" data-invoice-action="record-payment" data-id="${id}" ${paid ? 'disabled title="Already fully paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Record Payment</button>`;
       const markSentBtn = `<button type="button" class="btn" data-invoice-action="mark-sent" data-id="${id}" ${alreadySent ? 'disabled title="Invoice is already marked sent" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Sent</button>`;
-      const paymentLinkLabel = hasPaymentLink ? 'Copy/Refresh Payment Link' : 'Generate Payment Link';
+      const copyPaymentLinkBtn = `<button type="button" class="btn" data-invoice-action="payment-link-copy" data-id="${id}" ${hasPaymentLink ? '' : 'disabled title="No payment link yet. Generate one first." style="opacity:.5;cursor:not-allowed;"'}>Copy Payment Link</button>`;
+      const refreshPaymentLinkBtn = `<button type="button" class="btn" data-invoice-action="payment-link-refresh" data-id="${id}">Refresh Payment Link</button>`;
       return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
         <button type="button" class="btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
         <button type="button" class="btn" data-invoice-action="edit" data-id="${id}">Edit</button>
         ${markSentBtn}
         ${markPaidBtn}
         ${recordPaymentBtn}
-        <button type="button" class="btn" data-invoice-action="payment-link" data-id="${id}">${paymentLinkLabel}</button>
+        ${copyPaymentLinkBtn}
+        ${refreshPaymentLinkBtn}
         <span style="flex:1 1 auto;"></span>
         <button type="button" class="btn delete" data-invoice-action="delete" data-id="${id}">Delete</button>
       </div>`;
@@ -3317,7 +3319,7 @@
       const q = `?${params.toString()}`;
       const data = await fetchAdminJson(`${INVOICES_API_URL}${q}`);
       const list=data.invoices||data.items||[];
-      invoiceListEl.innerHTML=list.length?list.map(inv=>{ const balC=(Number(inv.balance_due_cents||0)/100); const isPaid=(String(inv.status||'').toLowerCase()==='paid'||balC<=0); const statusText=isPaid?`Paid <span style="color:#16a34a; font-weight:700;">✓</span>`:escHtml(inv.status||'open'); return `<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}<div style="font-size:.88rem;color:var(--muted);margin-top:.08rem;">Customer: ${escHtml(inv.customer_name||'—')}${inv.customer_email?` - Email: ${escHtml(inv.customer_email)}`:''}</div></div><div style="font-size:.9rem;color:var(--muted);">Balance ${qMoney(balC)}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${statusText}</div>${invoiceActionButtons(inv)}</div>`; }).join(''):'No invoices yet.';
+      invoiceListEl.innerHTML=list.length?list.map(inv=>{ const balC=(Number(inv.balance_due_cents||0)/100); const isPaid=(String(inv.status||'').toLowerCase()==='paid'||balC<=0); const statusText=isPaid?`Paid <span style="color:#16a34a; font-weight:700;">✓</span>`:escHtml(inv.status||'open'); const paymentLink=(inv.stripe_checkout_url||inv.stripeCheckoutUrl||inv.payment_url||inv.paymentUrl||'').toString().trim(); const paymentLinkRow=paymentLink?`<div style="font-size:.85rem;margin-top:.14rem;"><a href="${escAttr(paymentLink)}" target="_blank" rel="noopener noreferrer">Click Here</a></div>`:''; return `<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}<div style="font-size:.88rem;color:var(--muted);margin-top:.08rem;">Customer: ${escHtml(inv.customer_name||'—')}${inv.customer_email?` - Email: ${escHtml(inv.customer_email)}`:''}${paymentLinkRow}</div></div><div style="font-size:.9rem;color:var(--muted);">Balance ${qMoney(balC)}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${statusText}</div>${invoiceActionButtons(inv)}</div>`; }).join(''):'No invoices yet.';
     }
 
     async function refreshQuoteList(){
@@ -3750,18 +3752,33 @@
           openInvoicePaymentEntry(id);
           return;
         }
-        if (action === 'payment-link') {
+        if (action === 'payment-link-copy') {
           await runAction(async () => {
             const data = await fetchAdminJson(INVOICE_PAYMENT_LINK_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id }) });
             const link = data.paymentUrl || data.payment_url || data.url || data.link || '';
             if (!link) throw new Error('No payment link returned by server.');
             if (navigator.clipboard?.writeText) {
               await navigator.clipboard.writeText(link);
-              openSuccessModal(`Payment link copied to clipboard:\n${link}`, 'Payment Link Ready ✅');
+              openSuccessModal(`Payment link copied to clipboard:\n${link}`, 'Payment Link Copied ✅');
             } else {
-              openSuccessModal(`Payment link generated:\n${link}`, 'Payment Link Ready ✅');
+              openSuccessModal(`Payment link ready:\n${link}`, 'Payment Link Ready ✅');
             }
-          }, 'Generating…');
+          }, 'Copying…');
+          return;
+        }
+        if (action === 'payment-link-refresh') {
+          await runAction(async () => {
+            const data = await fetchAdminJson(INVOICE_PAYMENT_LINK_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id, regenerate: true }) });
+            const link = data.paymentUrl || data.payment_url || data.url || data.link || '';
+            if (!link) throw new Error('No payment link returned by server.');
+            if (navigator.clipboard?.writeText) {
+              await navigator.clipboard.writeText(link);
+              openSuccessModal(`Payment link refreshed and copied:\n${link}`, 'Payment Link Refreshed ✅');
+            } else {
+              openSuccessModal(`Payment link refreshed:\n${link}`, 'Payment Link Refreshed ✅');
+            }
+            await refreshInvoiceList();
+          }, 'Refreshing…');
           return;
         }
       } catch (err) {
