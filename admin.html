@@ -684,6 +684,16 @@
     </div>
   </div>
 
+  <div class="success-modal-overlay" id="doc-preview-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="doc-preview-title" style="width:min(760px,94vw); max-height:86vh; overflow-y:auto;">
+      <h3 id="doc-preview-title">Preview</h3>
+      <div id="doc-preview-details" style="color:var(--text); font-size:.98rem; line-height:1.45;"></div>
+      <div class="form-actions" style="margin-top:1rem;">
+        <button type="button" class="btn btn-primary" id="doc-preview-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div class="success-modal-overlay" id="tax-category-modal" aria-hidden="true">
     <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="tax-category-title" style="width:min(920px,94vw); max-height:86vh; overflow-y:auto;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:.5rem;">
@@ -1361,6 +1371,10 @@
     const confirmDetails = document.getElementById('confirm-details');
     const confirmOkBtn = document.getElementById('confirm-ok-btn');
     const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+    const docPreviewModal = document.getElementById('doc-preview-modal');
+    const docPreviewTitle = document.getElementById('doc-preview-title');
+    const docPreviewDetails = document.getElementById('doc-preview-details');
+    const docPreviewCloseBtn = document.getElementById('doc-preview-close-btn');
 
     // ===== State =====
     let adminUnlocked = false;
@@ -1423,6 +1437,18 @@
     function closeErrorModal() {
       errorModal.classList.remove('active');
       errorModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function openDocPreviewModal(title, html) {
+      if (docPreviewTitle) docPreviewTitle.textContent = title || 'Preview';
+      if (docPreviewDetails) docPreviewDetails.innerHTML = html || '';
+      docPreviewModal?.classList.add('active');
+      docPreviewModal?.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeDocPreviewModal() {
+      docPreviewModal?.classList.remove('active');
+      docPreviewModal?.setAttribute('aria-hidden', 'true');
     }
 
     function setUserGuideTab(tab) {
@@ -1822,6 +1848,8 @@
     successModal.addEventListener('click', (e) => { if (e.target === successModal) closeSuccessModal(); });
     errorCloseBtn.addEventListener('click', closeErrorModal);
     errorModal.addEventListener('click', (e) => { if (e.target === errorModal) closeErrorModal(); });
+    docPreviewCloseBtn?.addEventListener('click', closeDocPreviewModal);
+    docPreviewModal?.addEventListener('click', (e) => { if (e.target === docPreviewModal) closeDocPreviewModal(); });
     userGuideCloseBtn?.addEventListener('click', closeUserGuideModal);
     userGuideModal?.addEventListener('click', (e) => { if (e.target === userGuideModal) closeUserGuideModal(); });
     ownerTransferCloseBtn?.addEventListener('click', closeOwnerTransferModal);
@@ -1843,6 +1871,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && successModal.classList.contains('active')) closeSuccessModal();
       if (e.key === 'Escape' && errorModal.classList.contains('active')) closeErrorModal();
+      if (e.key === 'Escape' && docPreviewModal?.classList.contains('active')) closeDocPreviewModal();
       if (e.key === 'Escape' && userGuideModal?.classList.contains('active')) closeUserGuideModal();
       if (e.key === 'Escape' && ownerTransferModal?.classList.contains('active')) closeOwnerTransferModal();
       if (e.key === 'Escape' && yearCloseModal?.classList.contains('active')) closeYearCloseWizard();
@@ -3264,6 +3293,32 @@
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
     }
 
+    function renderDocPreviewHtml(doc, type = 'invoice') {
+      const lineItems = normalizeLineItems(doc.line_items || doc.items || []);
+      const num = type === 'quote' ? (doc.quote_number || `Q-${doc.id || ''}`) : (doc.invoice_number || `INV-${doc.id || ''}`);
+      const dateLine = type === 'quote'
+        ? `Valid Until: ${escHtml(doc.valid_until || doc.validUntil || '—')}`
+        : `Issue Date: ${escHtml(doc.issue_date || doc.issueDate || '—')} • Due Date: ${escHtml(doc.due_date || doc.dueDate || '—')}`;
+      const totalCents = Number(doc.total_cents ?? doc.totalCents ?? 0);
+      const status = escHtml(doc.status || 'draft');
+      const notes = escHtml((doc.notes || doc.description_of_work || doc.descriptionOfWork || '').toString());
+      const rows = lineItems.length
+        ? lineItems.map((it) => `<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:.45rem;padding:.24rem 0;border-bottom:1px dashed var(--line);"><span>${escHtml(it.description || 'Service')}</span><span>Qty ${Number(it.quantity || 0)}</span><span>${qMoney(Number(it.unitAmount || 0))}</span><strong>${qMoney(Number(it.quantity || 0) * Number(it.unitAmount || 0))}</strong></div>`).join('')
+        : '<div style="color:var(--muted);">No line items</div>';
+
+      return `<div style="display:grid;gap:.45rem;">
+        <div><strong>${escHtml(type === 'quote' ? 'Quote' : 'Invoice')}:</strong> ${escHtml(num)}</div>
+        <div><strong>Customer:</strong> ${escHtml(doc.customer_name || doc.customerName || '—')}</div>
+        <div><strong>Email:</strong> ${escHtml(doc.customer_email || doc.customerEmail || '—')}</div>
+        <div><strong>Status:</strong> ${status}</div>
+        <div><strong>${dateLine}</strong></div>
+        <div style="margin-top:.35rem;"><strong>Line Items</strong></div>
+        <div>${rows}</div>
+        <div style="margin-top:.2rem;"><strong>Total:</strong> ${qMoney(totalCents / 100)}</div>
+        ${notes ? `<div style="margin-top:.2rem;"><strong>Notes:</strong><br>${notes.replace(/\n/g,'<br>')}</div>` : ''}
+      </div>`;
+    }
+
     function quoteActionButtons(qu) {
       const id = Number(qu.id || 0);
       const status = String(qu.status || 'draft').toLowerCase();
@@ -3273,6 +3328,7 @@
         ? `disabled title="Already converted to an invoice. Edit the quote to re-enable conversion." style="opacity:.5;cursor:not-allowed;"`
         : '';
       return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
+        <button type="button" class="btn" data-quote-action="view" data-id="${id}">View Quote</button>
         <button type="button" class="btn" data-quote-action="send" data-id="${id}">Send Quote Email</button>
         <button type="button" class="btn" data-quote-action="edit" data-id="${id}">Edit</button>
         <button type="button" class="btn btn-primary" data-quote-action="convert" data-id="${id}" ${convertAttrs}>Convert to Invoice</button>
@@ -3295,6 +3351,7 @@
       const copyPaymentLinkBtn = `<button type="button" class="btn" data-invoice-action="payment-link-copy" data-id="${id}" ${hasPaymentLink ? '' : 'disabled title="No payment link yet. Generate one first." style="opacity:.5;cursor:not-allowed;"'}>Copy Payment Link</button>`;
       const refreshPaymentLinkBtn = `<button type="button" class="btn" data-invoice-action="payment-link-refresh" data-id="${id}">Refresh Payment Link</button>`;
       return `<div style="display:flex; gap:.3rem; flex-wrap:wrap; justify-content:flex-end;">
+        <button type="button" class="btn" data-invoice-action="view" data-id="${id}">View Invoice</button>
         <button type="button" class="btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
         <button type="button" class="btn" data-invoice-action="edit" data-id="${id}">Edit</button>
         ${markSentBtn}
@@ -3642,6 +3699,14 @@
       };
 
       try {
+        if (action === 'view') {
+          await runAction(async () => {
+            const data = await fetchAdminJson(`${QUOTE_DETAIL_API_URL}?id=${encodeURIComponent(id)}`);
+            const qu = data.quote || data.item || data;
+            openDocPreviewModal(`Quote ${qu.quote_number || `Q-${id}`}`, renderDocPreviewHtml(qu, 'quote'));
+          }, 'Loading…');
+          return;
+        }
         if (action === 'send') {
           await runAction(async () => {
             await fetchAdminJson(QUOTE_SEND_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, quoteId: id }) });
@@ -3707,6 +3772,14 @@
       };
 
       try {
+        if (action === 'view') {
+          await runAction(async () => {
+            const data = await fetchAdminJson(`${INVOICE_DETAIL_API_URL}?id=${encodeURIComponent(id)}`);
+            const inv = data.invoice || data.item || data;
+            openDocPreviewModal(`Invoice ${inv.invoice_number || `INV-${id}`}`, renderDocPreviewHtml(inv, 'invoice'));
+          }, 'Loading…');
+          return;
+        }
         if (action === 'send') {
           await runAction(async () => {
             await fetchAdminJson(INVOICE_SEND_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id }) });
