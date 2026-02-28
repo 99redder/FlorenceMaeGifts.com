@@ -3062,6 +3062,102 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
   // Mark quote as accepted
   await env.DB.prepare(`UPDATE quotes SET status = 'accepted', accepted_at = datetime('now'), converted_invoice_id = ?1, updated_at = datetime('now') WHERE id = ?2`).bind(invoiceId, quote.id).run();
 
+  // Auto-generate payment link + send invoice email to customer (pay-first flow)
+  try {
+    const customerEmail = (quote.customer_email || '').toString().trim();
+    const fromEmail = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+    if (env.STRIPE_SECRET_KEY && env.RESEND_API_KEY && fromEmail && customerEmail) {
+      const requestBase = new URL(request.url).origin;
+      const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${requestBase}/invoice/payment-success`).replace(/\/$/, '');
+      const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${requestBase}/invoice/payment-cancelled`).replace(/\/$/, '');
+      const balanceDueCents = Math.max(0, Number(total || 0));
+      let paymentUrl = '';
+      let sessionId = '';
+
+      if (balanceDueCents > 0) {
+        const form = new URLSearchParams();
+        form.append('mode', 'payment');
+        form.append('success_url', `${successBase}?invoice_id=${encodeURIComponent(String(invoiceId))}`);
+        form.append('cancel_url', `${cancelBase}?invoice_id=${encodeURIComponent(String(invoiceId))}`);
+        form.append('client_reference_id', `invoice:${invoiceId}`);
+        form.append('customer_email', customerEmail);
+        const metadata = {
+          checkout_type: 'invoice_payment',
+          invoice_id: String(invoiceId),
+          invoice_number: String(invoiceNumber),
+          customer_email: customerEmail,
+          balance_due_cents: String(balanceDueCents)
+        };
+        Object.entries(metadata).forEach(([k, v]) => {
+          form.append(`metadata[${k}]`, v);
+          form.append(`payment_intent_data[metadata][${k}]`, v);
+        });
+        form.append('line_items[0][price_data][currency]', 'usd');
+        form.append('line_items[0][price_data][unit_amount]', String(balanceDueCents));
+        form.append('line_items[0][price_data][product_data][name]', `Invoice ${invoiceNumber} Balance Due`);
+        form.append('line_items[0][quantity]', '1');
+
+        const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: form.toString()
+        });
+        const stripeData = await stripeRes.json().catch(() => ({}));
+        if (stripeRes.ok && stripeData?.url && stripeData?.id) {
+          paymentUrl = stripeData.url;
+          sessionId = stripeData.id;
+          await env.DB.prepare(
+            `UPDATE invoices SET stripe_checkout_session_id = ?1, stripe_checkout_url = ?2, stripe_payment_status = 'pending', stripe_payment_link_generated_at = datetime('now'), status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE id = ?3`
+          ).bind(sessionId, paymentUrl, invoiceId).run();
+        }
+      }
+
+      const rows = items.map((it) => `<tr><td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeHtml(it.item_description || 'Service')}</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:center;">${Number(it.quantity || 1)}</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right;">${formatUsd(Number(it.line_total_cents || 0))}</td></tr>`).join('');
+      const payBtn = paymentUrl ? `<div style="margin:20px 0;"><a href="${paymentUrl}" style="display:inline-block;padding:12px 24px;background:#FE6666;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;">Pay Invoice Securely</a></div>` : '';
+      const invoiceHtml = `
+        <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;background:#fff;border:1px solid #eee;border-radius:10px;overflow:hidden;">
+          <img src="https://www.florencemaegifts.com/images/banner3.png" alt="Florence Mae Gifts" style="width:100%;height:auto;display:block;" />
+          <div style="padding:20px 24px;background:linear-gradient(135deg,#0f172a,#1f2937);color:#fff;"><h1 style="margin:0;font-size:22px;">Invoice ${escapeHtml(invoiceNumber)}</h1></div>
+          <div style="padding:24px;">
+            <p style="margin:0 0 10px;">Hi ${escapeHtml(quote.customer_name || 'there')},</p>
+            <p style="margin:0 0 14px;color:#374151;">Thanks for approving your quote. Here is your invoice for payment:</p>
+            <table style="width:100%;border-collapse:collapse;margin:12px 0 8px;"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid #ddd;">Item</th><th style="text-align:center;padding:8px;border-bottom:1px solid #ddd;">Qty</th><th style="text-align:right;padding:8px;border-bottom:1px solid #ddd;">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+            <p style="text-align:right;margin:10px 0 0;"><strong>Total Due: ${formatUsd(total)}</strong></p>
+            ${payBtn}
+            <p style="margin:16px 0 0;color:#374151;">Questions? Reply to this email and we'll get back to you ASAP.</p>
+          </div>
+          <div style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;color:#4b5563;font-size:13px;"><strong>Florence Mae Gifts, LLC</strong> • <a href="https://www.florencemaegifts.com" style="color:#2563eb;">www.florencemaegifts.com</a></div>
+        </div>`;
+      const invoiceText = [
+        `Invoice ${invoiceNumber}`,
+        '',
+        `Hi ${quote.customer_name || 'there'},`,
+        'Thanks for approving your quote. Here is your invoice for payment.',
+        '',
+        `Total Due: ${formatUsd(total)}`,
+        paymentUrl ? `Pay here: ${paymentUrl}` : '',
+        '',
+        "Questions? Reply to this email and we'll get back to you ASAP.",
+        'Florence Mae Gifts, LLC',
+        'https://www.florencemaegifts.com'
+      ].filter(Boolean).join('\n');
+
+      const sendPayload = {
+        from: fromEmail,
+        to: [customerEmail],
+        subject: `Invoice ${invoiceNumber} from Florence Mae Gifts`,
+        html: invoiceHtml,
+        text: invoiceText
+      };
+      if (env.CC_EMAIL) sendPayload.cc = [env.CC_EMAIL];
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(sendPayload)
+      }).catch(() => {});
+    }
+  } catch (_) {}
+
   // Send notification email to Chris
   const notifyTo = (env.TO_EMAIL || env.CONTACT_TO_EMAIL || '').toString().trim();
   const notifyFrom = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
