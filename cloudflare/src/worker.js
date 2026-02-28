@@ -2949,22 +2949,22 @@ function htmlPage(title, heading, message, success = true) {
   <title>${escapeHtml(title)} - Florence Mae Gifts</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; background: #0a0b10; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; color:#d8dce8; }
-    .card { max-width: 620px; width:100%; background: #141620; border: 1px solid #222438; border-radius: 8px; overflow: hidden; text-align: center; box-shadow:0 12px 30px rgba(0,0,0,.35); }
+    body { font-family: Arial, sans-serif; background: #ffffff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; color:#000; }
+    .card { max-width: 620px; width:100%; background: #ffffff; border: 1px solid #d8d8d8; border-radius: 8px; overflow: hidden; text-align: center; box-shadow:0 8px 22px rgba(0,0,0,.12); }
     .hero img { width:100%; height:auto; display:block; }
-    .header { padding: 20px 24px; background: linear-gradient(145deg,#0f2f57,#1f4f90); color: #eaf3ff; border-top:1px solid #2b68ad; border-bottom:1px solid #2b68ad; }
+    .header { padding: 20px 24px; background: linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%); color: #000; border-top:1px solid #fecac4; border-bottom:1px solid #fecac4; }
     .header h1 { font-size: 18px; letter-spacing:.2px; }
     .icon { width: 64px; height: 64px; border-radius: 50%; background: ${bgColor}; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 24px auto 16px; }
     .content { padding: 24px; }
-    .content h2 { color: #00e5ff; margin-bottom: 12px; }
-    .content p { color: #b7bfd3; line-height: 1.6; }
-    .footer { padding: 16px 24px; border-top: 1px solid #222438; background: #10121a; color:#9aa3b7; }
-    .footer a { color: #7bb6ff; text-decoration: none; }
+    .content h2 { color: #FE6666; margin-bottom: 12px; }
+    .content p { color: #4b4b4b; line-height: 1.6; }
+    .footer { padding: 16px 24px; border-top: 1px solid #d8d8d8; background: #f1f1f1; color:#4b4b4b; }
+    .footer a { color: #FE6666; text-decoration: none; }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="hero"><img src="https://www.florencemaegifts.com/carousel.jpg" alt="Florence Mae Gifts" /></div>
+    <div class="hero"><img src="https://www.florencemaegifts.com/images/banner3.png" alt="Florence Mae Gifts" /></div>
     <div class="header">
       <h1>Florence Mae Gifts, LLC</h1>
     </div>
@@ -2975,7 +2975,7 @@ function htmlPage(title, heading, message, success = true) {
     </div>
     <div class="footer">
       <div><a href="https://www.florencemaegifts.com">www.florencemaegifts.com</a></div>
-      <div style="margin-top:6px; font-size:13px;">Questions? Contact me here: <a href="mailto:contact@florencemaegifts.com" style="color:#7bb6ff; text-decoration:underline;">contact@florencemaegifts.com</a></div>
+      <div style="margin-top:6px; font-size:13px;">Questions? Contact me here: <a href="mailto:contact@florencemaegifts.com" style="color:#FE6666; text-decoration:underline;">contact@florencemaegifts.com</a></div>
     </div>
   </div>
 </body>
