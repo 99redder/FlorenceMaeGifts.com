@@ -99,7 +99,7 @@
     }
     textarea { min-height:120px; resize:vertical; }
     .form-actions { display:flex; justify-content:flex-end; margin-top:.9rem; }
-    .btn.delete { border-color:#ff4d4d; color:#ff4d4d; background:transparent; box-shadow:0 0 0 1px rgba(255,77,77,.15) inset; }
+    .btn.delete { border-color:#ff4d4d !important; color:#ff4d4d !important; background:transparent; box-shadow:0 0 0 1px rgba(255,77,77,.15) inset; margin-left:auto; }
 
     /* ===== Site Header ===== */
 
@@ -3303,7 +3303,7 @@
       const q = `?${params.toString()}`;
       const data = await fetchAdminJson(`${INVOICES_API_URL}${q}`);
       const list=data.invoices||data.items||[];
-      invoiceListEl.innerHTML=list.length?list.map(inv=>`<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}</div><div>${escHtml(inv.customer_name||'')}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${escHtml(inv.status||'open')}</div>${invoiceActionButtons(inv)}</div>`).join(''):'No invoices yet.';
+      invoiceListEl.innerHTML=list.length?list.map(inv=>`<div class="tax-row" data-id="${Number(inv.id||0)}"><div>${escHtml(inv.invoice_number||inv.id||'—')}</div><div>Customer: ${escHtml(inv.customer_name||'—')}</div><div class="amt">${qMoney((inv.total_cents||0)/100)}</div><div>${escHtml(inv.status||'open')}</div>${invoiceActionButtons(inv)}</div>`).join(''):'No invoices yet.';
     }
 
     async function refreshQuoteList(){
