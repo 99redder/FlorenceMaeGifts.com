@@ -2504,7 +2504,8 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   const auth = requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
-  if (!env.RESEND_API_KEY || !env.FROM_EMAIL) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
+  const fromEmailEnv = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+  if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
 
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -2531,8 +2532,8 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
   const paymentUrl = (invoice.stripe_checkout_url || '').toString().trim();
   const hasPaymentLink = !!paymentUrl && balanceDueCents > 0 && !['paid','void'].includes(String(invoice.status || '').toLowerCase());
   const payButtonHtml = hasPaymentLink ? `<div style="margin:18px 0 12px;text-align:center;"><a href="${escapeHtml(paymentUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">Pay Invoice Securely</a><div style="margin-top:8px;font-size:12px;color:#6b7280;">Secure checkout powered by Stripe</div></div>` : '';
-  const fromEmail = (env.FROM_EMAIL || '').toString().trim();
-  const replyToEmail = (env.CC_EMAIL || env.FROM_EMAIL || '').toString().trim();
+  const fromEmail = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+  const replyToEmail = (env.CC_EMAIL || env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
 
   const itemRowsHtml = items.map((item) => {
     const desc = escapeHtml(item.item_description || 'Service');
@@ -2798,7 +2799,8 @@ async function handleQuoteSend(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   const auth = requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
-  if (!env.RESEND_API_KEY || !env.FROM_EMAIL) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
+  const fromEmailEnv = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+  if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
 
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -2819,7 +2821,7 @@ async function handleQuoteSend(request, env, corsHeaders, url) {
   const subtotalCents = Number(quote.subtotal_cents || 0);
   const totalCents = Number(quote.total_cents || 0);
   const notes = (quote.notes || '').toString().trim();
-  const fromEmail = (env.FROM_EMAIL || '').toString().trim();
+  const fromEmail = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
 
   const baseUrl = new URL(request.url).origin;
   const acceptUrl = `${baseUrl}/api/quote/accept?token=${encodeURIComponent(quote.accept_token)}`;
@@ -3038,12 +3040,14 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
   await env.DB.prepare(`UPDATE quotes SET status = 'accepted', accepted_at = datetime('now'), converted_invoice_id = ?1, updated_at = datetime('now') WHERE id = ?2`).bind(invoiceId, quote.id).run();
 
   // Send notification email to Chris
-  if (env.RESEND_API_KEY && env.TO_EMAIL) {
+  const notifyTo = (env.TO_EMAIL || env.CONTACT_TO_EMAIL || '').toString().trim();
+  const notifyFrom = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+  if (env.RESEND_API_KEY && notifyTo && notifyFrom) {
     const notifyHtml = `<div style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#059669;">Quote Accepted!</h2><p><strong>Quote:</strong> ${escapeHtml(quote.quote_number || `Q-${quote.id}`)}</p><p><strong>Customer:</strong> ${escapeHtml(quote.customer_name)} (${escapeHtml(quote.customer_email)})</p><p><strong>Total:</strong> ${formatUsd(total)}</p><p><strong>Invoice Created:</strong> ${invoiceNumber} (status: draft - not sent to customer yet)</p><p>Log in to the admin panel to review and send the invoice.</p></div>`;
 
     const notifyPayload = {
-      from: env.FROM_EMAIL,
-      to: [env.TO_EMAIL],
+      from: notifyFrom,
+      to: [notifyTo],
       subject: `Quote ${quote.quote_number || `Q-${quote.id}`} Accepted by ${quote.customer_name}`,
       html: notifyHtml,
       text: `Quote Accepted!\n\nQuote: ${quote.quote_number || `Q-${quote.id}`}\nCustomer: ${quote.customer_name} (${quote.customer_email})\nTotal: ${formatUsd(total)}\nInvoice Created: ${invoiceNumber}\n\nLog in to the admin panel to review and send the invoice.`
