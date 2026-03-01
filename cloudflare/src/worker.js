@@ -1,7 +1,8 @@
 // ===== ROUTE HANDLER INDEX =====
-// POST /api/contact             → handleContact()        — Form submissions (domain offers, questions) + Resend email
-// POST /api/checkout-session    → handleCheckoutSession() — Create Stripe checkout with conflict + past-time checks
-// POST /api/zombie-bag-checkout → handleZombieBagCheckout() — Create Stripe checkout for Zombie Bag product sales
+// POST /api/contact                 → handleContact()        — Form submissions (domain offers, questions) + Resend email
+// POST /api/checkout-session        → handleCheckoutSession() — Create Stripe checkout with conflict + past-time checks
+// POST /api/create-checkout-session → handleStoreCheckoutSession() — Create Stripe checkout session for shop items (priceId)
+// POST /api/zombie-bag-checkout     → handleZombieBagCheckout() — Create Stripe checkout for Zombie Bag product sales
 // POST /api/stripe-webhook      → handleStripeWebhook()   — Stripe payment confirmation, records booking in D1, auto-inserts tax income
 // GET  /api/availability        → handleAvailability()    — Public unavailable slots + blocked dates
 // GET  /api/bookings            → handleBookings()        — Admin: read bookings + blocked slots + blocked days
@@ -64,7 +65,7 @@ export default {
       const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert'].includes(url.pathname) && request.method === 'POST';
       const isQuotePublic = ['/api/quote/accept','/api/quote/deny'].includes(url.pathname) && request.method === 'GET';
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
-      const isPostRoute = ['/api/contact', '/api/checkout-session', '/api/zombie-bag-checkout'].includes(url.pathname) && request.method === 'POST';
+      const isPostRoute = ['/api/contact', '/api/checkout-session', '/api/create-checkout-session', '/api/zombie-bag-checkout'].includes(url.pathname) && request.method === 'POST';
       if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic) {
         return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
       }
@@ -81,6 +82,10 @@ export default {
 
     if (url.pathname === '/api/checkout-session') {
       return handleCheckoutSession(request, env, corsHeaders, originAllowed, allowedOrigins);
+    }
+
+    if (url.pathname === '/api/create-checkout-session') {
+      return handleStoreCheckoutSession(request, env, corsHeaders, originAllowed, allowedOrigins);
     }
 
     if (url.pathname === '/api/zombie-bag-checkout') {
@@ -583,6 +588,64 @@ async function handleCheckoutSession(request, env, corsHeaders, originAllowed, a
   }
 
   return json({ ok: true, checkoutUrl: stripeData.url, id: stripeData.id }, 200, corsHeaders);
+}
+
+/**
+ * POST /api/create-checkout-session — Create Stripe checkout for FMG shop items by Stripe price id
+ * @param {Request} request - JSON body: { selectedItemName, priceId }
+ * @param {Object} env - Worker env (STRIPE_SECRET_KEY)
+ * @returns {Response} {ok: true, url, id} or error
+ */
+async function handleStoreCheckoutSession(request, env, corsHeaders, originAllowed, allowedOrigins) {
+  if (!env.STRIPE_SECRET_KEY) {
+    return json({ ok: false, error: 'Stripe not configured' }, 500, corsHeaders);
+  }
+
+  let data = {};
+  try {
+    data = await request.json();
+  } catch {
+    return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders);
+  }
+
+  const priceId = (data.priceId || '').toString().trim();
+  const selectedItemName = (data.selectedItemName || 'Florence Mae Gifts item').toString().trim();
+
+  if (!priceId || !priceId.startsWith('price_')) {
+    return json({ ok: false, error: 'Missing or invalid Stripe price id.' }, 400, corsHeaders);
+  }
+
+  const siteOrigin = originAllowed ? (request.headers.get('Origin') || '') : (allowedOrigins[0] || 'https://www.florencemaegifts.com');
+  const successUrl = `${siteOrigin}/index.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${siteOrigin}/index.html?checkout=cancel`;
+
+  const body = new URLSearchParams({
+    mode: 'payment',
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    billing_address_collection: 'required',
+    'line_items[0][price]': priceId,
+    'line_items[0][quantity]': '1',
+    'metadata[item_name]': selectedItemName,
+    'metadata[price_id]': priceId,
+    'metadata[checkout_type]': 'fmg_shop_item'
+  });
+
+  const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: body.toString()
+  });
+
+  const stripeData = await stripeRes.json().catch(() => ({}));
+  if (!stripeRes.ok || !stripeData?.url || !stripeData?.id) {
+    return json({ ok: false, error: 'Stripe session failed', detail: stripeData }, 502, corsHeaders);
+  }
+
+  return json({ ok: true, url: stripeData.url, id: stripeData.id }, 200, corsHeaders);
 }
 
 /**
