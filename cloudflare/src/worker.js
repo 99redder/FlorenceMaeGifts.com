@@ -616,9 +616,10 @@ async function handleStoreCheckoutSession(request, env, corsHeaders, originAllow
   }
 
   const requestOrigin = (request.headers.get('Origin') || '').trim();
+  const configuredOrigin = allowedOrigins.find((o) => o && o !== '*') || 'https://www.florencemaegifts.com';
   const siteOrigin = (originAllowed && requestOrigin)
     ? requestOrigin
-    : (allowedOrigins[0] || 'https://www.florencemaegifts.com');
+    : configuredOrigin;
   const successUrl = `${siteOrigin}/index.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${siteOrigin}/index.html?checkout=cancel`;
 
