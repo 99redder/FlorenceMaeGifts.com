@@ -615,7 +615,10 @@ async function handleStoreCheckoutSession(request, env, corsHeaders, originAllow
     return json({ ok: false, error: 'Missing or invalid Stripe price id.' }, 400, corsHeaders);
   }
 
-  const siteOrigin = originAllowed ? (request.headers.get('Origin') || '') : (allowedOrigins[0] || 'https://www.florencemaegifts.com');
+  const requestOrigin = (request.headers.get('Origin') || '').trim();
+  const siteOrigin = (originAllowed && requestOrigin)
+    ? requestOrigin
+    : (allowedOrigins[0] || 'https://www.florencemaegifts.com');
   const successUrl = `${siteOrigin}/index.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${siteOrigin}/index.html?checkout=cancel`;
 
