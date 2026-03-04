@@ -628,6 +628,7 @@ async function handleStoreCheckoutSession(request, env, corsHeaders, originAllow
     success_url: successUrl,
     cancel_url: cancelUrl,
     billing_address_collection: 'required',
+    'shipping_address_collection[allowed_countries][0]': 'US',
     'automatic_tax[enabled]': 'true',
     'line_items[0][price]': priceId,
     'line_items[0][quantity]': '1',
