@@ -3560,8 +3560,17 @@ async function generateAskKAnswer(env, question, context) {
     throw new Error(msg);
   }
   const text = data?.choices?.[0]?.message?.content;
-  if (typeof text === 'string' && text.trim()) return text.trim();
+  if (typeof text === 'string' && text.trim()) {
+    const cleaned = stripThinkBlocks(text).trim();
+    if (cleaned) return cleaned;
+  }
   return fallbackAskKAnswer(question, context);
+}
+
+function stripThinkBlocks(text) {
+  return String(text || '')
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/\n{3,}/g, '\n\n');
 }
 
 function normalizeAskKChatCompletionsUrl(rawUrl) {
