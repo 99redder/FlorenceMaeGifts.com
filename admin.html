@@ -3586,6 +3586,27 @@
         .map((card) => card.querySelector('h3')?.textContent?.trim())
         .filter(Boolean)
         .slice(0, 12);
+      const visibleInputs = Array.from(document.querySelectorAll('#admin-controls input, #admin-controls select, #admin-controls textarea'))
+        .filter((el) => el.offsetParent !== null)
+        .map((el) => {
+          const label = el.id ? document.querySelector(`label[for="${el.id}"]`) : null;
+          return (label?.textContent || el.getAttribute('placeholder') || el.name || el.id || el.tagName || '').replace(/\s+/g, ' ').trim();
+        })
+        .filter(Boolean)
+        .slice(0, 30);
+      const activeModalTitles = Array.from(document.querySelectorAll('[role="dialog"], .modal, .success-modal, .error-modal'))
+        .filter((el) => el.offsetParent !== null)
+        .map((el) => el.querySelector('h2, h3, .admin-calendar-title, .modal-title')?.textContent?.trim())
+        .filter(Boolean)
+        .slice(0, 10);
+      const suggestedNextSteps = [];
+      if (activeTab === 'tax') suggestedNextSteps.push('Add Expense', 'Add Sale', 'Add Income', 'Export CSV');
+      if (activeTab === 'accounts') suggestedNextSteps.push('Create Invoice', 'Create Quote', 'Review Journal Entries');
+      if (activeTab === 'quotes') suggestedNextSteps.push('Create Quote', 'Send Quote', 'Convert Quote');
+      if (activeTab === 'invoices') suggestedNextSteps.push('Create Invoice', 'Send Invoice', 'Generate Payment Link');
+      if (activeTab === 'reconciliation') suggestedNextSteps.push('Compare records', 'Fix mismatches');
+      if (activeTab === 'year-close') suggestedNextSteps.push('Review yearly records', 'Open close wizard');
+      if (activeTab === 'audit-package') suggestedNextSteps.push('Choose year', 'Generate ZIP package');
       return {
         pageTitle: document.title || 'Admin',
         route: window.location.pathname || '/admin.html',
@@ -3594,7 +3615,10 @@
         activeTitle,
         openCardTitles,
         visibleLabels,
-        visibleButtons
+        visibleButtons,
+        visibleInputs,
+        activeModalTitles,
+        suggestedNextSteps: suggestedNextSteps.slice(0, 6)
       };
     }
 
