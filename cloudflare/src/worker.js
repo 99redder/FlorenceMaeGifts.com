@@ -3522,6 +3522,7 @@ async function handleAdminAskKEscalate(request, env, corsHeaders, url) {
   const question = String(body.question || '').trim();
   const answer = String(body.answer || '').trim();
   const context = body.context && typeof body.context === 'object' ? body.context : {};
+  const contact = body.contact && typeof body.contact === 'object' ? body.contact : {};
   if (!question) return json({ ok: false, error: 'Question is required' }, 400, corsHeaders);
 
   const clip = (value, max = 280) => {
@@ -3547,6 +3548,11 @@ async function handleAdminAskKEscalate(request, env, corsHeaders, url) {
     Array.isArray(context.suggestedNextSteps) && context.suggestedNextSteps.length ? `**Suggested next steps:** ${clipList(context.suggestedNextSteps, 40, 180)}` : null,
     Array.isArray(context.visibleButtons) && context.visibleButtons.length ? `**Visible buttons:** ${clipList(context.visibleButtons, 40, 220)}` : null,
     Array.isArray(context.visibleLabels) && context.visibleLabels.length ? `**Visible fields:** ${clipList(context.visibleLabels, 50, 260)}` : null,
+    contact.name ? `**Name:** ${clip(contact.name, 120)}` : null,
+    contact.email ? `**Email:** ${clip(contact.email, 160)}` : null,
+    contact.phone ? `**Phone:** ${clip(contact.phone, 80)}` : null,
+    contact.bestContactMethod ? `**Best contact method:** ${clip(contact.bestContactMethod, 80)}` : null,
+    contact.notes ? `**Extra notes:** ${clip(contact.notes, 350)}` : null,
     '<@1389557053118222497> user requested human help from Ask K.'
   ].filter(Boolean);
 
@@ -3579,6 +3585,7 @@ async function handleAdminAskK(request, env, corsHeaders, url) {
 
   const question = String(body.question || '').trim();
   const context = body.context && typeof body.context === 'object' ? body.context : {};
+  const contact = body.contact && typeof body.contact === 'object' ? body.contact : {};
   if (!question) return json({ ok: false, error: 'Question is required' }, 400, corsHeaders);
 
   try {

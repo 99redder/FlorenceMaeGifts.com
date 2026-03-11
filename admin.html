@@ -701,6 +701,17 @@
     <div style="padding:0 .7rem .7rem;">
       <button type="button" class="btn" id="askk-escalate-btn" style="width:100%;">Still need help? Page Eastern Shore AI staff</button>
     </div>
+    <div id="askk-contact-form" style="display:none; padding:0 .7rem .8rem; border-top:1px solid var(--line);">
+      <div style="font-size:.88rem; color:var(--muted); margin:0 0 .55rem;">Leave contact info so Eastern Shore AI staff can follow up.</div>
+      <div style="display:flex; flex-direction:column; gap:.45rem;">
+        <input id="askk-contact-name" type="text" placeholder="Your name" />
+        <input id="askk-contact-email" type="email" placeholder="Email" />
+        <input id="askk-contact-phone" type="text" placeholder="Phone (optional)" />
+        <input id="askk-contact-method" type="text" placeholder="Best way to reach you (email, phone, text)" />
+        <textarea id="askk-contact-notes" placeholder="Anything else you want staff to know?" rows="3" style="resize:vertical;"></textarea>
+        <button type="button" class="btn btn-primary" id="askk-contact-submit-btn">Send to staff</button>
+      </div>
+    </div>
   </aside>
   </main>
 
@@ -1210,6 +1221,13 @@
     const askkInputEl = document.getElementById('askk-input');
     const askkSendBtn = document.getElementById('askk-send-btn');
     const askkEscalateBtn = document.getElementById('askk-escalate-btn');
+    const askkContactForm = document.getElementById('askk-contact-form');
+    const askkContactName = document.getElementById('askk-contact-name');
+    const askkContactEmail = document.getElementById('askk-contact-email');
+    const askkContactPhone = document.getElementById('askk-contact-phone');
+    const askkContactMethod = document.getElementById('askk-contact-method');
+    const askkContactNotes = document.getElementById('askk-contact-notes');
+    const askkContactSubmitBtn = document.getElementById('askk-contact-submit-btn');
 
     const adminSectionTabsEl = document.getElementById('admin-section-tabs');
     const adminSectionTabBtns = document.querySelectorAll('[data-admin-tab]');
@@ -3668,6 +3686,10 @@
     }
 
 
+    function toggleAskKContactForm(show) {
+      if (askkContactForm) askkContactForm.style.display = show ? '' : 'none';
+    }
+
     async function escalateAskK() {
       if (!adminPassword) {
         addAskKMessage('error', 'Unlock the admin panel first.');
@@ -3677,7 +3699,29 @@
         addAskKMessage('error', 'Ask a question first so I know what to escalate.');
         return;
       }
-      askkEscalateBtn && (askkEscalateBtn.disabled = true);
+      toggleAskKContactForm(true);
+      addAskKMessage('assistant', 'Fill out the short contact form below and I will send your help request to Eastern Shore AI staff.');
+    }
+
+    async function submitAskKContactRequest() {
+      if (!adminPassword) {
+        addAskKMessage('error', 'Unlock the admin panel first.');
+        return;
+      }
+      if (!askkLastQuestion) {
+        addAskKMessage('error', 'Ask a question first so I know what to escalate.');
+        return;
+      }
+      const name = askkContactName?.value?.trim() || '';
+      const email = askkContactEmail?.value?.trim() || '';
+      const phone = askkContactPhone?.value?.trim() || '';
+      const bestContactMethod = askkContactMethod?.value?.trim() || '';
+      const notes = askkContactNotes?.value?.trim() || '';
+      if (!name || !email) {
+        addAskKMessage('error', 'Please enter at least a name and email so staff can reply.');
+        return;
+      }
+      askkContactSubmitBtn && (askkContactSubmitBtn.disabled = true);
       try {
         const res = await fetch(ASKK_API_URL.replace('/ask-k', '/ask-k/escalate'), {
           method: 'POST',
@@ -3689,16 +3733,18 @@
             question: askkLastQuestion,
             answer: askkLastAnswer,
             context: getAskKContext(),
-            requestedHelp: true
+            requestedHelp: true,
+            contact: { name, email, phone, bestContactMethod, notes }
           })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'Could not page staff');
-        addAskKMessage('assistant', 'I sent a request to Eastern Shore AI staff for human help.');
+        addAskKMessage('assistant', 'Your request was sent to Eastern Shore AI staff. They now have your contact info for follow-up.');
+        toggleAskKContactForm(false);
       } catch (err) {
         addAskKMessage('error', err.message || String(err));
       } finally {
-        askkEscalateBtn && (askkEscalateBtn.disabled = false);
+        askkContactSubmitBtn && (askkContactSubmitBtn.disabled = false);
       }
     }
 
@@ -3745,6 +3791,7 @@
     askkOverlay?.addEventListener('click', () => setAskKOpen(false));
     askkSendBtn?.addEventListener('click', sendAskK);
     askkEscalateBtn?.addEventListener('click', escalateAskK);
+    askkContactSubmitBtn?.addEventListener('click', submitAskKContactRequest);
     askkInputEl?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
