@@ -698,6 +698,9 @@
       <input id="askk-input" type="text" placeholder="Ask about this page…" autocomplete="off" />
       <button type="button" class="btn btn-primary" id="askk-send-btn">Send</button>
     </div>
+    <div style="padding:0 .7rem .7rem;">
+      <button type="button" class="btn" id="askk-escalate-btn" style="width:100%;">Still need help? Page Eastern Shore AI staff</button>
+    </div>
   </aside>
   </main>
 
@@ -1206,6 +1209,7 @@
     const askkMessagesEl = document.getElementById('askk-messages');
     const askkInputEl = document.getElementById('askk-input');
     const askkSendBtn = document.getElementById('askk-send-btn');
+    const askkEscalateBtn = document.getElementById('askk-escalate-btn');
 
     const adminSectionTabsEl = document.getElementById('admin-section-tabs');
     const adminSectionTabBtns = document.querySelectorAll('[data-admin-tab]');
@@ -3622,6 +3626,9 @@
       };
     }
 
+    let askkLastQuestion = '';
+    let askkLastAnswer = '';
+
     async function sendAskK() {
       const question = askkInputEl?.value?.trim();
       if (!question) return;
@@ -3629,6 +3636,7 @@
         addAskKMessage('error', 'Unlock the admin panel first so Ask K can use the admin API.');
         return;
       }
+      askkLastQuestion = question;
       addAskKMessage('user', question);
       askkInputEl.value = '';
       const loadingEl = addAskKMessage('assistant', 'Thinking…', 'loading');
@@ -3648,13 +3656,49 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'Ask K request failed');
         if (loadingEl) loadingEl.remove();
-        addAskKMessage('assistant', data.answer || data.message || 'No answer returned.');
+        askkLastAnswer = data.answer || data.message || 'No answer returned.';
+        addAskKMessage('assistant', askkLastAnswer);
       } catch (err) {
         if (loadingEl) loadingEl.remove();
         addAskKMessage('error', err.message || String(err));
       } finally {
         askkSendBtn && (askkSendBtn.disabled = false);
         askkMessagesEl && (askkMessagesEl.scrollTop = askkMessagesEl.scrollHeight);
+      }
+    }
+
+
+    async function escalateAskK() {
+      if (!adminPassword) {
+        addAskKMessage('error', 'Unlock the admin panel first.');
+        return;
+      }
+      if (!askkLastQuestion) {
+        addAskKMessage('error', 'Ask a question first so I know what to escalate.');
+        return;
+      }
+      askkEscalateBtn && (askkEscalateBtn.disabled = true);
+      try {
+        const res = await fetch(ASKK_API_URL.replace('/ask-k', '/ask-k/escalate'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Password': adminPassword
+          },
+          body: JSON.stringify({
+            question: askkLastQuestion,
+            answer: askkLastAnswer,
+            context: getAskKContext(),
+            requestedHelp: true
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Could not page staff');
+        addAskKMessage('assistant', 'I sent a request to Eastern Shore AI staff for human help.');
+      } catch (err) {
+        addAskKMessage('error', err.message || String(err));
+      } finally {
+        askkEscalateBtn && (askkEscalateBtn.disabled = false);
       }
     }
 
@@ -3700,6 +3744,7 @@
     askkCloseBtn?.addEventListener('click', () => setAskKOpen(false));
     askkOverlay?.addEventListener('click', () => setAskKOpen(false));
     askkSendBtn?.addEventListener('click', sendAskK);
+    askkEscalateBtn?.addEventListener('click', escalateAskK);
     askkInputEl?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();

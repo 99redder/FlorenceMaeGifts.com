@@ -9,6 +9,7 @@
 // POST /api/admin/block-slot    → handleAdminBlockSlot()  — Admin: block/unblock a specific 2-hour slot
 // POST /api/admin/block-day     → handleAdminBlockDay()   — Admin: block/unblock an entire day
 // POST /api/admin/ask-k         → handleAdminAskK()      — Admin: explain current admin page/context
+// POST /api/admin/ask-k/escalate → handleAdminAskKEscalate() — Admin: notify Eastern Shore AI staff
 // GET  /api/tax/transactions    → handleTaxTransactions() — Admin: tax entries by year/type
 // POST /api/tax/expense         → handleTaxExpense()      — Admin: add expense entry
 // POST /api/tax/income          → handleTaxIncome()       — Admin: add income entry
@@ -59,7 +60,7 @@ export default {
     if (url.pathname !== '/api/stripe-webhook') {
       const isBookingsRead = url.pathname === '/api/bookings' && request.method === 'GET';
       const isAvailabilityRead = url.pathname === '/api/availability' && request.method === 'GET';
-      const isAdminBlockWrite = ['/api/admin/block-slot','/api/admin/block-day','/api/admin/bookings/cleanup-pending','/api/admin/ask-k'].includes(url.pathname) && request.method === 'POST';
+      const isAdminBlockWrite = ['/api/admin/block-slot','/api/admin/block-day','/api/admin/bookings/cleanup-pending','/api/admin/ask-k','/api/admin/ask-k/escalate'].includes(url.pathname) && request.method === 'POST';
       const isTaxRead = ['/api/tax/transactions','/api/tax/export.csv','/api/tax/receipt'].includes(url.pathname) && request.method === 'GET';
       const isTaxWrite = ['/api/tax/expense','/api/tax/income','/api/tax/owner-transfer','/api/tax/expense/update','/api/tax/income/update','/api/tax/expense/delete','/api/tax/income/delete','/api/tax/receipt/upload'].includes(url.pathname) && request.method === 'POST';
       const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail'].includes(url.pathname) && request.method === 'GET';
@@ -119,6 +120,10 @@ export default {
 
     if (url.pathname === '/api/admin/ask-k') {
       return handleAdminAskK(request, env, corsHeaders, url);
+    }
+
+    if (url.pathname === '/api/admin/ask-k/escalate') {
+      return handleAdminAskKEscalate(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/tax/transactions') {
@@ -3497,6 +3502,56 @@ async function verifyStripeSignature(payload, stripeSignature, webhookSecret) {
 }
 
 /** @param {Object} payload @param {number} [status=200] @param {Object} [headers] @returns {Response} */
+
+
+async function handleAdminAskKEscalate(request, env, corsHeaders, url) {
+  const auth = requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+
+  if (!env.ASKK_STAFF_WEBHOOK_URL) {
+    return json({ ok: false, error: 'Staff webhook is not configured' }, 500, corsHeaders);
+  }
+
+  let body = {};
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const question = String(body.question || '').trim();
+  const answer = String(body.answer || '').trim();
+  const context = body.context && typeof body.context === 'object' ? body.context : {};
+  if (!question) return json({ ok: false, error: 'Question is required' }, 400, corsHeaders);
+
+  const lines = [
+    '**Ask K escalation requested**',
+    '',
+    `**Question:** ${question}`,
+    answer ? `**Ask K answer:** ${answer}` : null,
+    context.activeTitle ? `**Current section:** ${context.activeTitle}` : null,
+    context.activeTab ? `**Active tab key:** ${context.activeTab}` : null,
+    context.route ? `**Route:** ${context.route}` : null,
+    Array.isArray(context.suggestedNextSteps) && context.suggestedNextSteps.length ? `**Suggested next steps on page:** ${context.suggestedNextSteps.join(', ')}` : null,
+    Array.isArray(context.visibleButtons) && context.visibleButtons.length ? `**Visible buttons:** ${context.visibleButtons.slice(0, 12).join(', ')}` : null,
+    Array.isArray(context.visibleLabels) && context.visibleLabels.length ? `**Visible fields:** ${context.visibleLabels.slice(0, 12).join(', ')}` : null,
+    '',
+    '<@1389557053118222497> user requested human help from Ask K.'
+  ].filter(Boolean);
+
+  const resp = await fetch(env.ASKK_STAFF_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: lines.join('\n') })
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => '');
+    return json({ ok: false, error: `Webhook notify failed (${resp.status}): ${txt || 'unknown error'}` }, 500, corsHeaders);
+  }
+
+  return json({ ok: true }, 200, corsHeaders);
+}
 
 async function handleAdminAskK(request, env, corsHeaders, url) {
   const auth = requireAdmin(request, env, corsHeaders, url);
