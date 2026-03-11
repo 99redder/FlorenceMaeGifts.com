@@ -3523,7 +3523,8 @@ async function handleAdminAskK(request, env, corsHeaders, url) {
 
 async function generateAskKAnswer(env, question, context) {
   const apiKey = (env.ASKK_API_KEY || env.OPENAI_API_KEY || '').trim();
-  const baseUrl = (env.ASKK_BASE_URL || 'https://api.openai.com/v1/chat/completions').trim();
+  const configuredBaseUrl = (env.ASKK_BASE_URL || 'https://api.openai.com/v1').trim();
+  const baseUrl = normalizeAskKChatCompletionsUrl(configuredBaseUrl);
   const model = (env.ASKK_MODEL || 'gpt-4o-mini').trim();
   if (!apiKey) return fallbackAskKAnswer(question, context);
 
@@ -3561,6 +3562,15 @@ async function generateAskKAnswer(env, question, context) {
   const text = data?.choices?.[0]?.message?.content;
   if (typeof text === 'string' && text.trim()) return text.trim();
   return fallbackAskKAnswer(question, context);
+}
+
+function normalizeAskKChatCompletionsUrl(rawUrl) {
+  const trimmed = String(rawUrl || '').trim();
+  if (!trimmed) return 'https://api.openai.com/v1/chat/completions';
+  if (trimmed.endsWith('/chat/completions')) return trimmed;
+  if (trimmed.endsWith('/v1')) return `${trimmed}/chat/completions`;
+  if (trimmed.endsWith('/v1/')) return `${trimmed}chat/completions`;
+  return `${trimmed.replace(/\/$/, '')}/chat/completions`;
 }
 
 function fallbackAskKAnswer(question, context) {
