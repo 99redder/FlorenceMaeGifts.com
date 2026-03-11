@@ -3691,6 +3691,104 @@ Step by step, that usually means:
 In simple terms: reconciliation is making sure your bookkeeping is accurate.`;
   }
 
+  if ((q.includes('add') || q.includes('record')) && q.includes('income')) {
+    return `${parts.join(' ')}
+
+Here is the step-by-step process to add income:
+1. Open the **Tax Ledger** tab.
+2. Open the **Add Income** form.
+3. Enter the **Date** the money was received.
+4. Fill in **Source** with where the money came from, like Stripe, client payment, or another business source.
+5. Choose the **Category** that best matches the income type.
+6. Enter the **Amount (USD)**.
+7. If there is a Stripe session ID, put it in the Stripe session field. If not, you can usually leave it blank.
+8. Add notes if you need extra context.
+9. If the money was owner-funded instead of true revenue, use the owner-funded option when appropriate.
+10. Click **Add Income** to save it.
+
+In simple terms: this form is for recording business money coming in.`;
+  }
+
+  if ((q.includes('add') || q.includes('record') || q.includes('import')) && q.includes('sale')) {
+    return `${parts.join(' ')}
+
+Here is the step-by-step process to record a sale:
+1. Open the **Tax Ledger** tab.
+2. Open the **Add Sale** form.
+3. Enter the **Date** of the sale.
+4. Fill in **Item Name** with what was sold.
+5. Choose the **Channel**, like Etsy, Website, In Person, or Other.
+6. Enter the **Sale Amount (USD)**.
+7. Enter any fees shown, like processing fee, transaction fee, listing fee, shipping cost, marketing fee, or other fee.
+8. Add notes if there is anything important to remember.
+9. Click **Add Sale** to save it.
+
+If you already have an Etsy CSV, you may be able to use the import sales area instead of entering each sale manually.
+
+In simple terms: a sale record tracks money earned and the costs tied to that sale.`;
+  }
+
+  if ((q.includes('send') && q.includes('invoice')) || q.includes('invoice email') || q.includes('payment link')) {
+    return `${parts.join(' ')}
+
+Here is the step-by-step process to send an invoice:
+1. Open the **Invoices** area.
+2. Find the invoice you want to send.
+3. Review it first so the customer details, line items, and total are correct.
+4. Use the invoice action to **send** it.
+5. If needed, use the invoice action to generate or copy a **payment link**.
+6. Confirm the invoice status after sending.
+
+In simple terms: sending an invoice delivers the bill to the customer so they can review it and pay.`;
+  }
+
+  if ((q.includes('convert') && q.includes('quote')) || (q.includes('quote') && q.includes('invoice'))) {
+    return `${parts.join(' ')}
+
+Here is the step-by-step process to convert a quote into an invoice:
+1. Open the **Quotes** area.
+2. Find the quote that was approved by the customer.
+3. Review the quote one more time to make sure the details are correct.
+4. Use the **Convert** action on that quote.
+5. The system should create a new invoice from the quote.
+6. Open the Invoices area to review the new invoice.
+7. Send the invoice when you are ready.
+
+In simple terms: converting a quote turns an estimate into a real bill.`;
+  }
+
+  if ((q.includes('year-end') || q.includes('year end') || q.includes('close the books') || q.includes('year-end close'))) {
+    return `${parts.join(' ')}
+
+Here is the step-by-step process for **Year-End Close**:
+1. Go to the **Year-End Close** section.
+2. Make sure your records are up to date before doing anything.
+3. Review your sales, expenses, income, invoices, quotes, and reconciliation work for the year.
+4. Open the close wizard.
+5. Follow the prompts carefully to create the closing entries.
+6. Confirm the year you are closing so you do not close the wrong period.
+7. Review the results after the close is created.
+
+Important: year-end close is usually something you do after the year is finalized, not during normal day-to-day bookkeeping.
+
+In simple terms: year-end close wraps up one accounting year so you can start the next one cleanly.`;
+  }
+
+  if (q.includes('audit package') || (q.includes('audit') && q.includes('zip'))) {
+    return `${parts.join(' ')}
+
+Here is the step-by-step process to build an audit package:
+1. Open the **Audit Package** section.
+2. Choose the year you want to package.
+3. Select the records or files you want included.
+4. Review the options for statements, journal data, CSV exports, receipts, and other supporting records.
+5. Start the package generation.
+6. Wait for the ZIP file to be prepared.
+7. Download the ZIP and review it before sharing it with anyone.
+
+In simple terms: an audit package is a bundled export of business records for review, backup, or sharing with an accountant.`;
+  }
+
   if (q.includes('invoice')) return `${parts.join(' ')} Use the Invoices area to create, edit, send, or mark invoices paid. If you need help, ask something like: "How do I create an invoice step by step?"`;
   if (q.includes('quote')) return `${parts.join(' ')} Use the Quotes area to draft quotes, send them, or convert them into invoices. If you want, ask for a step-by-step walkthrough.`;
   if (q.includes('tax') || q.includes('expense') || q.includes('income') || q.includes('ledger')) return `${parts.join(' ')} The Tax Ledger area is for expenses, sales, owner transfers, and income records. It is where you track money coming in and money going out for the business.`;
