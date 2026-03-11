@@ -3524,25 +3524,38 @@ async function handleAdminAskKEscalate(request, env, corsHeaders, url) {
   const context = body.context && typeof body.context === 'object' ? body.context : {};
   if (!question) return json({ ok: false, error: 'Question is required' }, 400, corsHeaders);
 
+  const clip = (value, max = 280) => {
+    const s = String(value || '').replace(/\s+/g, ' ').trim();
+    return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+  };
+  const clipList = (arr, itemMax = 60, totalMax = 220) => {
+    const joined = (Array.isArray(arr) ? arr : [])
+      .slice(0, 8)
+      .map((v) => clip(v, itemMax))
+      .filter(Boolean)
+      .join(', ');
+    return clip(joined, totalMax);
+  };
+
   const lines = [
     '**Ask K escalation requested**',
-    '',
-    `**Question:** ${question}`,
-    answer ? `**Ask K answer:** ${answer}` : null,
-    context.activeTitle ? `**Current section:** ${context.activeTitle}` : null,
-    context.activeTab ? `**Active tab key:** ${context.activeTab}` : null,
-    context.route ? `**Route:** ${context.route}` : null,
-    Array.isArray(context.suggestedNextSteps) && context.suggestedNextSteps.length ? `**Suggested next steps on page:** ${context.suggestedNextSteps.join(', ')}` : null,
-    Array.isArray(context.visibleButtons) && context.visibleButtons.length ? `**Visible buttons:** ${context.visibleButtons.slice(0, 12).join(', ')}` : null,
-    Array.isArray(context.visibleLabels) && context.visibleLabels.length ? `**Visible fields:** ${context.visibleLabels.slice(0, 12).join(', ')}` : null,
-    '',
+    `**Question:** ${clip(question, 500)}`,
+    answer ? `**Ask K answer:** ${clip(answer, 700)}` : null,
+    context.activeTitle ? `**Current section:** ${clip(context.activeTitle, 120)}` : null,
+    context.activeTab ? `**Active tab key:** ${clip(context.activeTab, 80)}` : null,
+    context.route ? `**Route:** ${clip(context.route, 160)}` : null,
+    Array.isArray(context.suggestedNextSteps) && context.suggestedNextSteps.length ? `**Suggested next steps:** ${clipList(context.suggestedNextSteps, 40, 180)}` : null,
+    Array.isArray(context.visibleButtons) && context.visibleButtons.length ? `**Visible buttons:** ${clipList(context.visibleButtons, 40, 220)}` : null,
+    Array.isArray(context.visibleLabels) && context.visibleLabels.length ? `**Visible fields:** ${clipList(context.visibleLabels, 50, 260)}` : null,
     '<@1389557053118222497> user requested human help from Ask K.'
   ].filter(Boolean);
+
+  const content = clip(lines.join('\n'), 1900);
 
   const resp = await fetch(env.ASKK_STAFF_WEBHOOK_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: lines.join('\n') })
+    body: JSON.stringify({ content })
   });
 
   if (!resp.ok) {
