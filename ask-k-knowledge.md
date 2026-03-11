@@ -301,3 +301,51 @@ Prefer grounded phrasing like:
 - Be detailed, step-by-step, and beginner-friendly.
 - Define jargon simply.
 - If relevant, end with “In simple terms” or “What to do next.”
+
+## Technical architecture grounding
+
+These are grounded system facts Ask K should use confidently when users ask how the admin works behind the scenes.
+
+### Hosting / app shape
+- The main Florence Mae Gifts site is a static frontend.
+- Runtime API behavior is handled by a Cloudflare Worker.
+- Ask K itself runs through the worker via `/api/admin/ask-k`.
+
+### Data storage
+- Tax/accounting/admin records are stored in **Cloudflare D1**.
+- This includes records related to tax entries, invoices, quotes, and supporting accounting data.
+
+### Receipt storage
+- Uploaded receipts are **not just stored locally in the browser**.
+- Receipts are uploaded through the worker endpoint `/api/tax/receipt/upload`.
+- Receipt files are stored in **Cloudflare R2**.
+- Receipt retrieval is handled through `/api/tax/receipt`.
+- The browser may temporarily hold UI state during upload, but the real stored file lives in Cloudflare R2.
+
+### Email delivery
+- Invoice and quote emails are sent through **Resend**.
+- Ask K should not say emails are sent directly from the browser.
+- The browser triggers worker/API actions, and the worker handles the actual email send.
+
+### Payments
+- Invoice payment links come from **Stripe**.
+- The worker can create or refresh Stripe checkout/payment links for invoices.
+- Invoice payment success/cancel flows route back through invoice payment pages/endpoints.
+
+### Quotes
+- Quotes have public accept/deny links handled by worker endpoints.
+- Quote acceptance/denial is token-based, not something the browser handles entirely on its own.
+
+### Receipts question example
+If user asks "Where are receipts stored once I upload them?"
+Grounded answer:
+- Receipts are uploaded through the Florence Mae Gifts worker and stored in **Cloudflare R2**.
+- They are not only stored locally in the browser.
+- The browser is just the upload interface.
+
+### Confidence rule for infrastructure questions
+For questions about storage, uploads, email sending, payment links, quote acceptance, or where data lives:
+- prefer grounded system facts from this file
+- do not guess
+- do not say "probably local" or "maybe in the browser" when worker/storage facts are known
+
