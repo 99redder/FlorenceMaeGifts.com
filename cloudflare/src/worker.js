@@ -8,6 +8,7 @@
 // GET  /api/bookings            → handleBookings()        — Admin: read bookings + blocked slots + blocked days
 // POST /api/admin/block-slot    → handleAdminBlockSlot()  — Admin: block/unblock a specific 2-hour slot
 // POST /api/admin/block-day     → handleAdminBlockDay()   — Admin: block/unblock an entire day
+// POST /api/admin/ask-k         → handleAdminAskK()      — Admin: explain current admin page/context
 // GET  /api/tax/transactions    → handleTaxTransactions() — Admin: tax entries by year/type
 // POST /api/tax/expense         → handleTaxExpense()      — Admin: add expense entry
 // POST /api/tax/income          → handleTaxIncome()       — Admin: add income entry
@@ -58,7 +59,7 @@ export default {
     if (url.pathname !== '/api/stripe-webhook') {
       const isBookingsRead = url.pathname === '/api/bookings' && request.method === 'GET';
       const isAvailabilityRead = url.pathname === '/api/availability' && request.method === 'GET';
-      const isAdminBlockWrite = ['/api/admin/block-slot','/api/admin/block-day','/api/admin/bookings/cleanup-pending'].includes(url.pathname) && request.method === 'POST';
+      const isAdminBlockWrite = ['/api/admin/block-slot','/api/admin/block-day','/api/admin/bookings/cleanup-pending','/api/admin/ask-k'].includes(url.pathname) && request.method === 'POST';
       const isTaxRead = ['/api/tax/transactions','/api/tax/export.csv','/api/tax/receipt'].includes(url.pathname) && request.method === 'GET';
       const isTaxWrite = ['/api/tax/expense','/api/tax/income','/api/tax/owner-transfer','/api/tax/expense/update','/api/tax/income/update','/api/tax/expense/delete','/api/tax/income/delete','/api/tax/receipt/upload'].includes(url.pathname) && request.method === 'POST';
       const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail'].includes(url.pathname) && request.method === 'GET';
@@ -114,6 +115,10 @@ export default {
 
     if (url.pathname === '/api/admin/bookings/cleanup-pending') {
       return handleAdminCleanupPendingBookings(request, env, corsHeaders, url);
+    }
+
+    if (url.pathname === '/api/admin/ask-k') {
+      return handleAdminAskK(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/tax/transactions') {
@@ -3492,6 +3497,98 @@ async function verifyStripeSignature(payload, stripeSignature, webhookSecret) {
 }
 
 /** @param {Object} payload @param {number} [status=200] @param {Object} [headers] @returns {Response} */
+
+async function handleAdminAskK(request, env, corsHeaders, url) {
+  const auth = requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+
+  let body = {};
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: 'Invalid JSON body' }, 400, corsHeaders);
+  }
+
+  const question = String(body.question || '').trim();
+  const context = body.context && typeof body.context === 'object' ? body.context : {};
+  if (!question) return json({ ok: false, error: 'Question is required' }, 400, corsHeaders);
+
+  try {
+    const answer = await generateAskKAnswer(env, question, context);
+    return json({ ok: true, answer }, 200, corsHeaders);
+  } catch (error) {
+    return json({ ok: false, error: error?.message || 'Ask K failed' }, 500, corsHeaders);
+  }
+}
+
+async function generateAskKAnswer(env, question, context) {
+  const apiKey = (env.ASKK_API_KEY || env.OPENAI_API_KEY || '').trim();
+  const baseUrl = (env.ASKK_BASE_URL || 'https://api.openai.com/v1/chat/completions').trim();
+  const model = (env.ASKK_MODEL || 'gpt-4o-mini').trim();
+  if (!apiKey) return fallbackAskKAnswer(question, context);
+
+  const systemPrompt = [
+    'You are Ask K, a concise explain-only helper inside the Florence Mae Gifts admin panel.',
+    'Answer only with guidance, explanations, field descriptions, or navigation help.',
+    'Do not claim to make changes, trigger actions, or confirm edits.',
+    'Use the provided page context to answer in a practical way.',
+    'Be brief but specific.'
+  ].join(' ');
+
+  const userPrompt = JSON.stringify({ question, context }, null, 2);
+
+  const response = await fetch(baseUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.3,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const msg = data?.error?.message || data?.error || `Provider error (${response.status})`;
+    throw new Error(msg);
+  }
+  const text = data?.choices?.[0]?.message?.content;
+  if (typeof text === 'string' && text.trim()) return text.trim();
+  return fallbackAskKAnswer(question, context);
+}
+
+function fallbackAskKAnswer(question, context) {
+  const q = String(question || '').toLowerCase();
+  const activeTitle = String(context?.activeTitle || context?.pageTitle || 'this admin page');
+  const activeTab = String(context?.activeTab || '').trim();
+  const labels = Array.isArray(context?.visibleLabels) ? context.visibleLabels.slice(0, 10) : [];
+  const buttons = Array.isArray(context?.visibleButtons) ? context.visibleButtons.slice(0, 8) : [];
+
+  const parts = [];
+  parts.push(`You're on ${activeTitle}${activeTab ? ` (${activeTab})` : ''}.`);
+
+  if (q.includes('what page') || q.includes('where am i') || q.includes('what can i do')) {
+    if (labels.length) parts.push(`Visible fields here include: ${labels.join(', ')}.`);
+    if (buttons.length) parts.push(`Available actions right now include: ${buttons.join(', ')}.`);
+    return parts.join(' ');
+  }
+
+  if (q.includes('invoice')) return `${parts.join(' ')} Use the Invoices tab to create, edit, send, or mark invoices paid. If you need a new invoice, open the Invoices section and use the add/create controls.`;
+  if (q.includes('quote')) return `${parts.join(' ')} Use the Quotes tab to draft quotes, send them, or convert them into invoices.`;
+  if (q.includes('tax') || q.includes('expense') || q.includes('income') || q.includes('ledger')) return `${parts.join(' ')} The Tax Ledger area is for expenses, sales, owner transfers, and income records. Visible fields on this page help show exactly what data is expected.`;
+  if (q.includes('account') || q.includes('journal') || q.includes('reconciliation')) return `${parts.join(' ')} The Accounts and Reconciliation sections are for balances, statements, journal entries, and year-end accounting review.`;
+
+  const labelHelp = labels.length ? ` Visible fields include: ${labels.join(', ')}.` : '';
+  const buttonHelp = buttons.length ? ` Available buttons include: ${buttons.join(', ')}.` : '';
+  return `${parts.join(' ')} I can explain fields, tell you what this section is for, or point you to the right tab.${labelHelp}${buttonHelp}`;
+}
+
 function json(payload, status = 200, headers = {}) {
   return new Response(JSON.stringify(payload), {
     status,

@@ -232,6 +232,31 @@
       .card { padding:0.65rem; }
       .container { padding:0.6rem; }
     }
+
+    /* ===== Ask K Drawer ===== */
+    #askk-fab { position:fixed; right:1.1rem; bottom:1.1rem; z-index:1500; border-radius:999px; width:56px; height:56px; padding:0; display:none; align-items:center; justify-content:center; font-size:1.5rem; box-shadow:0 8px 24px rgba(0,0,0,.28); }
+    #askk-fab.visible { display:flex; }
+    #askk-drawer { position:fixed; top:0; right:-400px; width:min(400px,90vw); height:100vh; background:var(--card); border-left:1px solid var(--line); z-index:1600; display:flex; flex-direction:column; transition:right .25s ease; box-shadow:-4px 0 24px rgba(0,0,0,.18); }
+    #askk-drawer.open { right:0; }
+    #askk-drawer-header { display:flex; align-items:center; justify-content:space-between; padding:.85rem 1rem; border-bottom:1px solid var(--line); background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%); }
+    #askk-drawer-header h3 { margin:0; color:#000; font-size:1.1rem; }
+    #askk-close-btn { background:transparent; border:none; font-size:1.4rem; cursor:pointer; color:#000; padding:.2rem .5rem; }
+    #askk-messages { flex:1; overflow-y:auto; padding:.8rem; display:flex; flex-direction:column; gap:.6rem; }
+    .askk-msg { padding:.6rem .8rem; border-radius:8px; max-width:90%; line-height:1.45; font-size:.95rem; }
+    .askk-msg.user { background:linear-gradient(135deg, #fecac4 0%, #FEA0AE 100%); color:#000; align-self:flex-end; }
+    .askk-msg.assistant { background:var(--card-soft); color:var(--text); align-self:flex-start; border:1px solid var(--line); }
+    .askk-msg.error { background:#ffe0e0; color:#a00; align-self:flex-start; border:1px solid #faa; }
+    body.dark-theme .askk-msg.error { background:#4a2020; color:#faa; border-color:#633; }
+    .askk-msg.loading { color:var(--muted); font-style:italic; }
+    #askk-input-wrap { display:flex; gap:.5rem; padding:.7rem; border-top:1px solid var(--line); background:var(--card); }
+    #askk-input { flex:1; border-radius:8px; padding:.6rem .75rem; font-size:.95rem; }
+    #askk-send-btn { border-radius:8px; padding:.6rem 1rem; white-space:nowrap; }
+    #askk-drawer-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:1550; display:none; }
+    #askk-drawer-overlay.active { display:block; }
+    @media (max-width: 480px) {
+      #askk-drawer { width:100vw; right:-100vw; }
+      #askk-fab { right:.8rem; bottom:.8rem; width:50px; height:50px; font-size:1.3rem; }
+    }
   </style>
 </head>
 <body>
@@ -654,6 +679,26 @@
     </section>
 
   </div>
+
+
+  <div id="askk-drawer-overlay" aria-hidden="true"></div>
+  <button type="button" class="btn btn-primary" id="askk-fab" aria-label="Open Ask K" title="Ask K">✦</button>
+  <aside id="askk-drawer" aria-hidden="true" aria-label="Ask K assistant drawer">
+    <div id="askk-drawer-header">
+      <div>
+        <h3>Ask K</h3>
+        <div style="font-size:.82rem; color:#222;">Admin help for this page</div>
+      </div>
+      <button type="button" id="askk-close-btn" aria-label="Close Ask K">×</button>
+    </div>
+    <div id="askk-messages">
+      <div class="askk-msg assistant">Hey — I can explain this page, tell you what fields mean, or help you find the right admin section.</div>
+    </div>
+    <div id="askk-input-wrap">
+      <input id="askk-input" type="text" placeholder="Ask about this page…" autocomplete="off" />
+      <button type="button" class="btn btn-primary" id="askk-send-btn">Send</button>
+    </div>
+  </aside>
   </main>
 
   <!-- ===== SECTION: Success Modal ===== -->
@@ -1146,6 +1191,7 @@
     const QUOTE_DELETE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/delete');
     const QUOTE_SEND_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/send');
     const QUOTE_CONVERT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/convert');
+    const ASKK_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/ask-k');
 
     // ===== DOM Refs =====
     const adminLock = document.getElementById('admin-lock');
@@ -1153,6 +1199,13 @@
     const adminHeaderTools = document.getElementById('admin-header-tools');
     const adminKeyEl = document.getElementById('admin-key');
     const adminUnlockBtn = document.getElementById('admin-unlock-btn');
+    const askkFab = document.getElementById('askk-fab');
+    const askkDrawer = document.getElementById('askk-drawer');
+    const askkOverlay = document.getElementById('askk-drawer-overlay');
+    const askkCloseBtn = document.getElementById('askk-close-btn');
+    const askkMessagesEl = document.getElementById('askk-messages');
+    const askkInputEl = document.getElementById('askk-input');
+    const askkSendBtn = document.getElementById('askk-send-btn');
 
     const adminSectionTabsEl = document.getElementById('admin-section-tabs');
     const adminSectionTabBtns = document.querySelectorAll('[data-admin-tab]');
@@ -3488,6 +3541,99 @@
 
     adminSectionTabBtns.forEach((btn) => btn.addEventListener('click', () => setAdminSectionTab(btn.getAttribute('data-admin-tab'))));
 
+    function setAskKVisible(visible) {
+      askkFab?.classList.toggle('visible', !!visible);
+    }
+
+    function setAskKOpen(open) {
+      askkDrawer?.classList.toggle('open', !!open);
+      askkOverlay?.classList.toggle('active', !!open);
+      if (askkDrawer) askkDrawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+      if (askkOverlay) askkOverlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+      if (open) window.setTimeout(() => askkInputEl?.focus(), 50);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch] || ch));
+    }
+
+    function addAskKMessage(role, text, extraClass = '') {
+      if (!askkMessagesEl) return null;
+      const div = document.createElement('div');
+      div.className = `askk-msg ${role}${extraClass ? ` ${extraClass}` : ''}`;
+      div.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+      askkMessagesEl.appendChild(div);
+      askkMessagesEl.scrollTop = askkMessagesEl.scrollHeight;
+      return div;
+    }
+
+    function getAskKContext() {
+      const activeTabBtn = document.querySelector('[data-admin-tab].active');
+      const activeTab = activeTabBtn?.getAttribute('data-admin-tab') || '';
+      const activeTitle = activeTabBtn?.textContent?.trim() || document.title || 'Admin';
+      const visibleLabels = Array.from(document.querySelectorAll('#admin-controls label'))
+        .filter((el) => el.offsetParent !== null)
+        .map((el) => (el.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .slice(0, 30);
+      const visibleButtons = Array.from(document.querySelectorAll('#admin-controls button'))
+        .filter((el) => el.offsetParent !== null)
+        .map((el) => (el.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .slice(0, 20);
+      const openCardTitles = Array.from(document.querySelectorAll('.admin-collapsible-card'))
+        .filter((card) => card.offsetParent !== null)
+        .map((card) => card.querySelector('h3')?.textContent?.trim())
+        .filter(Boolean)
+        .slice(0, 12);
+      return {
+        pageTitle: document.title || 'Admin',
+        route: window.location.pathname || '/admin.html',
+        hash: window.location.hash || '',
+        activeTab,
+        activeTitle,
+        openCardTitles,
+        visibleLabels,
+        visibleButtons
+      };
+    }
+
+    async function sendAskK() {
+      const question = askkInputEl?.value?.trim();
+      if (!question) return;
+      if (!adminPassword) {
+        addAskKMessage('error', 'Unlock the admin panel first so Ask K can use the admin API.');
+        return;
+      }
+      addAskKMessage('user', question);
+      askkInputEl.value = '';
+      const loadingEl = addAskKMessage('assistant', 'Thinking…', 'loading');
+      askkSendBtn && (askkSendBtn.disabled = true);
+      try {
+        const res = await fetch(ASKK_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Password': adminPassword
+          },
+          body: JSON.stringify({
+            question,
+            context: getAskKContext()
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Ask K request failed');
+        if (loadingEl) loadingEl.remove();
+        addAskKMessage('assistant', data.answer || data.message || 'No answer returned.');
+      } catch (err) {
+        if (loadingEl) loadingEl.remove();
+        addAskKMessage('error', err.message || String(err));
+      } finally {
+        askkSendBtn && (askkSendBtn.disabled = false);
+        askkMessagesEl && (askkMessagesEl.scrollTop = askkMessagesEl.scrollHeight);
+      }
+    }
+
     // ===== Admin Unlock =====
     adminUnlockBtn.addEventListener('click', async () => {
       const key = adminKeyEl.value.trim();
@@ -3501,6 +3647,7 @@
         if (!res.ok) throw new Error(data.error || 'Invalid password');
         adminPassword = key;
         setAdminUnlocked(true);
+        setAskKVisible(true);
         const n = new Date();
         adminCalendarCursor = new Date(n.getFullYear(), n.getMonth(), 1);
         loadCategoryPrefs();
@@ -3523,6 +3670,18 @@
     // Also allow Enter key on password input
     adminKeyEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') adminUnlockBtn.click();
+    });
+
+    askkFab?.addEventListener('click', () => setAskKOpen(true));
+    askkCloseBtn?.addEventListener('click', () => setAskKOpen(false));
+    askkOverlay?.addEventListener('click', () => setAskKOpen(false));
+    askkSendBtn?.addEventListener('click', sendAskK);
+    askkInputEl?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendAskK();
+      }
+      if (e.key === 'Escape') setAskKOpen(false);
     });
 
     // ===== Tax Ledger Event Listeners =====
