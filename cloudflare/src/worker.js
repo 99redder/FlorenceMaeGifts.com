@@ -3612,14 +3612,93 @@ function fallbackAskKAnswer(question, context) {
     return parts.join(' ');
   }
 
-  if (q.includes('invoice')) return `${parts.join(' ')} Use the Invoices tab to create, edit, send, or mark invoices paid. If you need a new invoice, open the Invoices section and use the add/create controls.`;
-  if (q.includes('quote')) return `${parts.join(' ')} Use the Quotes tab to draft quotes, send them, or convert them into invoices.`;
-  if (q.includes('tax') || q.includes('expense') || q.includes('income') || q.includes('ledger')) return `${parts.join(' ')} The Tax Ledger area is for expenses, sales, owner transfers, and income records. Visible fields on this page help show exactly what data is expected.`;
-  if (q.includes('account') || q.includes('journal') || q.includes('reconciliation')) return `${parts.join(' ')} The Accounts and Reconciliation sections are for balances, statements, journal entries, and year-end accounting review.`;
+  if ((q.includes('add') || q.includes('create') || q.includes('make')) && q.includes('expense')) {
+    return `${parts.join(' ')}
+
+Here is the step-by-step process to add an expense:
+1. Open the **Tax Ledger** tab.
+2. Click **Add Expense** if the expense form is not already open.
+3. Fill in the **Date** with the date the money was actually spent.
+4. Fill in **Vendor** with who you paid, like Amazon, Joann, Etsy, Stripe, or Cloudflare.
+5. Choose the **Category** that best matches the expense type.
+6. Enter the **Amount (USD)** as the amount you paid.
+7. Fill in **Paid via** with how you paid, like card, cash, bank, or PayPal.
+8. Add **Notes** if there is useful context, but this is optional.
+9. Upload a **Receipt** if you have one. That is optional, but it is smart to include it.
+10. Click **Add Expense** to save it.
+
+In simple terms: this form is for recording business money going out.`;
+  }
+
+  if (((q.includes('create') || q.includes('make') || q.includes('add')) && q.includes('invoice')) || q.includes('how do i invoice')) {
+    return `${parts.join(' ')}
+
+Here is the step-by-step process to create an invoice:
+1. Open the **Accounts** tab if needed, then go to the **Invoices** area.
+2. Click the button that opens the new invoice form.
+3. Enter the customer details, like name and email.
+4. Add one or more line items describing what the customer is being charged for.
+5. Set the quantity and unit price for each line item.
+6. Review the invoice total to make sure it matches what you want to bill.
+7. Save the invoice.
+8. If needed, use the invoice actions to send it or generate a payment link.
+
+In simple terms: an invoice is a bill you send to a customer so they can pay you.`;
+  }
+
+  if (((q.includes('create') || q.includes('make') || q.includes('add')) && q.includes('quote')) || q.includes('estimate')) {
+    return `${parts.join(' ')}
+
+Here is the step-by-step process to create a quote:
+1. Open the **Accounts** tab and go to the **Quotes** area.
+2. Open the new quote form.
+3. Enter the customer information.
+4. Add line items for the work, product, or service you are quoting.
+5. Set the quantity and price for each line item.
+6. Review the total.
+7. Save the quote.
+8. If the customer approves it later, use the convert action to turn the quote into an invoice.
+
+In simple terms: a quote is an estimate before the customer is officially billed.`;
+  }
+
+  if (q.includes('owner transfer') || q.includes('owner-funded') || q.includes('owner funded')) {
+    return `${parts.join(' ')}
+
+**Owner transfer** usually means money moving between you personally and the business, instead of normal customer revenue or a normal business expense.
+
+Use it when:
+1. You put your own money into the business.
+2. You take money out for yourself.
+3. You need to record owner-related money movement separately from sales.
+
+Do **not** use it for normal customer payments. Those should usually be recorded as sales, invoices, or income depending on the workflow.
+
+In simple terms: owner transfer is owner money, not customer money.`;
+  }
+
+  if (q.includes('reconciliation') || q.includes('reconcile')) {
+    return `${parts.join(' ')}
+
+**Reconciliation** means checking that your records match real life.
+
+Step by step, that usually means:
+1. Look at your bank, Stripe, Etsy, or payment records.
+2. Compare them to what is recorded in the admin panel.
+3. Find anything missing, duplicated, or incorrect.
+4. Fix the records so your books match the actual money movement.
+
+In simple terms: reconciliation is making sure your bookkeeping is accurate.`;
+  }
+
+  if (q.includes('invoice')) return `${parts.join(' ')} Use the Invoices area to create, edit, send, or mark invoices paid. If you need help, ask something like: "How do I create an invoice step by step?"`;
+  if (q.includes('quote')) return `${parts.join(' ')} Use the Quotes area to draft quotes, send them, or convert them into invoices. If you want, ask for a step-by-step walkthrough.`;
+  if (q.includes('tax') || q.includes('expense') || q.includes('income') || q.includes('ledger')) return `${parts.join(' ')} The Tax Ledger area is for expenses, sales, owner transfers, and income records. It is where you track money coming in and money going out for the business.`;
+  if (q.includes('account') || q.includes('journal') || q.includes('reconciliation')) return `${parts.join(' ')} The Accounts and Reconciliation sections are for balances, statements, journal entries, invoices, quotes, and accounting review.`;
 
   const labelHelp = labels.length ? ` Visible fields include: ${labels.join(', ')}.` : '';
   const buttonHelp = buttons.length ? ` Available buttons include: ${buttons.join(', ')}.` : '';
-  return `${parts.join(' ')} I can explain fields, tell you what this section is for, or point you to the right tab.${labelHelp}${buttonHelp}`;
+  return `${parts.join(' ')} I can explain fields, tell you what this section is for, or walk you through a task step by step.${labelHelp}${buttonHelp}`;
 }
 
 function json(payload, status = 200, headers = {}) {
