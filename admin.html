@@ -333,6 +333,19 @@
                   <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">2026 stats are cutover-aware: January 1 through March 16, 2026 use the sole proprietorship baseline, and March 17, 2026 forward is driven by live LLC ledger data.</p>
                 </div>
 
+                <div class="admin-calendar-wrap" id="stats-all-time-card" style="margin:0; background:var(--stats-bg); color:var(--stats-text); display:none;">
+                  <div class="admin-calendar-title" style="color:var(--stats-text);">All-Time Stats</div>
+                  <div class="tax-summary-line"><span>Total Number of Sales</span><strong id="stats-alltime-sales-count">0</strong></div>
+                  <div class="tax-summary-line"><span>Total Sales Volume</span><strong id="stats-alltime-sales-volume" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Etsy Fees</span><strong id="stats-alltime-etsy-fees" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Shipping Costs</span><strong id="stats-alltime-shipping-costs" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Supplies Costs</span><strong id="stats-alltime-supplies-costs" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Advertising Costs</span><strong id="stats-alltime-advertising-costs" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Fees and Costs</span><strong id="stats-alltime-fees-costs" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Profit</span><strong id="stats-alltime-profit" class="money-blur-target">$0.00</strong></div>
+                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">All-time baseline is seeded through March 17, 2026 and will continue increasing as new LLC sales/imports are recorded.</p>
+                </div>
+
                 <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
                   <div class="admin-calendar-title" style="color:var(--stats-text);">Item Stats</div>
                   <div class="tax-summary-line"><span>Total Products Sold</span><strong id="stats-products-sold">0</strong></div>
@@ -1389,6 +1402,15 @@
     const statsAdvertisingCostsEl = document.getElementById('stats-advertising-costs');
     const statsFeesCostsEl = document.getElementById('stats-fees-costs');
     const statsProfitEl = document.getElementById('stats-profit');
+    const statsAllTimeCardEl = document.getElementById('stats-all-time-card');
+    const statsAllTimeSalesCountEl = document.getElementById('stats-alltime-sales-count');
+    const statsAllTimeSalesVolumeEl = document.getElementById('stats-alltime-sales-volume');
+    const statsAllTimeEtsyFeesEl = document.getElementById('stats-alltime-etsy-fees');
+    const statsAllTimeShippingCostsEl = document.getElementById('stats-alltime-shipping-costs');
+    const statsAllTimeSuppliesCostsEl = document.getElementById('stats-alltime-supplies-costs');
+    const statsAllTimeAdvertisingCostsEl = document.getElementById('stats-alltime-advertising-costs');
+    const statsAllTimeFeesCostsEl = document.getElementById('stats-alltime-fees-costs');
+    const statsAllTimeProfitEl = document.getElementById('stats-alltime-profit');
     const statsProductsSoldEl = document.getElementById('stats-products-sold');
     const statsTopProductEl = document.getElementById('stats-top-product');
     const statsPatternDownloadsEl = document.getElementById('stats-pattern-downloads');
@@ -1752,6 +1774,30 @@
       statsItemBreakdownEl.innerHTML = cards + patternCard;
     }
 
+    async function buildAllTimeBusinessStats() {
+      const res = await fetch(`${TAX_TX_API_URL}?year=2026&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed loading all-time stats');
+      const cutoverDate = '2026-03-17';
+      const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && String(r.date || '') >= cutoverDate);
+      const expenseRows = (data.expenses || []).filter((r) => String(r.date || '') >= cutoverDate);
+      const out = { ...allTimeStatsBaseline };
+      out.salesCount += incomeRows.length;
+      out.salesVolumeCents += incomeRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
+      for (const r of expenseRows) {
+        const cents = Number(r.amount_cents || 0);
+        const category = String(r.category || '').toLowerCase();
+        const vendor = String(r.vendor || '').toLowerCase();
+        if (category.includes('advertising') || category.includes('marketing')) out.advertisingCostsCents += cents;
+        else if (category.includes('shipping')) out.shippingCostsCents += cents;
+        else if (category.includes('suppl')) out.suppliesCostsCents += cents;
+        else if (vendor.includes('etsy') || category.includes('etsy') || category.includes('payment processing') || category.includes('processing fee') || category.includes('listing fee') || category.includes('transaction fee')) out.etsyFeesCents += cents;
+      }
+      out.feesCostsCents = out.etsyFeesCents + out.shippingCostsCents + out.suppliesCostsCents + out.advertisingCostsCents;
+      out.profitCents = out.salesVolumeCents - out.feesCostsCents;
+      return out;
+    }
+
     async function loadStatsData() {
       if (!adminUnlocked) return;
       const selectedYear = Number(statsYearEl?.value || taxYearEl?.value || String(new Date().getFullYear()));
@@ -1761,6 +1807,15 @@
         2024: { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
         2025: { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
       };
+      const allTimeStatsBaseline = {
+        salesCount: 1467,
+        salesVolumeCents: 5698740,
+        etsyFeesCents: 765346,
+        shippingCostsCents: 713621,
+        suppliesCostsCents: 652020,
+        advertisingCostsCents: 23927
+      };
+
       const preCutover2026StatsBaseline = {
         salesCount: 59,
         salesVolumeCents: 221621,
