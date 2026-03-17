@@ -311,7 +311,7 @@
                 <button type="button" class="btn" id="stats-refresh-btn">Refresh Stats</button>
               </div>
               <div class="admin-calendar-wrap" style="margin:0 0 .65rem; background:rgba(254,102,102,.08); border:1px solid rgba(254,102,102,.35);">
-                <div class="admin-calendar-title" style="color:var(--cyan);">LLC Cutover Note</div>
+                <div class="admin-calendar-title" style="color:var(--text);">LLC Cutover Note</div>
                 <p style="margin:.35rem 0 0; font-size:.92rem; color:var(--muted);">Official LLC cutover date: <strong style="color:var(--text);">March 17, 2026</strong>. Treat this as the first day operating as Florence Mae Gifts, LLC for admin/bookkeeping purposes.</p>
               </div>
               <div class="admin-grid" style="grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem;">
@@ -3646,6 +3646,7 @@
       adminSectionTabBtns.forEach((btn) => btn.classList.toggle('active', btn.getAttribute('data-admin-tab') === tab));
       const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
       show('stats-card', tab === 'stats');
+      show('notes-card', tab === 'notes');
       show('booking-controls-card', false);
       show('tax-ledger-card', tab === 'tax');
       show('accounts-card', tab === 'accounts');
