@@ -324,6 +324,10 @@
                   <div class="admin-calendar-title" id="stats-yearly-title" style="color:var(--stats-text);">Year Stats</div>
                   <div class="tax-summary-line"><span>Total Number of Sales</span><strong id="stats-sales-count">0</strong></div>
                   <div class="tax-summary-line"><span>Total Sales Volume</span><strong id="stats-sales-volume" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Etsy Fees</span><strong id="stats-etsy-fees" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Shipping Costs</span><strong id="stats-shipping-costs" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Supplies Costs</span><strong id="stats-supplies-costs" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Advertising Costs</span><strong id="stats-advertising-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Fees and Costs</span><strong id="stats-fees-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Profit</span><strong id="stats-profit" class="money-blur-target">$0.00</strong></div>
                   <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">2026 stats are cutover-aware: January 1 through March 16, 2026 use the sole proprietorship baseline, and March 17, 2026 forward is driven by live LLC ledger data.</p>
@@ -1380,6 +1384,10 @@
     const statsYearlyTitleEl = document.getElementById('stats-yearly-title');
     const statsSalesCountEl = document.getElementById('stats-sales-count');
     const statsSalesVolumeEl = document.getElementById('stats-sales-volume');
+    const statsEtsyFeesEl = document.getElementById('stats-etsy-fees');
+    const statsShippingCostsEl = document.getElementById('stats-shipping-costs');
+    const statsSuppliesCostsEl = document.getElementById('stats-supplies-costs');
+    const statsAdvertisingCostsEl = document.getElementById('stats-advertising-costs');
     const statsFeesCostsEl = document.getElementById('stats-fees-costs');
     const statsProfitEl = document.getElementById('stats-profit');
     const statsProductsSoldEl = document.getElementById('stats-products-sold');
@@ -1763,6 +1771,12 @@
         2024: { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
         2025: { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
       };
+      const preCutover2026ExpenseBaseline = {
+        etsyFeesCents: 30001,
+        shippingCostsCents: 28560,
+        suppliesCostsCents: 88360,
+        advertisingCostsCents: 0
+      };
 
       const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
       const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
@@ -1785,6 +1799,12 @@
 
         let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
         let expenseRows = data.expenses || [];
+        let expenseBreakdownCents = {
+          etsyFeesCents: 0,
+          shippingCostsCents: 0,
+          suppliesCostsCents: 0,
+          advertisingCostsCents: 0
+        };
 
         if (yearNum === 2026) {
           const cutoverDate = '2026-03-17';
@@ -1795,6 +1815,20 @@
             { date: '2026-02-28', amount_cents: 57959 },
             { date: '2026-03-16', amount_cents: 44389 }
           ]);
+          expenseBreakdownCents = {
+            ...expenseBreakdownCents,
+            ...preCutover2026ExpenseBaseline
+          };
+        }
+
+        for (const r of expenseRows) {
+          const cents = Number(r.amount_cents || 0);
+          const category = String(r.category || '').toLowerCase();
+          const vendor = String(r.vendor || '').toLowerCase();
+          if (category.includes('advertising') || category.includes('marketing')) expenseBreakdownCents.advertisingCostsCents += cents;
+          else if (category.includes('shipping')) expenseBreakdownCents.shippingCostsCents += cents;
+          else if (category.includes('suppl')) expenseBreakdownCents.suppliesCostsCents += cents;
+          else if (vendor.includes('etsy') || category.includes('etsy') || category.includes('payment processing') || category.includes('processing fee') || category.includes('listing fee') || category.includes('transaction fee')) expenseBreakdownCents.etsyFeesCents += cents;
         }
 
         const monthlyCents = Array(12).fill(0);
@@ -1806,7 +1840,11 @@
           year: yearNum,
           salesCount: incomeRows.length,
           salesVolumeCents: incomeRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0),
-          feesCostsCents: expenseRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0),
+          feesCostsCents: expenseBreakdownCents.etsyFeesCents + expenseBreakdownCents.shippingCostsCents + expenseBreakdownCents.suppliesCostsCents + expenseBreakdownCents.advertisingCostsCents,
+          etsyFeesCents: expenseBreakdownCents.etsyFeesCents,
+          shippingCostsCents: expenseBreakdownCents.shippingCostsCents,
+          suppliesCostsCents: expenseBreakdownCents.suppliesCostsCents,
+          advertisingCostsCents: expenseBreakdownCents.advertisingCostsCents,
           monthlyCents
         };
       };
@@ -1831,6 +1869,10 @@
 
       if (statsSalesCountEl) statsSalesCountEl.textContent = String(current.salesCount);
       if (statsSalesVolumeEl) statsSalesVolumeEl.textContent = money(current.salesVolumeCents);
+      if (statsEtsyFeesEl) statsEtsyFeesEl.textContent = money(current.etsyFeesCents || 0);
+      if (statsShippingCostsEl) statsShippingCostsEl.textContent = money(current.shippingCostsCents || 0);
+      if (statsSuppliesCostsEl) statsSuppliesCostsEl.textContent = money(current.suppliesCostsCents || 0);
+      if (statsAdvertisingCostsEl) statsAdvertisingCostsEl.textContent = money(current.advertisingCostsCents || 0);
       if (statsFeesCostsEl) statsFeesCostsEl.textContent = money(current.feesCostsCents);
       if (statsProfitEl) statsProfitEl.textContent = money(profit);
 
