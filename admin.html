@@ -289,6 +289,7 @@
       <div class="admin-controls" id="admin-controls" style="padding:0 1rem 1rem;">
         <div class="admin-section-tabs" id="admin-section-tabs">
           <button type="button" class="btn active" data-admin-tab="stats">Stats</button>
+          <button type="button" class="btn" data-admin-tab="notes">Notes</button>
           <button type="button" class="btn" data-admin-tab="tax">Tax Ledger</button>
           <button type="button" class="btn" data-admin-tab="accounts">Accounts</button>
           <button type="button" class="btn" data-admin-tab="reconciliation">Reconciliation</button>
@@ -337,6 +338,28 @@
                   <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">Use Add Sale entries to populate per-item metrics.</p>
                 </div>
               </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="admin-collapsible-card" id="notes-card" style="margin-top:1rem; display:none;">
+          <div class="admin-collapsible-head">
+            <h3 style="margin:0;">Notes</h3>
+          </div>
+          <div id="notes-body">
+            <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+              <div class="admin-row" style="gap:.5rem; align-items:center; margin-bottom:.55rem; flex-wrap:wrap;">
+                <label for="notes-scope" style="margin:0;">Section</label>
+                <select id="notes-scope" style="max-width:180px;">
+                  <option value="general">General</option>
+                  <option value="year">Year</option>
+                </select>
+                <label for="notes-year" style="margin:0;">Year</label>
+                <select id="notes-year" style="max-width:140px;"></select>
+                <button type="button" class="btn" id="notes-refresh-btn">Refresh Notes</button>
+                <button type="button" class="btn btn-primary" id="notes-add-btn">Add Note</button>
+              </div>
+              <div id="notes-list" class="admin-list">No notes yet.</div>
             </section>
           </div>
         </div>
@@ -721,6 +744,30 @@
   </main>
 
   <!-- ===== SECTION: Success Modal ===== -->
+  <div class="success-modal-overlay" id="notes-add-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="notes-add-title" style="width:min(760px,96vw); max-height:90vh; overflow-y:auto;">
+      <h3 id="notes-add-title">Add Note</h3>
+      <div class="form-grid" style="margin-top:.5rem;">
+        <div>
+          <label for="notes-add-scope">Section</label>
+          <select id="notes-add-scope"><option value="general">General</option><option value="year">Year</option></select>
+        </div>
+        <div>
+          <label for="notes-add-year">Year</label>
+          <select id="notes-add-year"></select>
+        </div>
+        <div class="full">
+          <label for="notes-add-text">Note</label>
+          <textarea id="notes-add-text" rows="7" placeholder="Enter bookkeeping / tax note..."></textarea>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:1rem;">
+        <button type="button" class="btn" id="notes-add-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="notes-add-save-btn">Add Note</button>
+      </div>
+    </div>
+  </div>
+
   <div class="success-modal-overlay" id="success-modal" aria-hidden="true">
     <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="success-title">
       <h3 id="success-title">Done ✅</h3>
@@ -1209,6 +1256,7 @@
     const QUOTE_UPDATE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/update');
     const QUOTE_DELETE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/delete');
     const QUOTE_SEND_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/send');
+    const ADMIN_NOTES_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/notes');
     const QUOTE_CONVERT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/quotes/convert');
     const ASKK_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/ask-k');
 
@@ -1236,6 +1284,17 @@
 
     const adminSectionTabsEl = document.getElementById('admin-section-tabs');
     const adminSectionTabBtns = document.querySelectorAll('[data-admin-tab]');
+    const notesScopeEl = document.getElementById('notes-scope');
+    const notesYearEl = document.getElementById('notes-year');
+    const notesRefreshBtn = document.getElementById('notes-refresh-btn');
+    const notesAddBtn = document.getElementById('notes-add-btn');
+    const notesListEl = document.getElementById('notes-list');
+    const notesAddModal = document.getElementById('notes-add-modal');
+    const notesAddScopeEl = document.getElementById('notes-add-scope');
+    const notesAddYearEl = document.getElementById('notes-add-year');
+    const notesAddTextEl = document.getElementById('notes-add-text');
+    const notesAddCancelBtn = document.getElementById('notes-add-cancel-btn');
+    const notesAddSaveBtn = document.getElementById('notes-add-save-btn');
 
     const taxCollapseBtn = document.getElementById('tax-collapse-btn');
     const taxLedgerBody = document.getElementById('tax-ledger-body');
@@ -3538,6 +3597,50 @@
     }
 
 
+    function populateNotesYearSelects() {
+      const years = [];
+      const now = new Date().getFullYear();
+      for (let y = now + 1; y >= 2023; y -= 1) years.push(y);
+      [notesYearEl, notesAddYearEl].forEach((el) => {
+        if (!el) return;
+        const current = el.value;
+        el.innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join('');
+        if (current && years.includes(Number(current))) el.value = current;
+        else el.value = String(now);
+      });
+      if (notesScopeEl?.value !== 'year' && notesYearEl) notesYearEl.disabled = true;
+      if (notesAddScopeEl?.value !== 'year' && notesAddYearEl) notesAddYearEl.disabled = true;
+    }
+
+    async function refreshAdminNotes() {
+      if (!adminUnlocked || !notesListEl) return;
+      const scope = (notesScopeEl?.value || 'general').trim();
+      const year = (notesYearEl?.value || '').trim();
+      notesListEl.innerHTML = '<div style="color:var(--muted);">Loading notes…</div>';
+      const query = new URLSearchParams({ scope });
+      if (scope === 'year' && year) query.set('year', year);
+      const res = await fetch(`${ADMIN_NOTES_API_URL}?${query.toString()}`, { headers: { 'X-Admin-Password': adminPassword } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { notesListEl.textContent = data.error || 'Failed to load notes.'; return; }
+      const rows = Array.isArray(data.notes) ? data.notes : [];
+      if (!rows.length) { notesListEl.innerHTML = '<div style="color:var(--muted);">No notes in this section yet.</div>'; return; }
+      notesListEl.innerHTML = rows.map((note) => `<div style="padding:.55rem 0; border-bottom:1px dashed var(--line);"><div style="font-size:.82rem; color:var(--muted); margin-bottom:.25rem;">${note.scope_type === 'year' ? `Year ${escHtml(String(note.note_year || ''))}` : 'General'} • ${escHtml(String(note.created_at || '').replace('T',' ').slice(0,16) || '')}</div><div style="white-space:pre-wrap; line-height:1.6; color:var(--text);">${escHtml(note.note_text || '')}</div></div>`).join('');
+    }
+
+    function openNotesAddModal() {
+      if (notesAddScopeEl && notesScopeEl) notesAddScopeEl.value = notesScopeEl.value || 'general';
+      if (notesAddYearEl && notesYearEl) notesAddYearEl.value = notesYearEl.value || notesAddYearEl.value;
+      if (notesAddYearEl) notesAddYearEl.disabled = (notesAddScopeEl?.value || 'general') !== 'year';
+      if (notesAddTextEl) notesAddTextEl.value = '';
+      notesAddModal?.classList.add('active');
+      notesAddModal?.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeNotesAddModal() {
+      notesAddModal?.classList.remove('active');
+      notesAddModal?.setAttribute('aria-hidden', 'true');
+    }
+
     function setAdminSectionTab(tab) {
       activeAdminSectionTab = tab;
       adminSectionTabBtns.forEach((btn) => btn.classList.toggle('active', btn.getAttribute('data-admin-tab') === tab));
@@ -3552,6 +3655,7 @@
       show('year-close-card', tab === 'year-close');
       show('audit-package-card', tab === 'audit-package');
       if (tab === 'stats' && adminUnlocked) loadStatsData();
+      if (tab === 'notes' && adminUnlocked) refreshAdminNotes();
       if (tab === 'invoices' && adminUnlocked) refreshInvoiceList();
       if (tab === 'quotes' && adminUnlocked) refreshQuoteList();
       updateFloatingAddButtons();
@@ -3774,6 +3878,7 @@
         initAccountsUiDefaults();
         setAccountsTab('balances');
         disableLegacyCollapse();
+        populateNotesYearSelects();
         setAdminSectionTab('stats');
         loadThemePref();
         loadBlurMoneyPref();
@@ -3947,6 +4052,40 @@
     taxExportBtn?.addEventListener('click', downloadTaxCsv);
 
     accountsRefreshBtn?.addEventListener('click', loadAccountsData);
+    notesScopeEl?.addEventListener('change', () => { if (notesYearEl) notesYearEl.disabled = notesScopeEl.value !== 'year'; refreshAdminNotes(); });
+    notesYearEl?.addEventListener('change', refreshAdminNotes);
+    notesRefreshBtn?.addEventListener('click', refreshAdminNotes);
+    notesAddBtn?.addEventListener('click', openNotesAddModal);
+    notesAddCancelBtn?.addEventListener('click', closeNotesAddModal);
+    notesAddScopeEl?.addEventListener('change', () => { if (notesAddYearEl) notesAddYearEl.disabled = notesAddScopeEl.value !== 'year'; });
+    notesAddSaveBtn?.addEventListener('click', async () => {
+      const scope = (notesAddScopeEl?.value || 'general').trim();
+      const year = (notesAddYearEl?.value || '').trim();
+      const noteText = (notesAddTextEl?.value || '').trim();
+      if (!noteText) { openErrorModal('Enter a note before saving.'); return; }
+      if (scope === 'year' && !/^\d{4}$/.test(year)) { openErrorModal('Select a valid year for a year note.'); return; }
+      const prevTxt = notesAddSaveBtn.textContent || 'Add Note';
+      notesAddSaveBtn.disabled = true;
+      notesAddSaveBtn.textContent = 'Adding…';
+      try {
+        const res = await fetch(ADMIN_NOTES_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify({ scope, year, noteText })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { openErrorModal(data.error || 'Failed to add note.'); return; }
+        closeNotesAddModal();
+        if (notesScopeEl) notesScopeEl.value = scope;
+        if (notesYearEl && year) notesYearEl.value = year;
+        if (notesYearEl) notesYearEl.disabled = scope !== 'year';
+        await refreshAdminNotes();
+        openSuccessModal('Note added successfully.', 'Note Added ✅');
+      } finally {
+        notesAddSaveBtn.disabled = false;
+        notesAddSaveBtn.textContent = prevTxt;
+      }
+    });
     statsRefreshBtn?.addEventListener('click', loadStatsData);
     statsYearEl?.addEventListener('change', loadStatsData);
     invoiceAddLineItemBtn?.addEventListener('click', () => { invoiceDraftItems.push({ description:'', quantity:1, unitAmount:'' }); wireLineItems(invoiceLineItemsEl, invoiceDraftItems, invoiceTotalDisplayEl); });
