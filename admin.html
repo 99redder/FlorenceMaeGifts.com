@@ -2910,10 +2910,28 @@
       }
     }
 
+    function syncTaxSaleItemUi() {
+      const item = (taxSaleItemEl?.value || '').trim();
+      const needsSize = ['Gohan Hats', 'Luffy Hats', 'Rumi Hats', 'Goku Hats'].includes(item);
+      const isCommission = item === 'Commission';
+      if (taxSaleSizeEl) {
+        taxSaleSizeEl.style.display = needsSize ? '' : 'none';
+        if (!needsSize) taxSaleSizeEl.value = '';
+      }
+      if (taxSaleItemCustomEl) {
+        taxSaleItemCustomEl.style.display = isCommission ? '' : 'none';
+        taxSaleItemCustomEl.placeholder = isCommission ? 'Describe the commission / custom order' : 'Optional item details';
+        if (!isCommission) taxSaleItemCustomEl.value = '';
+      }
+    }
+
     function clearTaxSaleForm() {
       const now = nowEtParts();
       if (taxSaleDateEl) taxSaleDateEl.value = now.date;
       if (taxSaleItemEl) taxSaleItemEl.value = '';
+      if (taxSaleSizeEl) taxSaleSizeEl.value = '';
+      if (taxSaleItemCustomEl) taxSaleItemCustomEl.value = '';
+      syncTaxSaleItemUi();
       if (taxSaleChannelEl) taxSaleChannelEl.value = 'Etsy';
       if (taxSaleAmountEl) taxSaleAmountEl.value = '';
       if (taxSaleFeeProcessingEl) taxSaleFeeProcessingEl.value = '';
@@ -2951,7 +2969,10 @@
     }
 
     async function addTaxSale() {
-      const item = taxSaleItemEl?.value?.trim() || '';
+      const itemKey = taxSaleItemEl?.value?.trim() || '';
+      const itemSize = taxSaleSizeEl?.value?.trim() || '';
+      const itemCustom = taxSaleItemCustomEl?.value?.trim() || '';
+      const item = itemKey === 'Commission' ? `Commission${itemCustom ? ` - ${itemCustom}` : ''}` : `${itemKey}${itemSize ? ` (${itemSize})` : ''}`;
       const channel = taxSaleChannelEl?.value || 'Other';
       const date = taxSaleDateEl?.value;
       const gross = Number(taxSaleAmountEl?.value || 0);
@@ -2959,6 +2980,14 @@
 
       if (!date || !Number.isFinite(gross) || gross <= 0) {
         openErrorModal('Sale date and amount are required.');
+        return;
+      }
+      if (!itemKey) {
+        openErrorModal('Select the item sold.');
+        return;
+      }
+      if (['Gohan Hats', 'Luffy Hats', 'Rumi Hats', 'Goku Hats'].includes(itemKey) && !itemSize) {
+        openErrorModal('Select a size for this item.');
         return;
       }
 
@@ -4181,6 +4210,7 @@
     taxClearExpenseBtn.addEventListener('click', clearTaxExpenseForm);
     taxAddSaleBtn?.addEventListener('click', addTaxSale);
     taxClearSaleBtn?.addEventListener('click', clearTaxSaleForm);
+    taxSaleItemEl?.addEventListener('change', syncTaxSaleItemUi);
     taxPreviewEtsyCsvBtn?.addEventListener('click', previewEtsyStatementCsv);
     taxImportEtsyCsvBtn?.addEventListener('click', importEtsyStatementCsv);
     taxAddOwnerTransferBtn?.addEventListener('click', addTaxOwnerTransfer);
