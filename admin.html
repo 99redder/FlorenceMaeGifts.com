@@ -1774,6 +1774,15 @@
       statsItemBreakdownEl.innerHTML = cards + patternCard;
     }
 
+    const allTimeStatsBaseline = {
+      salesCount: 1467,
+      salesVolumeCents: 5698740,
+      etsyFeesCents: 765346,
+      shippingCostsCents: 713621,
+      suppliesCostsCents: 652020,
+      advertisingCostsCents: 23927
+    };
+
     async function buildAllTimeBusinessStats() {
       const res = await fetch(`${TAX_TX_API_URL}?year=2026&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
       const data = await res.json();
@@ -1807,15 +1816,6 @@
         2024: { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
         2025: { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
       };
-      const allTimeStatsBaseline = {
-        salesCount: 1467,
-        salesVolumeCents: 5698740,
-        etsyFeesCents: 765346,
-        shippingCostsCents: 713621,
-        suppliesCostsCents: 652020,
-        advertisingCostsCents: 23927
-      };
-
       const preCutover2026StatsBaseline = {
         salesCount: 59,
         salesVolumeCents: 221621,
