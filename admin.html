@@ -326,7 +326,7 @@
                   <div class="tax-summary-line"><span>Total Sales Volume</span><strong id="stats-sales-volume" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Fees and Costs</span><strong id="stats-fees-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Profit</span><strong id="stats-profit" class="money-blur-target">$0.00</strong></div>
-                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">2026 is currently seeded with sole proprietorship sales through March 16, 2026. March 17, 2026 forward is the LLC operating period.</p>
+                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">2026 stats are cutover-aware: January 1 through March 16, 2026 use the sole proprietorship baseline, and March 17, 2026 forward is driven by live LLC ledger data.</p>
                 </div>
 
                 <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
@@ -1655,8 +1655,7 @@
       const seeded = {
         2023: { salesCount: 453, salesVolume: 14341.59, feesCosts: 0, monthly: null },
         2024: { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
-        2025: { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] },
-        2026: { salesCount: 59, salesVolume: 2216.21, feesCosts: 0, monthly: [1192.73,579.59,443.89,0,0,0,0,0,0,0,0,0] }
+        2025: { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
       };
 
       const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
@@ -1678,8 +1677,20 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `Failed loading stats for ${yearNum}`);
 
-        const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
-        const expenseRows = data.expenses || [];
+        let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
+        let expenseRows = data.expenses || [];
+
+        if (yearNum === 2026) {
+          const cutoverDate = '2026-03-17';
+          incomeRows = incomeRows.filter((r) => String(r.date || '') >= cutoverDate);
+          expenseRows = expenseRows.filter((r) => String(r.date || '') >= cutoverDate);
+          incomeRows = incomeRows.concat([
+            { date: '2026-01-31', amount_cents: 119273 },
+            { date: '2026-02-28', amount_cents: 57959 },
+            { date: '2026-03-16', amount_cents: 44389 }
+          ]);
+        }
+
         const monthlyCents = Array(12).fill(0);
         for (const r of incomeRows) {
           const m = Number(String(r.date || '').slice(5, 7));
