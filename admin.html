@@ -337,7 +337,6 @@
                   <div class="admin-calendar-title" style="color:var(--stats-text);">Item Stats</div>
                   <div class="tax-summary-line"><span>Total Products Sold</span><strong id="stats-products-sold">0</strong></div>
                   <div class="tax-summary-line"><span>Top Product</span><strong id="stats-top-product">—</strong></div>
-                  <div class="tax-summary-line"><span>Top Category</span><strong id="stats-top-category">—</strong></div>
                   <div class="tax-summary-line"><span>Pattern Downloads</span><strong id="stats-pattern-downloads">0</strong></div>
                   <div id="stats-item-breakdown" style="margin-top:.7rem; display:grid; gap:.5rem;"></div>
                   <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">All-time item baseline is seeded through March 17, 2026. New post-cutover sales/imports add onto these totals automatically.</p>
@@ -1392,7 +1391,6 @@
     const statsProfitEl = document.getElementById('stats-profit');
     const statsProductsSoldEl = document.getElementById('stats-products-sold');
     const statsTopProductEl = document.getElementById('stats-top-product');
-    const statsTopCategoryEl = document.getElementById('stats-top-category');
     const statsPatternDownloadsEl = document.getElementById('stats-pattern-downloads');
     const statsItemBreakdownEl = document.getElementById('stats-item-breakdown');
 
@@ -1740,17 +1738,9 @@
       const patternEntries = Object.entries(stats.patternDownloads || {}).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0));
       const totalProducts = productEntries.reduce((sum, [, v]) => sum + Number(v?.total || 0), 0);
       const topProduct = productEntries[0]?.[0] || '—';
-      let topCategory = 'Hats';
-      const setsTotal = Number(stats.products?.['Trunks Sets']?.total || 0) + Number(stats.products?.['Majin Buu Sets']?.total || 0);
-      const commissionsTotal = Number(stats.products?.['Commission']?.total || 0);
-      const patternsAsProducts = 0;
-      const hatsTotal = totalProducts - setsTotal - commissionsTotal - patternsAsProducts;
-      if (commissionsTotal > hatsTotal && commissionsTotal > setsTotal) topCategory = 'Commission';
-      else if (setsTotal > hatsTotal) topCategory = 'Sets';
       const patternTotal = patternEntries.reduce((sum, [, v]) => sum + Number(v || 0), 0);
       if (statsProductsSoldEl) statsProductsSoldEl.textContent = String(totalProducts);
       if (statsTopProductEl) statsTopProductEl.textContent = topProduct;
-      if (statsTopCategoryEl) statsTopCategoryEl.textContent = topCategory;
       if (statsPatternDownloadsEl) statsPatternDownloadsEl.textContent = String(patternTotal);
       if (!statsItemBreakdownEl) return;
       const sizeOrder = ['0-3 months','3-6 months','6-9 months','9-12 months','12-18 months','18-24 months','Youth Small','Youth Large','Adult'];
