@@ -445,7 +445,8 @@
                       <label>Date</label>
                       <input id="tax-sale-date" type="date" />
                       <label>Item Name</label>
-                      <input id="tax-sale-item" placeholder="e.g. Gohan Hat (0-3 months)" />
+                      <select id="tax-sale-item"><option value="">Select item</option><option value="Gohan Hats">Gohan Hats</option><option value="Luffy Hats">Luffy Hats</option><option value="Rumi Hats">Rumi Hats</option><option value="Trunks Sets">Trunks Sets</option><option value="Goku Hats">Goku Hats</option><option value="Majin Buu Sets">Majin Buu Sets</option><option value="Gohan Patterns">Gohan Patterns</option><option value="Goku Patterns">Goku Patterns</option><option value="Commission">Commission</option></select>
+                      <input id="tax-sale-item-custom" placeholder="Commission details / optional item details" style="display:none; margin-top:.35rem;" />
                       <label>Channel</label>
                       <select id="tax-sale-channel"><option value="Etsy">Etsy</option><option value="Website">Website</option><option value="In Person">In Person</option><option value="Other">Other</option></select>
                       <label>Sale Amount (USD)</label>
@@ -1468,6 +1469,7 @@
 
     const taxSaleDateEl = document.getElementById('tax-sale-date');
     const taxSaleItemEl = document.getElementById('tax-sale-item');
+    const taxSaleItemCustomEl = document.getElementById('tax-sale-item-custom');
     const taxSaleChannelEl = document.getElementById('tax-sale-channel');
     const taxSaleAmountEl = document.getElementById('tax-sale-amount');
     const taxSaleFeeProcessingEl = document.getElementById('tax-sale-fee-processing');
@@ -1658,7 +1660,8 @@
         'Rumi Hats': { total: 40, breakdown: {} },
         'Trunks Sets': { total: 131, breakdown: {} },
         'Goku Hats': { total: 103, breakdown: {} },
-        'Majin Buu Sets': { total: 33, breakdown: {} }
+        'Majin Buu Sets': { total: 33, breakdown: {} },
+        'Commission': { total: 0, breakdown: {} }
       },
       patternDownloads: { 'Gohan Patterns': 171, 'Goku Patterns': 18 }
     };
@@ -1688,12 +1691,13 @@
       };
       if (hasAny(['gohan pattern', 'four star ball pattern', 'dragon ball pattern gohan'])) return { type: 'pattern', key: 'Gohan Patterns' };
       if (hasAny(['goku pattern', 'goku inspired pattern'])) return { type: 'pattern', key: 'Goku Patterns' };
-      if (hasAny(['gohan hat', 'four star ball hat', 'dragon ball hat gohan', 'gohan inspired hat'])) return { type: 'product', key: 'Gohan Hats', size: findSize() };
+      if (hasAny(['gohan hat', 'four star ball hat', 'four star crochet hat', 'dragon ball hat gohan', 'gohan inspired hat'])) return { type: 'product', key: 'Gohan Hats', size: findSize() };
       if (hasAny(['luffy hat', 'straw hat pirate hat', 'one piece hat luffy', 'luffy inspired hat'])) return { type: 'product', key: 'Luffy Hats', size: findSize() };
       if (hasAny(['rumi hat', 'rumi inspired hat'])) return { type: 'product', key: 'Rumi Hats', size: findSize() };
       if (hasAny(['trunks set', 'trunks inspired set', 'dragon ball trunks set'])) return { type: 'product', key: 'Trunks Sets', size: findSize() };
-      if (hasAny(['goku hat', 'goku inspired hat'])) return { type: 'product', key: 'Goku Hats', size: findSize() };
+      if (hasAny(['goku hat', 'goku inspired hat', 'five point hat', 'five point crochet hat'])) return { type: 'product', key: 'Goku Hats', size: findSize() };
       if (hasAny(['majin buu set', 'buu set', 'majin set'])) return { type: 'product', key: 'Majin Buu Sets', size: findSize() };
+      if (hasAny(['commission', 'custom order', 'custom commission'])) return { type: 'product', key: 'Commission', size: null };
       return null;
     }
 
@@ -1728,8 +1732,11 @@
       const topProduct = productEntries[0]?.[0] || '—';
       let topCategory = 'Hats';
       const setsTotal = Number(stats.products?.['Trunks Sets']?.total || 0) + Number(stats.products?.['Majin Buu Sets']?.total || 0);
-      const hatsTotal = totalProducts - setsTotal;
-      if (setsTotal > hatsTotal) topCategory = 'Sets';
+      const commissionsTotal = Number(stats.products?.['Commission']?.total || 0);
+      const patternsAsProducts = 0;
+      const hatsTotal = totalProducts - setsTotal - commissionsTotal - patternsAsProducts;
+      if (commissionsTotal > hatsTotal && commissionsTotal > setsTotal) topCategory = 'Commission';
+      else if (setsTotal > hatsTotal) topCategory = 'Sets';
       const patternTotal = patternEntries.reduce((sum, [, v]) => sum + Number(v || 0), 0);
       if (statsProductsSoldEl) statsProductsSoldEl.textContent = String(totalProducts);
       if (statsTopProductEl) statsTopProductEl.textContent = topProduct;
