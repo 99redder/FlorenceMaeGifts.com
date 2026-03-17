@@ -3551,12 +3551,13 @@
 
         const t = summary.totals || { debits: 0, credits: 0 };
         if (activeAccountsTab === 'balances') {
+          const fmt = (v) => Number(Number(v || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           accountsBalanceStatusEl.textContent = summary.balanced
-            ? `Trial Balance: Balanced ✅ (Debits $${(t.debits/100).toFixed(2)} = Credits $${(t.credits/100).toFixed(2)})`
-            : `Trial Balance: Out of Balance ❌ (Debits $${(t.debits/100).toFixed(2)} vs Credits $${(t.credits/100).toFixed(2)})`;
+            ? `Trial Balance: Balanced ✅ (Debits $${fmt(t.debits)} = Credits $${fmt(t.credits)})`
+            : `Trial Balance: Out of Balance ❌ (Debits $${fmt(t.debits)} vs Credits $${fmt(t.credits)})`;
         }
 
-        const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
+        const money = (c) => `$${Number(Number(c || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         const lineList = (rows = []) => rows.length
           ? rows.map(r => `<div style="display:flex; justify-content:space-between; gap:.5rem;"><span>${r.code} — ${escHtml(r.name || '')}</span><strong>${money(r.balance_cents)}</strong></div>`).join('')
           : '<div style="color:var(--muted);">No rows</div>';
