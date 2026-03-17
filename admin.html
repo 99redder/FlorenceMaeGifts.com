@@ -317,7 +317,7 @@
               <div class="admin-grid" style="grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem;">
                 <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
                   <div class="admin-calendar-title" id="stats-monthly-title" style="color:var(--stats-text);">Monthly Stats</div>
-                  <div id="stats-monthly-grid" style="display:grid; grid-template-columns:auto auto; column-gap:1rem; row-gap:.24rem; font-size:.92rem; margin-top:.4rem; align-items:center; justify-content:start;">No data yet.</div>
+                  <div id="stats-monthly-grid" style="display:grid; grid-template-columns:auto auto; column-gap:1rem; row-gap:.28rem; font-size:1rem; margin-top:.4rem; align-items:center; justify-content:start;">No data yet.</div>
                 </div>
 
                 <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
@@ -1914,7 +1914,8 @@
         const rows = monthNames.map((name, idx) => `<strong>${name}</strong>${yoy.map(y => `<strong class="money-blur-target">${money(y.monthlyCents[idx])}</strong>`).join('')}`).join('');
         statsMonthlyGridEl.style.gridTemplateColumns = `auto repeat(${yoy.length}, auto)`;
         statsMonthlyGridEl.style.columnGap = '1rem';
-        statsMonthlyGridEl.style.rowGap = '.24rem';
+        statsMonthlyGridEl.style.rowGap = '.32rem';
+        statsMonthlyGridEl.style.fontSize = '1rem';
         statsMonthlyGridEl.style.justifyContent = 'start';
         statsMonthlyGridEl.innerHTML = header + rows;
       }
