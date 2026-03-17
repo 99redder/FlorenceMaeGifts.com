@@ -335,7 +335,8 @@
                   <div class="tax-summary-line"><span>Top Product</span><strong id="stats-top-product">—</strong></div>
                   <div class="tax-summary-line"><span>Top Category</span><strong id="stats-top-category">—</strong></div>
                   <div class="tax-summary-line"><span>Pattern Downloads</span><strong id="stats-pattern-downloads">0</strong></div>
-                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">Use Add Sale entries to populate per-item metrics.</p>
+                  <div id="stats-item-breakdown" style="margin-top:.7rem; display:grid; gap:.5rem;"></div>
+                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">All-time item baseline is seeded through March 17, 2026. New post-cutover sales/imports add onto these totals automatically.</p>
                 </div>
               </div>
             </section>
@@ -1383,6 +1384,7 @@
     const statsTopProductEl = document.getElementById('stats-top-product');
     const statsTopCategoryEl = document.getElementById('stats-top-category');
     const statsPatternDownloadsEl = document.getElementById('stats-pattern-downloads');
+    const statsItemBreakdownEl = document.getElementById('stats-item-breakdown');
 
     const taxSummaryListEl = document.getElementById('tax-summary-list');
     const taxListEl = document.getElementById('tax-list');
@@ -1648,6 +1650,99 @@
 
     loadThemePref();
 
+
+    const ITEM_STATS_BASELINE = {
+      products: {
+        'Gohan Hats': { total: 456, breakdown: { '0-3 months': 155, '3-6 months': 120, '6-9 months': 66, '9-12 months': 45, '12-18 months': 37, '18-24 months': 29, 'Youth Small': 4, 'Youth Large': 0, 'Adult': 0 } },
+        'Luffy Hats': { total: 446, breakdown: { '0-3 months': 149, '3-6 months': 152, '6-9 months': 58, '9-12 months': 40, '12-18 months': 34, '18-24 months': 13 } },
+        'Rumi Hats': { total: 40, breakdown: {} },
+        'Trunks Sets': { total: 131, breakdown: {} },
+        'Goku Hats': { total: 103, breakdown: {} },
+        'Majin Buu Sets': { total: 33, breakdown: {} }
+      },
+      patternDownloads: { 'Gohan Patterns': 171, 'Goku Patterns': 18 }
+    };
+
+    function cloneItemStatsBaseline() {
+      return JSON.parse(JSON.stringify(ITEM_STATS_BASELINE));
+    }
+
+    function detectItemStatEntry(row) {
+      const hay = `${row?.source || ''} ${row?.notes || ''}`.toLowerCase();
+      const sizeRules = [
+        ['0-3 months', ['0-3', '0/3']],
+        ['3-6 months', ['3-6', '3/6']],
+        ['6-9 months', ['6-9', '6/9']],
+        ['9-12 months', ['9-12', '9/12']],
+        ['12-18 months', ['12-18', '12/18']],
+        ['18-24 months', ['18-24', '18/24']],
+        ['Youth Small', ['youth small']],
+        ['Youth Large', ['youth large']],
+        ['Adult', ['adult']]
+      ];
+      const findSize = () => {
+        for (const [label, needles] of sizeRules) if (needles.some((n) => hay.includes(n))) return label;
+        return null;
+      };
+      if (hay.includes('gohan') && hay.includes('pattern')) return { type: 'pattern', key: 'Gohan Patterns' };
+      if (hay.includes('goku') && hay.includes('pattern')) return { type: 'pattern', key: 'Goku Patterns' };
+      if (hay.includes('gohan') && hay.includes('hat')) return { type: 'product', key: 'Gohan Hats', size: findSize() };
+      if (hay.includes('luffy') && hay.includes('hat')) return { type: 'product', key: 'Luffy Hats', size: findSize() };
+      if (hay.includes('rumi') && hay.includes('hat')) return { type: 'product', key: 'Rumi Hats', size: null };
+      if (hay.includes('trunks') && hay.includes('set')) return { type: 'product', key: 'Trunks Sets', size: null };
+      if (hay.includes('goku') && hay.includes('hat')) return { type: 'product', key: 'Goku Hats', size: findSize() };
+      if ((hay.includes('majin buu') || hay.includes('buu')) && hay.includes('set')) return { type: 'product', key: 'Majin Buu Sets', size: null };
+      return null;
+    }
+
+    async function buildAllTimeItemStats(selectedYear) {
+      const aggregate = cloneItemStatsBaseline();
+      const startYear = 2026;
+      for (let y = startYear; y <= selectedYear; y += 1) {
+        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(String(y))}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `Failed loading item stats for ${y}`);
+        let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
+        incomeRows = incomeRows.filter((r) => String(r.date || '') >= '2026-03-17');
+        for (const row of incomeRows) {
+          const match = detectItemStatEntry(row);
+          if (!match) continue;
+          if (match.type === 'pattern') {
+            aggregate.patternDownloads[match.key] = Number(aggregate.patternDownloads[match.key] || 0) + 1;
+          } else if (match.type === 'product') {
+            if (!aggregate.products[match.key]) aggregate.products[match.key] = { total: 0, breakdown: {} };
+            aggregate.products[match.key].total = Number(aggregate.products[match.key].total || 0) + 1;
+            if (match.size) aggregate.products[match.key].breakdown[match.size] = Number(aggregate.products[match.key].breakdown[match.size] || 0) + 1;
+          }
+        }
+      }
+      return aggregate;
+    }
+
+    function renderItemStats(stats) {
+      const productEntries = Object.entries(stats.products || {}).sort((a, b) => Number(b[1]?.total || 0) - Number(a[1]?.total || 0));
+      const patternEntries = Object.entries(stats.patternDownloads || {}).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0));
+      const totalProducts = productEntries.reduce((sum, [, v]) => sum + Number(v?.total || 0), 0);
+      const topProduct = productEntries[0]?.[0] || '—';
+      let topCategory = 'Hats';
+      const setsTotal = Number(stats.products?.['Trunks Sets']?.total || 0) + Number(stats.products?.['Majin Buu Sets']?.total || 0);
+      const hatsTotal = totalProducts - setsTotal;
+      if (setsTotal > hatsTotal) topCategory = 'Sets';
+      const patternTotal = patternEntries.reduce((sum, [, v]) => sum + Number(v || 0), 0);
+      if (statsProductsSoldEl) statsProductsSoldEl.textContent = String(totalProducts);
+      if (statsTopProductEl) statsTopProductEl.textContent = topProduct;
+      if (statsTopCategoryEl) statsTopCategoryEl.textContent = topCategory;
+      if (statsPatternDownloadsEl) statsPatternDownloadsEl.textContent = String(patternTotal);
+      if (!statsItemBreakdownEl) return;
+      const sizeOrder = ['0-3 months','3-6 months','6-9 months','9-12 months','12-18 months','18-24 months','Youth Small','Youth Large','Adult'];
+      const cards = productEntries.map(([name, data]) => {
+        const lines = sizeOrder.filter((label) => Object.prototype.hasOwnProperty.call(data.breakdown || {}, label)).map((label) => `<div class="tax-summary-line" style="font-size:.92rem;"><span>${escHtml(label)}</span><strong>${escHtml(String(data.breakdown[label] || 0))}</strong></div>`).join('');
+        return `<div style="padding:.55rem .65rem; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(0,0,0,.18);"><div class="tax-summary-line" style="padding-top:0;"><span><strong>${escHtml(name)}</strong></span><strong>${escHtml(String(data.total || 0))}</strong></div>${lines}</div>`;
+      }).join('');
+      const patternCard = `<div style="padding:.55rem .65rem; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(0,0,0,.18);"><div style="font-weight:700; margin-bottom:.3rem;">Pattern Downloads</div>${patternEntries.map(([name, count]) => `<div class="tax-summary-line" style="font-size:.92rem;"><span>${escHtml(name)}</span><strong>${escHtml(String(count || 0))}</strong></div>`).join('')}</div>`;
+      statsItemBreakdownEl.innerHTML = cards + patternCard;
+    }
+
     async function loadStatsData() {
       if (!adminUnlocked) return;
       const selectedYear = Number(statsYearEl?.value || taxYearEl?.value || String(new Date().getFullYear()));
@@ -1728,11 +1823,8 @@
       if (statsFeesCostsEl) statsFeesCostsEl.textContent = money(current.feesCostsCents);
       if (statsProfitEl) statsProfitEl.textContent = money(profit);
 
-      // Item stats intentionally deferred until LLC cutover day.
-      if (statsProductsSoldEl) statsProductsSoldEl.textContent = '—';
-      if (statsTopProductEl) statsTopProductEl.textContent = 'Pending LLC cutover';
-      if (statsTopCategoryEl) statsTopCategoryEl.textContent = 'Pending LLC cutover';
-      if (statsPatternDownloadsEl) statsPatternDownloadsEl.textContent = '—';
+      const itemStats = await buildAllTimeItemStats(selectedYear);
+      renderItemStats(itemStats);
       markMoneyBlurTargets();
     }
 
