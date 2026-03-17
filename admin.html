@@ -1669,29 +1669,31 @@
 
     function detectItemStatEntry(row) {
       const hay = `${row?.source || ''} ${row?.notes || ''}`.toLowerCase();
+      const normalized = hay.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const hasAny = (list) => list.some((n) => normalized.includes(n));
       const sizeRules = [
-        ['0-3 months', ['0-3', '0/3']],
-        ['3-6 months', ['3-6', '3/6']],
-        ['6-9 months', ['6-9', '6/9']],
-        ['9-12 months', ['9-12', '9/12']],
-        ['12-18 months', ['12-18', '12/18']],
-        ['18-24 months', ['18-24', '18/24']],
-        ['Youth Small', ['youth small']],
-        ['Youth Large', ['youth large']],
-        ['Adult', ['adult']]
+        ['0-3 months', ['0 3 months', '0 3 month', '0 3', '0/3', '0-3', 'newborn', '0 6 months']],
+        ['3-6 months', ['3 6 months', '3 6 month', '3 6', '3/6', '3-6']],
+        ['6-9 months', ['6 9 months', '6 9 month', '6 9', '6/9', '6-9']],
+        ['9-12 months', ['9 12 months', '9 12 month', '9 12', '9/12', '9-12']],
+        ['12-18 months', ['12 18 months', '12 18 month', '12 18', '12/18', '12-18']],
+        ['18-24 months', ['18 24 months', '18 24 month', '18 24', '18/24', '18-24', '2t']],
+        ['Youth Small', ['youth small', 'child small', 'kids small']],
+        ['Youth Large', ['youth large', 'child large', 'kids large']],
+        ['Adult', ['adult', 'adult small', 'adult medium', 'adult large']]
       ];
       const findSize = () => {
-        for (const [label, needles] of sizeRules) if (needles.some((n) => hay.includes(n))) return label;
+        for (const [label, needles] of sizeRules) if (needles.some((n) => normalized.includes(n))) return label;
         return null;
       };
-      if (hay.includes('gohan') && hay.includes('pattern')) return { type: 'pattern', key: 'Gohan Patterns' };
-      if (hay.includes('goku') && hay.includes('pattern')) return { type: 'pattern', key: 'Goku Patterns' };
-      if (hay.includes('gohan') && hay.includes('hat')) return { type: 'product', key: 'Gohan Hats', size: findSize() };
-      if (hay.includes('luffy') && hay.includes('hat')) return { type: 'product', key: 'Luffy Hats', size: findSize() };
-      if (hay.includes('rumi') && hay.includes('hat')) return { type: 'product', key: 'Rumi Hats', size: null };
-      if (hay.includes('trunks') && hay.includes('set')) return { type: 'product', key: 'Trunks Sets', size: null };
-      if (hay.includes('goku') && hay.includes('hat')) return { type: 'product', key: 'Goku Hats', size: findSize() };
-      if ((hay.includes('majin buu') || hay.includes('buu')) && hay.includes('set')) return { type: 'product', key: 'Majin Buu Sets', size: null };
+      if (hasAny(['gohan pattern', 'four star ball pattern', 'dragon ball pattern gohan'])) return { type: 'pattern', key: 'Gohan Patterns' };
+      if (hasAny(['goku pattern', 'goku inspired pattern'])) return { type: 'pattern', key: 'Goku Patterns' };
+      if (hasAny(['gohan hat', 'four star ball hat', 'dragon ball hat gohan', 'gohan inspired hat'])) return { type: 'product', key: 'Gohan Hats', size: findSize() };
+      if (hasAny(['luffy hat', 'straw hat pirate hat', 'one piece hat luffy', 'luffy inspired hat'])) return { type: 'product', key: 'Luffy Hats', size: findSize() };
+      if (hasAny(['rumi hat', 'rumi inspired hat'])) return { type: 'product', key: 'Rumi Hats', size: findSize() };
+      if (hasAny(['trunks set', 'trunks inspired set', 'dragon ball trunks set'])) return { type: 'product', key: 'Trunks Sets', size: findSize() };
+      if (hasAny(['goku hat', 'goku inspired hat'])) return { type: 'product', key: 'Goku Hats', size: findSize() };
+      if (hasAny(['majin buu set', 'buu set', 'majin set'])) return { type: 'product', key: 'Majin Buu Sets', size: findSize() };
       return null;
     }
 
