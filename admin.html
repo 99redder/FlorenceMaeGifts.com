@@ -446,6 +446,7 @@
                       <input id="tax-sale-date" type="date" />
                       <label>Item Name</label>
                       <select id="tax-sale-item"><option value="">Select item</option><option value="Gohan Hats">Gohan Hats</option><option value="Luffy Hats">Luffy Hats</option><option value="Rumi Hats">Rumi Hats</option><option value="Trunks Sets">Trunks Sets</option><option value="Goku Hats">Goku Hats</option><option value="Majin Buu Sets">Majin Buu Sets</option><option value="Gohan Patterns">Gohan Patterns</option><option value="Goku Patterns">Goku Patterns</option><option value="Commission">Commission</option></select>
+                      <select id="tax-sale-size" style="display:none; margin-top:.35rem;"><option value="">Select size</option><option value="0-3 months">0-3 months</option><option value="3-6 months">3-6 months</option><option value="6-9 months">6-9 months</option><option value="9-12 months">9-12 months</option><option value="12-18 months">12-18 months</option><option value="18-24 months">18-24 months</option><option value="Youth Small">Youth Small</option><option value="Youth Large">Youth Large</option><option value="Adult">Adult</option></select>
                       <input id="tax-sale-item-custom" placeholder="Commission details / optional item details" style="display:none; margin-top:.35rem;" />
                       <label>Channel</label>
                       <select id="tax-sale-channel"><option value="Etsy">Etsy</option><option value="Website">Website</option><option value="In Person">In Person</option><option value="Other">Other</option></select>
@@ -1469,6 +1470,7 @@
 
     const taxSaleDateEl = document.getElementById('tax-sale-date');
     const taxSaleItemEl = document.getElementById('tax-sale-item');
+    const taxSaleSizeEl = document.getElementById('tax-sale-size');
     const taxSaleItemCustomEl = document.getElementById('tax-sale-item-custom');
     const taxSaleChannelEl = document.getElementById('tax-sale-channel');
     const taxSaleAmountEl = document.getElementById('tax-sale-amount');
