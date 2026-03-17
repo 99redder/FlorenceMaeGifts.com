@@ -1928,6 +1928,19 @@
       if (statsFeesCostsEl) statsFeesCostsEl.textContent = money(current.feesCostsCents);
       if (statsProfitEl) statsProfitEl.textContent = money(profit);
 
+      if (statsAllTimeCardEl) statsAllTimeCardEl.style.display = selectedYear === 2026 ? '' : 'none';
+      if (selectedYear === 2026) {
+        const allTime = await buildAllTimeBusinessStats();
+        if (statsAllTimeSalesCountEl) statsAllTimeSalesCountEl.textContent = String(allTime.salesCount || 0);
+        if (statsAllTimeSalesVolumeEl) statsAllTimeSalesVolumeEl.textContent = money(allTime.salesVolumeCents || 0);
+        if (statsAllTimeEtsyFeesEl) statsAllTimeEtsyFeesEl.textContent = money(allTime.etsyFeesCents || 0);
+        if (statsAllTimeShippingCostsEl) statsAllTimeShippingCostsEl.textContent = money(allTime.shippingCostsCents || 0);
+        if (statsAllTimeSuppliesCostsEl) statsAllTimeSuppliesCostsEl.textContent = money(allTime.suppliesCostsCents || 0);
+        if (statsAllTimeAdvertisingCostsEl) statsAllTimeAdvertisingCostsEl.textContent = money(allTime.advertisingCostsCents || 0);
+        if (statsAllTimeFeesCostsEl) statsAllTimeFeesCostsEl.textContent = money(allTime.feesCostsCents || 0);
+        if (statsAllTimeProfitEl) statsAllTimeProfitEl.textContent = money(allTime.profitCents || 0);
+      }
+
       const itemStats = await buildAllTimeItemStats(selectedYear);
       renderItemStats(itemStats);
       markMoneyBlurTargets();
