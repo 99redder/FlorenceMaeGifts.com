@@ -1826,7 +1826,7 @@
         advertisingCostsCents: 0
       };
 
-      const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
+      const money = (c) => `$${Number(Number(c || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
       const getYearStats = async (yearNum) => {
@@ -2038,7 +2038,7 @@
         const stData = await statementsRes.json();
         const journalData = await journalRes.json();
 
-        const money = (c) => `$${(Number(c || 0)/100).toFixed(2)}`;
+        const money = (c) => `$${Number(Number(c || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
         if (selected.includes('tax_csv')) {
           const csvRes = await fetch(`${TAX_EXPORT_API_URL}?year=${encodeURIComponent(year)}&type=all`, { headers: { 'X-Admin-Password': adminPassword } });
