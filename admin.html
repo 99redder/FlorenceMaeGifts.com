@@ -1761,7 +1761,10 @@
         2024: { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
         2025: { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
       };
-      const preCutover2026ExpenseBaseline = {
+      const preCutover2026StatsBaseline = {
+        salesCount: 59,
+        salesVolumeCents: 221621,
+        monthlyCents: [119273, 57959, 44389, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         etsyFeesCents: 30001,
         shippingCostsCents: 28560,
         suppliesCostsCents: 88360,
@@ -1795,19 +1798,23 @@
           suppliesCostsCents: 0,
           advertisingCostsCents: 0
         };
+        let seededSalesCount = 0;
+        let seededSalesVolumeCents = 0;
+        let seededMonthlyCents = Array(12).fill(0);
 
         if (yearNum === 2026) {
           const cutoverDate = '2026-03-17';
           incomeRows = incomeRows.filter((r) => String(r.date || '') >= cutoverDate);
           expenseRows = expenseRows.filter((r) => String(r.date || '') >= cutoverDate);
-          incomeRows = incomeRows.concat([
-            { date: '2026-01-31', amount_cents: 119273 },
-            { date: '2026-02-28', amount_cents: 57959 },
-            { date: '2026-03-16', amount_cents: 44389 }
-          ]);
+          seededSalesCount = preCutover2026StatsBaseline.salesCount;
+          seededSalesVolumeCents = preCutover2026StatsBaseline.salesVolumeCents;
+          seededMonthlyCents = [...preCutover2026StatsBaseline.monthlyCents];
           expenseBreakdownCents = {
             ...expenseBreakdownCents,
-            ...preCutover2026ExpenseBaseline
+            etsyFeesCents: preCutover2026StatsBaseline.etsyFeesCents,
+            shippingCostsCents: preCutover2026StatsBaseline.shippingCostsCents,
+            suppliesCostsCents: preCutover2026StatsBaseline.suppliesCostsCents,
+            advertisingCostsCents: preCutover2026StatsBaseline.advertisingCostsCents
           };
         }
 
@@ -1821,15 +1828,15 @@
           else if (vendor.includes('etsy') || category.includes('etsy') || category.includes('payment processing') || category.includes('processing fee') || category.includes('listing fee') || category.includes('transaction fee')) expenseBreakdownCents.etsyFeesCents += cents;
         }
 
-        const monthlyCents = Array(12).fill(0);
+        const monthlyCents = [...seededMonthlyCents];
         for (const r of incomeRows) {
           const m = Number(String(r.date || '').slice(5, 7));
           if (m >= 1 && m <= 12) monthlyCents[m - 1] += Number(r.amount_cents || 0);
         }
         return {
           year: yearNum,
-          salesCount: incomeRows.length,
-          salesVolumeCents: incomeRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0),
+          salesCount: seededSalesCount + incomeRows.length,
+          salesVolumeCents: seededSalesVolumeCents + incomeRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0),
           feesCostsCents: expenseBreakdownCents.etsyFeesCents + expenseBreakdownCents.shippingCostsCents + expenseBreakdownCents.suppliesCostsCents + expenseBreakdownCents.advertisingCostsCents,
           etsyFeesCents: expenseBreakdownCents.etsyFeesCents,
           shippingCostsCents: expenseBreakdownCents.shippingCostsCents,
