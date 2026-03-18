@@ -1813,8 +1813,26 @@
 
       const seeded = {
         2023: { salesCount: 453, salesVolume: 14341.59, feesCosts: 0, monthly: null },
-        2024: { salesCount: 516, salesVolume: 21334.19, feesCosts: 0, monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26] },
-        2025: { salesCount: 439, salesVolume: 19095.41, feesCosts: 6529.83, monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55] }
+        2024: {
+          salesCount: 516,
+          salesVolume: 21334.19,
+          feesCosts: 7402.33,
+          etsyFees: 2988.39,
+          shippingCosts: 2442.54,
+          suppliesCosts: 1943.76,
+          advertisingCosts: 27.64,
+          monthly: [1016.76,1287.28,2120.69,2140.31,1467.58,1351.42,1549.99,1392.52,2406.40,3062.13,1654.85,1884.26]
+        },
+        2025: {
+          salesCount: 439,
+          salesVolume: 19095.41,
+          feesCosts: 6529.83,
+          etsyFees: 2408.42,
+          shippingCosts: 2249.94,
+          suppliesCosts: 1753.87,
+          advertisingCosts: 117.60,
+          monthly: [1331.83,1005.58,1101.52,1148.45,1191.59,1044.24,1599.65,1368.39,2925.24,2948.20,1307.17,2123.55]
+        }
       };
       const preCutover2026StatsBaseline = {
         salesCount: 59,
@@ -1837,6 +1855,10 @@
             salesCount: Number(s.salesCount || 0),
             salesVolumeCents: Math.round(Number(s.salesVolume || 0) * 100),
             feesCostsCents: Math.round(Number(s.feesCosts || 0) * 100),
+            etsyFeesCents: Math.round(Number(s.etsyFees || 0) * 100),
+            shippingCostsCents: Math.round(Number(s.shippingCosts || 0) * 100),
+            suppliesCostsCents: Math.round(Number(s.suppliesCosts || 0) * 100),
+            advertisingCostsCents: Math.round(Number(s.advertisingCosts || 0) * 100),
             monthlyCents: Array.isArray(s.monthly) ? s.monthly.map(v => Math.round(Number(v || 0) * 100)) : Array(12).fill(0)
           };
         }
