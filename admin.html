@@ -518,6 +518,7 @@
                       <input id="tax-income-source" placeholder="e.g. Stripe, Client" />
                       <label>Category</label>
                       <select id="tax-income-category"></select>
+                      <div id="tax-income-category-account-hint" style="margin-top:.35rem; font-size:.86rem; color:var(--muted);"></div>
                       <label>Amount (USD)</label>
                       <input id="tax-income-amount" type="number" step="0.01" placeholder="0.00" />
                       <label>Stripe session id (optional)</label>
@@ -1526,6 +1527,7 @@
     const taxIncomeDateEl = document.getElementById('tax-income-date');
     const taxIncomeSourceEl = document.getElementById('tax-income-source');
     const taxIncomeCategoryEl = document.getElementById('tax-income-category');
+    const taxIncomeCategoryAccountHintEl = document.getElementById('tax-income-category-account-hint');
     const taxIncomeAmountEl = document.getElementById('tax-income-amount');
     const taxIncomeStripeEl = document.getElementById('tax-income-stripe');
     const taxIncomeNotesEl = document.getElementById('tax-income-notes');
@@ -2571,9 +2573,21 @@
       }
     }
 
+    function updateTaxIncomeCategoryAccountHint() {
+      const category = String(taxIncomeCategoryEl?.value || '').trim().toLowerCase();
+      let hint = 'Posts to Service Revenue.';
+      if (category.includes('owner funded') || category.includes('non-revenue')) {
+        hint = 'Posts to Owner Contributions (non-revenue).';
+      } else if (category.includes('credit card bonus') || category.includes('bank interest')) {
+        hint = 'Posts to Other Income.';
+      }
+      if (taxIncomeCategoryAccountHintEl) taxIncomeCategoryAccountHintEl.textContent = hint;
+    }
+
     function renderCategoryOptions() {
       taxExpenseCategoryEl.innerHTML = TAX_EXPENSE_CATEGORIES.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
       taxIncomeCategoryEl.innerHTML = TAX_INCOME_CATEGORIES.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+      updateTaxIncomeCategoryAccountHint();
     }
 
     function openCategoryEditModal(currentName) {
@@ -2684,6 +2698,7 @@
         taxIncomeDateEl.value = r.date || '';
         taxIncomeSourceEl.value = r.source || '';
         taxIncomeCategoryEl.value = r.category || TAX_INCOME_CATEGORIES[0];
+        updateTaxIncomeCategoryAccountHint();
         taxIncomeAmountEl.value = ((Number(r.amount_cents || 0))/100).toFixed(2);
         taxIncomeStripeEl.value = r.stripe_session_id || '';
         taxIncomeNotesEl.value = r.notes || '';
@@ -2969,6 +2984,7 @@
       const incReceiptNameEl = document.getElementById('tax-income-receipt-name');
       if (incReceiptNameEl) incReceiptNameEl.textContent = 'No file chosen';
       if (taxIncomeCategoryEl.options.length) taxIncomeCategoryEl.selectedIndex = 0;
+      updateTaxIncomeCategoryAccountHint();
       resetIncomeEditMode();
     }
 
@@ -4327,6 +4343,7 @@
     taxUpdateIncomeBtn.addEventListener('click', addTaxIncome);
     taxCancelIncomeEditBtn.addEventListener('click', clearTaxIncomeForm);
     taxClearIncomeBtn.addEventListener('click', clearTaxIncomeForm);
+    taxIncomeCategoryEl?.addEventListener('change', updateTaxIncomeCategoryAccountHint);
 
     document.getElementById('tax-expense-receipt').addEventListener('change', function() {
       document.getElementById('tax-expense-receipt-name').textContent = this.files[0] ? this.files[0].name : 'No file chosen';
