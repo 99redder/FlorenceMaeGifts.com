@@ -1741,7 +1741,7 @@
         const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(String(y))}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `Failed loading item stats for ${y}`);
-        let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
+        let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && isStatsSaleIncomeRow(r));
         incomeRows = incomeRows.filter((r) => String(r.date || '') >= '2026-03-18');
         for (const row of incomeRows) {
           const match = detectItemStatEntry(row);
@@ -1786,12 +1786,17 @@
       advertisingCostsCents: 23927
     };
 
+    function isStatsSaleIncomeRow(r) {
+      const category = String(r?.category || '').trim().toLowerCase();
+      return category === 'product sale';
+    }
+
     async function buildAllTimeBusinessStats() {
       const res = await fetch(`${TAX_TX_API_URL}?year=2026&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed loading all-time stats');
       const cutoverDate = '2026-03-18';
-      const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && String(r.date || '') >= cutoverDate);
+      const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && String(r.date || '') >= cutoverDate && isStatsSaleIncomeRow(r));
       const expenseRows = (data.expenses || []).filter((r) => String(r.date || '') >= cutoverDate);
       const out = { ...allTimeStatsBaseline };
       out.salesCount += incomeRows.length;
@@ -1879,7 +1884,7 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `Failed loading stats for ${yearNum}`);
 
-        let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
+        let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && isStatsSaleIncomeRow(r));
         let expenseRows = data.expenses || [];
         let expenseBreakdownCents = {
           etsyFeesCents: 0,
