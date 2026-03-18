@@ -3456,7 +3456,8 @@ async function upsertTaxIncomeJournal(db, row) {
   const categoryRaw = (row.category || '').toString().trim().toLowerCase();
   const sourceRaw = (row.source || '').toString().trim().toLowerCase();
   const isOwnerFunded = Number(row.is_owner_funded || 0) === 1 || categoryRaw.includes('owner funded') || categoryRaw.includes('non-revenue') || sourceRaw.includes('owner funded') || sourceRaw.includes('test');
-  const creditAccountCode = isOwnerFunded ? '3100' : '4000';
+  const isOtherIncome = categoryRaw.includes('credit card bonus') || categoryRaw.includes('bank interest') || sourceRaw.includes('credit card bonus') || sourceRaw.includes('bank interest');
+  const creditAccountCode = isOwnerFunded ? '3100' : (isOtherIncome ? '4900' : '4000');
   const creditAccountId = await getAccountIdByCode(db, creditAccountCode);
   if (!debitAccountId || !creditAccountId) return;
 
