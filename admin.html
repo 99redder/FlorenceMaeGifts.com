@@ -1812,7 +1812,16 @@
       const selectedYear = Number(statsYearEl?.value || taxYearEl?.value || String(new Date().getFullYear()));
 
       const seeded = {
-        2023: { salesCount: 453, salesVolume: 14341.59, feesCosts: 0, monthly: null },
+        2023: {
+          salesCount: 421,
+          salesVolume: 13620.50,
+          feesCosts: 5676.01,
+          etsyFees: 1866.91,
+          shippingCosts: 1919.57,
+          suppliesCosts: 1795.50,
+          advertisingCosts: 94.03,
+          monthly: null
+        },
         2024: {
           salesCount: 516,
           salesVolume: 21334.19,
