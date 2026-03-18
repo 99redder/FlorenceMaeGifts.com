@@ -1505,7 +1505,7 @@ async function handleTaxOwnerTransfer(request, env, corsHeaders, url) {
   const cents = toCents(data.amount);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) return json({ ok: false, error: 'Invalid date' }, 400, corsHeaders);
-  if (!['personal_to_business','business_to_personal','personal_paid_business_card'].includes(transferType)) return json({ ok: false, error: 'Invalid transfer type' }, 400, corsHeaders);
+  if (!['personal_to_business','business_to_personal','personal_paid_business_card','business_paid_business_card'].includes(transferType)) return json({ ok: false, error: 'Invalid transfer type' }, 400, corsHeaders);
   if (!Number.isFinite(cents) || cents <= 0) return json({ ok: false, error: 'Invalid amount' }, 400, corsHeaders);
 
   const cashId = await getAccountIdByCode(env.DB, '1000');
@@ -1521,8 +1521,10 @@ async function handleTaxOwnerTransfer(request, env, corsHeaders, url) {
     await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, cashId, cents, ownerContribId).run();
   } else if (transferType === 'business_to_personal') {
     await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, ownerDrawId, cents, cashId).run();
-  } else {
+  } else if (transferType === 'personal_paid_business_card') {
     await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, ccPayableId, cents, ownerContribId).run();
+  } else {
+    await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, ccPayableId, cents, cashId).run();
   }
 
   return json({ ok: true, id: entryId }, 200, corsHeaders);
