@@ -31,6 +31,10 @@ CONTACT_TO_EMAIL = "contact@florencemaegifts.com"
 binding = "DOWNLOADS_BUCKET"
 bucket_name = "fmg"
 
+[[r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "fmg-receipts"
+
 [[kv_namespaces]]
 binding = "DOWNLOAD_TOKENS"
 id = "7350d3bd812644928452170df7b380ec"
