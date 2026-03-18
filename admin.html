@@ -312,7 +312,7 @@
               </div>
               <div class="admin-calendar-wrap" style="margin:0 0 .65rem; background:rgba(254,102,102,.08); border:1px solid rgba(254,102,102,.35);">
                 <div class="admin-calendar-title" style="color:var(--text);">LLC Cutover Note</div>
-                <p style="margin:.35rem 0 0; font-size:.92rem; color:var(--muted);">Official LLC cutover date: <strong style="color:var(--text);">March 17, 2026</strong>. Treat this as the first day operating as Florence Mae Gifts, LLC for admin/bookkeeping purposes.</p>
+                <p style="margin:.35rem 0 0; font-size:.92rem; color:var(--muted);">Official LLC cutover date: <strong style="color:var(--text);">March 18, 2026</strong>. Treat this as the first day operating as Florence Mae Gifts, LLC for admin/bookkeeping purposes.</p>
               </div>
               <div class="admin-grid" style="grid-template-columns:repeat(3,minmax(0,1fr)); gap:.6rem;">
                 <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
@@ -330,7 +330,7 @@
                   <div class="tax-summary-line"><span>Total Advertising Costs</span><strong id="stats-advertising-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Fees and Costs</span><strong id="stats-fees-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Profit</span><strong id="stats-profit" class="money-blur-target">$0.00</strong></div>
-                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">2026 stats are cutover-aware: January 1 through March 16, 2026 use the sole proprietorship baseline, and March 17, 2026 forward is driven by live LLC ledger data.</p>
+                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">2026 stats are cutover-aware: January 1 through March 17, 2026 use the sole proprietorship baseline, and March 18, 2026 forward is driven by live LLC ledger data.</p>
                 </div>
 
                 <div class="admin-calendar-wrap" id="stats-all-time-card" style="margin:0; background:var(--stats-bg); color:var(--stats-text); display:none;">
@@ -343,7 +343,7 @@
                   <div class="tax-summary-line"><span>Total Advertising Costs</span><strong id="stats-alltime-advertising-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Fees and Costs</span><strong id="stats-alltime-fees-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Profit</span><strong id="stats-alltime-profit" class="money-blur-target">$0.00</strong></div>
-                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">All-time baseline is seeded through March 17, 2026 and will continue increasing as new LLC sales/imports are recorded.</p>
+                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">All-time baseline is seeded through March 17, 2026 and will continue increasing as new LLC sales/imports are recorded starting March 18, 2026.</p>
                 </div>
 
                 <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
@@ -352,7 +352,7 @@
                   <div class="tax-summary-line"><span>Top Product</span><strong id="stats-top-product">—</strong></div>
                   <div class="tax-summary-line"><span>Pattern Downloads</span><strong id="stats-pattern-downloads">0</strong></div>
                   <div id="stats-item-breakdown" style="margin-top:.7rem; display:grid; gap:.5rem;"></div>
-                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">All-time item baseline is seeded through March 17, 2026. New post-cutover sales/imports add onto these totals automatically.</p>
+                  <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">All-time item baseline is seeded through March 17, 2026. New post-cutover sales/imports add onto these totals automatically starting March 18, 2026.</p>
                 </div>
               </div>
             </section>
@@ -408,7 +408,7 @@
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-owner-transfer-btn">Add Owner Transfer</button>
                   <button type="button" class="btn btn-primary" id="tax-manage-categories-btn" onclick="window.openTaxCategoryManager && window.openTaxCategoryManager()">Manage Categories</button>
                 </div>
-                <p style="margin:.55rem 0 0; font-size:.9rem; color:var(--muted);">LLC cutover note: <strong style="color:var(--text);">March 17, 2026</strong> is the first official day as Florence Mae Gifts, LLC. Use this date when splitting sole proprietorship vs. LLC bookkeeping/imports.</p>
+                <p style="margin:.55rem 0 0; font-size:.9rem; color:var(--muted);">LLC cutover note: <strong style="color:var(--text);">March 18, 2026</strong> is the first official day as Florence Mae Gifts, LLC. Use this date when splitting sole proprietorship vs. LLC bookkeeping/imports.</p>
 
                 <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-top:.5rem;">
                   <label style="min-width:80px;">Year</label>
@@ -1739,7 +1739,7 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `Failed loading item stats for ${y}`);
         let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded'));
-        incomeRows = incomeRows.filter((r) => String(r.date || '') >= '2026-03-17');
+        incomeRows = incomeRows.filter((r) => String(r.date || '') >= '2026-03-18');
         for (const row of incomeRows) {
           const match = detectItemStatEntry(row);
           if (!match) continue;
@@ -1787,7 +1787,7 @@
       const res = await fetch(`${TAX_TX_API_URL}?year=2026&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed loading all-time stats');
-      const cutoverDate = '2026-03-17';
+      const cutoverDate = '2026-03-18';
       const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && String(r.date || '') >= cutoverDate);
       const expenseRows = (data.expenses || []).filter((r) => String(r.date || '') >= cutoverDate);
       const out = { ...allTimeStatsBaseline };
@@ -1889,7 +1889,7 @@
         let seededMonthlyCents = Array(12).fill(0);
 
         if (yearNum === 2026) {
-          const cutoverDate = '2026-03-17';
+          const cutoverDate = '2026-03-18';
           incomeRows = incomeRows.filter((r) => String(r.date || '') >= cutoverDate);
           expenseRows = expenseRows.filter((r) => String(r.date || '') >= cutoverDate);
           seededSalesCount = preCutover2026StatsBaseline.salesCount;
