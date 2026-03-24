@@ -1824,23 +1824,34 @@
     }
 
     async function buildAllTimeBusinessStats() {
-      const res = await fetch(`${TAX_TX_API_URL}?year=2026&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed loading all-time stats');
-      const cutoverDate = '2026-03-18';
-      const incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && String(r.date || '') >= cutoverDate && isStatsSaleIncomeRow(r));
-      const expenseRows = (data.expenses || []).filter((r) => String(r.date || '') >= cutoverDate);
       const out = { ...allTimeStatsBaseline };
-      out.salesCount += incomeRows.length;
-      out.salesVolumeCents += incomeRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
-      for (const r of expenseRows) {
-        const cents = Number(r.amount_cents || 0);
-        const category = String(r.category || '').toLowerCase();
-        const vendor = String(r.vendor || '').toLowerCase();
-        if (category.includes('advertising') || category.includes('marketing')) out.advertisingCostsCents += cents;
-        else if (category.includes('shipping')) out.shippingCostsCents += cents;
-        else if (category.includes('suppl')) out.suppliesCostsCents += cents;
-        else if (vendor.includes('etsy') || category.includes('etsy') || category.includes('payment processing') || category.includes('processing fee') || category.includes('listing fee') || category.includes('transaction fee')) out.etsyFeesCents += cents;
+      // Fetch DB records for all years and layer on top of the seeded baseline.
+      // For 2026 only count post-LLC-cutover entries (pre-cutover is in the baseline).
+      const yearsToFetch = [2023, 2024, 2025, 2026];
+      const cutoverDate = '2026-03-18';
+      for (const year of yearsToFetch) {
+        const res = await fetch(`${TAX_TX_API_URL}?year=${year}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const incomeRows = (data.income || []).filter(r =>
+          Number(r.is_owner_funded || 0) !== 1 &&
+          !String(r.category||'').toLowerCase().includes('owner funded') &&
+          isStatsSaleIncomeRow(r) &&
+          (year !== 2026 || String(r.date || '') >= cutoverDate)
+        );
+        const expenseRows = (data.expenses || []).filter(r =>
+          year !== 2026 || String(r.date || '') >= cutoverDate
+        );
+        out.salesCount += incomeRows.length;
+        out.salesVolumeCents += incomeRows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
+        for (const r of expenseRows) {
+          const cents = Number(r.amount_cents || 0);
+          const category = String(r.category || '').toLowerCase();
+          if (category.includes('advertising') || category.includes('marketing')) out.advertisingCostsCents += cents;
+          else if (category.includes('shipping')) out.shippingCostsCents += cents;
+          else if (category.includes('suppl')) out.suppliesCostsCents += cents;
+          else out.etsyFeesCents += cents;
+        }
       }
       out.feesCostsCents = out.etsyFeesCents + out.shippingCostsCents + out.suppliesCostsCents + out.advertisingCostsCents;
       out.profitCents = out.salesVolumeCents - out.feesCostsCents;
@@ -1899,17 +1910,42 @@
       const getYearStats = async (yearNum) => {
         if (seeded[yearNum]) {
           const s = seeded[yearNum];
-          return {
+          const base = {
             year: yearNum,
             salesCount: Number(s.salesCount || 0),
             salesVolumeCents: Math.round(Number(s.salesVolume || 0) * 100),
-            feesCostsCents: Math.round(Number(s.feesCosts || 0) * 100),
             etsyFeesCents: Math.round(Number(s.etsyFees || 0) * 100),
             shippingCostsCents: Math.round(Number(s.shippingCosts || 0) * 100),
             suppliesCostsCents: Math.round(Number(s.suppliesCosts || 0) * 100),
             advertisingCostsCents: Math.round(Number(s.advertisingCosts || 0) * 100),
             monthlyCents: Array.isArray(s.monthly) ? s.monthly.map(v => Math.round(Number(v || 0) * 100)) : Array(12).fill(0)
           };
+          // Layer any DB imports on top of the seeded baseline
+          try {
+            const dbRes = await fetch(`${TAX_TX_API_URL}?year=${yearNum}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
+            const dbData = await dbRes.json();
+            if (dbRes.ok) {
+              const dbIncome = (dbData.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && isStatsSaleIncomeRow(r));
+              const dbExpenses = dbData.expenses || [];
+              base.salesCount += dbIncome.length;
+              base.salesVolumeCents += dbIncome.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
+              for (const r of dbIncome) {
+                const m = Number(String(r.date || '').slice(5, 7));
+                if (m >= 1 && m <= 12) base.monthlyCents[m - 1] += Number(r.amount_cents || 0);
+              }
+              for (const r of dbExpenses) {
+                const cents = Number(r.amount_cents || 0);
+                const category = String(r.category || '').toLowerCase();
+                const vendor = String(r.vendor || '').toLowerCase();
+                if (category.includes('advertising') || category.includes('marketing')) base.advertisingCostsCents += cents;
+                else if (category.includes('shipping')) base.shippingCostsCents += cents;
+                else if (category.includes('suppl')) base.suppliesCostsCents += cents;
+                else base.etsyFeesCents += cents;
+              }
+            }
+          } catch (e) { /* fall back to seeded-only */ }
+          base.feesCostsCents = base.etsyFeesCents + base.shippingCostsCents + base.suppliesCostsCents + base.advertisingCostsCents;
+          return base;
         }
 
         const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(String(yearNum))}&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
@@ -1951,7 +1987,7 @@
           if (category.includes('advertising') || category.includes('marketing')) expenseBreakdownCents.advertisingCostsCents += cents;
           else if (category.includes('shipping')) expenseBreakdownCents.shippingCostsCents += cents;
           else if (category.includes('suppl')) expenseBreakdownCents.suppliesCostsCents += cents;
-          else if (vendor.includes('etsy') || category.includes('etsy') || category.includes('payment processing') || category.includes('processing fee') || category.includes('listing fee') || category.includes('transaction fee')) expenseBreakdownCents.etsyFeesCents += cents;
+          else expenseBreakdownCents.etsyFeesCents += cents;
         }
 
         const monthlyCents = [...seededMonthlyCents];

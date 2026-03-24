@@ -364,3 +364,29 @@ Booking Controls were intentionally removed from the Florence admin codebase.
 - Keep SQL placeholder/bind counts exactly aligned for every statement.
 - Preserve idempotency for invoice payment posting to prevent duplicate accounting rows.
 - Keep Stripe/Resend configuration environment-driven (`STRIPE_*`, `RESEND_*`, `FROM_EMAIL`, `TO_EMAIL`, optional `CC_EMAIL`).
+
+---
+
+## 2026-03-24 Updates (Mercari CSV Import + Stats Fix)
+
+### What was added
+
+- **Import Mercari Sales** button added to the Tax Ledger tab in `admin.html`, alongside the existing "Import Etsy Sales" button.
+  - Parses Mercari "Custom Sales Report" CSV format (one row per item, all fees inline).
+  - **Income**: records `Item Price` as "Product Sale" category.
+  - **Sales tax excluded**: `Sales Tax Charged to Buyer` column is intentionally ignored — Mercari remits sales tax automatically, same policy as Etsy.
+  - **Expenses** (if > 0 each): `Seller Shipping Fee` → "Shipping Costs", `Mercari Selling Fee` → "Mercari Selling Fees", `Payment Processing Fee Charged To Seller` → "Payment Processing Fees", `Shipping Adjustment Fee` → "Shipping Costs", `Penalty Fee` → "Other Expense".
+  - Skips: canceled orders (non-Completed status or non-empty Canceled Date), the "Totals:" summary row, and the "Report generated on:" footer row.
+  - Date format: Mercari uses MM/DD/YYYY — converted via `mercariDateToIso()`.
+  - Preview panel before import, same UX pattern as Etsy import.
+  - Uses `parseCsvTable()`, `parseUsd()`, `postTaxIncomeEntry()`, `postTaxExpenseEntry()` — no new infrastructure.
+- **"Mercari Selling Fees"** and **"Other Expense"** added to `DEFAULT_TAX_EXPENSE_CATEGORIES`.
+
+### Stats system fix
+
+- **Seeded years (2023, 2024, 2025)**: `getYearStats()` previously returned only hardcoded baseline data with no DB lookup. Now it also fetches from the DB and layers any imported records on top of the seeded baseline. This means Etsy or Mercari imports for those years now appear in Stats.
+- **All-time card**: `buildAllTimeBusinessStats()` previously only fetched 2026 DB data. Now fetches DB records for 2023, 2024, 2025, and 2026 (post-cutover only for 2026) and adds them all on top of the all-time seeded baseline.
+- **Expense categorization simplified**: the long vendor/category string-matching chain was replaced with an `else` fallback — any expense that isn't advertising/marketing, shipping, or supplies gets bucketed into platform fees. This makes Mercari fees (and any future platform) count correctly without needing to enumerate every vendor name.
+
+### Key behavior note
+The seeded baseline numbers for 2023–2025 represent all pre-admin historical sales. DB imports for those years add on top of (not replace) those baselines. Do not double-count by re-importing data that was already factored into the seeded totals.
