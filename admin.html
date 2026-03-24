@@ -405,6 +405,7 @@
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-expense-btn">Add Expense</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-sale-btn">Add Sale</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-import-sales-btn">Import Etsy Sales</button>
+                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-import-mercari-btn">Import Mercari Sales</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-owner-transfer-btn">Add Owner Transfer</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-income-btn">Add Income</button>
                   <button type="button" class="btn btn-primary" id="tax-manage-categories-btn" onclick="window.openTaxCategoryManager && window.openTaxCategoryManager()">Manage Categories</button>
@@ -505,6 +506,24 @@
                       </div>
                       <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports sales + fee rows and maps fees to categories automatically.</div>
                       <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tax-entry-wrap" id="tax-import-mercari-panel" style="margin-top:.5rem; display:none;">
+                  <div class="admin-calendar-wrap">
+                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Import Mercari Sales (CSV)</div><button type="button" class="btn" id="tax-minimize-import-mercari-btn">Minimize</button></div>
+                    <div class="admin-row" id="tax-import-mercari-fields" style="flex-direction:column; align-items:stretch;">
+                      <label>Mercari Custom Sales Report CSV</label>
+                      <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
+                        <input id="tax-sale-mercari-csv" type="file" accept=".csv,text/csv" />
+                        <span style="color:var(--muted);">→</span>
+                        <button type="button" class="btn" id="tax-preview-mercari-csv-btn">Preview Transactions</button>
+                        <span style="color:var(--muted);">→</span>
+                        <button type="button" class="btn btn-primary" id="tax-import-mercari-csv-btn">Import Transactions</button>
+                      </div>
+                      <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports completed sales + fee rows. Sales tax (paid by Mercari) is excluded automatically.</div>
+                      <div id="tax-sale-mercari-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
                     </div>
                   </div>
                 </div>
@@ -1342,6 +1361,7 @@
     const taxModeExpenseBtn = document.getElementById('tax-mode-expense-btn');
     const taxModeSaleBtn = document.getElementById('tax-mode-sale-btn');
     const taxModeImportSalesBtn = document.getElementById('tax-mode-import-sales-btn');
+    const taxModeImportMercariBtn = document.getElementById('tax-mode-import-mercari-btn');
     const taxModeIncomeBtn = document.getElementById('tax-mode-income-btn');
     const taxModeOwnerTransferBtn = document.getElementById('tax-mode-owner-transfer-btn');
     const taxManageCategoriesBtn = document.getElementById('tax-manage-categories-btn');
@@ -1351,16 +1371,19 @@
     const taxExpensePanel = document.getElementById('tax-expense-panel');
     const taxSalePanel = document.getElementById('tax-sale-panel');
     const taxImportSalesPanel = document.getElementById('tax-import-sales-panel');
+    const taxImportMercariPanel = document.getElementById('tax-import-mercari-panel');
     const taxOwnerTransferPanel = document.getElementById('tax-owner-transfer-panel');
     const taxIncomePanel = document.getElementById('tax-income-panel');
     const taxExpenseFields = document.getElementById('tax-expense-fields');
     const taxSaleFields = document.getElementById('tax-sale-fields');
     const taxImportSalesFields = document.getElementById('tax-import-sales-fields');
+    const taxImportMercariFields = document.getElementById('tax-import-mercari-fields');
     const taxOwnerTransferFields = document.getElementById('tax-owner-transfer-fields');
     const taxIncomeFields = document.getElementById('tax-income-fields');
     const taxMinimizeExpenseBtn = document.getElementById('tax-minimize-expense-btn');
     const taxMinimizeSaleBtn = document.getElementById('tax-minimize-sale-btn');
     const taxMinimizeImportSalesBtn = document.getElementById('tax-minimize-import-sales-btn');
+    const taxMinimizeImportMercariBtn = document.getElementById('tax-minimize-import-mercari-btn');
     const taxMinimizeOwnerTransferBtn = document.getElementById('tax-minimize-owner-transfer-btn');
     const taxMinimizeIncomeBtn = document.getElementById('tax-minimize-income-btn');
     const taxCategoryModal = document.getElementById('tax-category-modal');
@@ -1517,6 +1540,10 @@
     const taxPreviewEtsyCsvBtn = document.getElementById('tax-preview-etsy-csv-btn');
     const taxImportEtsyCsvBtn = document.getElementById('tax-import-etsy-csv-btn');
     const taxSaleImportPreviewEl = document.getElementById('tax-sale-import-preview');
+    const taxSaleMercariCsvEl = document.getElementById('tax-sale-mercari-csv');
+    const taxPreviewMercariCsvBtn = document.getElementById('tax-preview-mercari-csv-btn');
+    const taxImportMercariCsvBtn = document.getElementById('tax-import-mercari-csv-btn');
+    const taxSaleMercariImportPreviewEl = document.getElementById('tax-sale-mercari-import-preview');
     const taxAddSaleBtn = document.getElementById('tax-add-sale-btn');
     const taxClearSaleBtn = document.getElementById('tax-clear-sale-btn');
 
@@ -1579,6 +1606,9 @@
     let pendingEtsyImportSales = [];
     let pendingEtsyImportExpenses = [];
     let etsyImportInProgress = false;
+    let pendingMercariImportSales = [];
+    let pendingMercariImportExpenses = [];
+    let mercariImportInProgress = false;
 
     // ===== Time Slots =====
 
@@ -2541,7 +2571,7 @@
     const DEFAULT_TAX_EXPENSE_CATEGORIES = [
       'Startup cost', 'Advertising/Marketing', 'Software/SaaS', 'Hosting/Cloud',
       'Hardware', 'Research & Development', 'Product Testing', 'Office Supplies', 'Travel', 'Meals', 'Education',
-      'Professional Services', 'Payment Processing Fees', 'Etsy Listing Fees', 'Etsy Transaction Fees', 'Shipping Costs', 'Other'
+      'Professional Services', 'Payment Processing Fees', 'Etsy Listing Fees', 'Etsy Transaction Fees', 'Mercari Selling Fees', 'Shipping Costs', 'Other Expense', 'Other'
     ];
 
     const DEFAULT_TAX_INCOME_CATEGORIES = [
@@ -2756,26 +2786,31 @@
       const showExpense = mode === 'expense';
       const showSale = mode === 'sale';
       const showImportSales = mode === 'import_sales';
+      const showImportMercari = mode === 'import_mercari';
       const showOwnerTransfer = mode === 'owner_transfer';
       const showIncome = mode === 'income';
       if (taxExpensePanel) taxExpensePanel.style.display = showExpense ? '' : 'none';
       if (taxSalePanel) taxSalePanel.style.display = showSale ? '' : 'none';
       if (taxImportSalesPanel) taxImportSalesPanel.style.display = showImportSales ? '' : 'none';
+      if (taxImportMercariPanel) taxImportMercariPanel.style.display = showImportMercari ? '' : 'none';
       if (taxOwnerTransferPanel) taxOwnerTransferPanel.style.display = showOwnerTransfer ? '' : 'none';
       if (taxIncomePanel) taxIncomePanel.style.display = showIncome ? '' : 'none';
       if (taxExpenseFields) taxExpenseFields.style.display = showExpense ? '' : 'none';
       if (taxSaleFields) taxSaleFields.style.display = showSale ? '' : 'none';
       if (taxImportSalesFields) taxImportSalesFields.style.display = showImportSales ? '' : 'none';
+      if (taxImportMercariFields) taxImportMercariFields.style.display = showImportMercari ? '' : 'none';
       if (taxOwnerTransferFields) taxOwnerTransferFields.style.display = showOwnerTransfer ? '' : 'none';
       if (taxIncomeFields) taxIncomeFields.style.display = showIncome ? '' : 'none';
       if (taxMinimizeExpenseBtn) taxMinimizeExpenseBtn.textContent = 'Minimize';
       if (taxMinimizeSaleBtn) taxMinimizeSaleBtn.textContent = 'Minimize';
       if (taxMinimizeImportSalesBtn) taxMinimizeImportSalesBtn.textContent = 'Minimize';
+      if (taxMinimizeImportMercariBtn) taxMinimizeImportMercariBtn.textContent = 'Minimize';
       if (taxMinimizeOwnerTransferBtn) taxMinimizeOwnerTransferBtn.textContent = 'Minimize';
       if (taxMinimizeIncomeBtn) taxMinimizeIncomeBtn.textContent = 'Minimize';
       if (taxModeExpenseBtn) taxModeExpenseBtn.classList.toggle('active', showExpense);
       if (taxModeSaleBtn) taxModeSaleBtn.classList.toggle('active', showSale);
       if (taxModeImportSalesBtn) taxModeImportSalesBtn.classList.toggle('active', showImportSales);
+      if (taxModeImportMercariBtn) taxModeImportMercariBtn.classList.toggle('active', showImportMercari);
       if (taxModeOwnerTransferBtn) taxModeOwnerTransferBtn.classList.toggle('active', showOwnerTransfer);
       if (taxModeIncomeBtn) taxModeIncomeBtn.classList.toggle('active', showIncome);
     }
@@ -3508,6 +3543,134 @@
       }
     }
 
+    function mercariDateToIso(raw) {
+      // Mercari uses MM/DD/YYYY format
+      const m = String(raw || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (!m) return '';
+      return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+    }
+
+    async function previewMercariSalesCsv() {
+      const file = taxSaleMercariCsvEl?.files?.[0];
+      if (!file) { openErrorModal('Choose a Mercari CSV file first.'); return; }
+      const rows = parseCsvTable(await file.text());
+      if (rows.length < 2) { openErrorModal('CSV appears empty.'); return; }
+
+      const header = rows[0].map(h => String(h).trim().toLowerCase());
+      const idxItemId = header.indexOf('item id');
+      const idxSoldDate = header.indexOf('sold date');
+      const idxCanceledDate = header.indexOf('canceled date');
+      const idxTitle = header.indexOf('item title');
+      const idxStatus = header.indexOf('order status');
+      const idxItemPrice = header.indexOf('item price');
+      const idxSellerShipping = header.indexOf('seller shipping fee');
+      const idxMercariFee = header.indexOf('mercari selling fee');
+      const idxProcessingFee = header.findIndex(h => h === 'payment processing fee charged to seller');
+      const idxShippingAdj = header.indexOf('shipping adjustment fee');
+      const idxPenaltyFee = header.indexOf('penalty fee');
+      // Sales Tax Charged to Buyer is intentionally ignored — Mercari remits it
+
+      if ([idxSoldDate, idxTitle, idxStatus, idxItemPrice].some(i => i < 0)) {
+        openErrorModal('Unrecognized Mercari CSV format. Make sure to use the Custom Sales Report download.');
+        return;
+      }
+
+      pendingMercariImportSales = [];
+      pendingMercariImportExpenses = [];
+
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const itemId = idxItemId >= 0 ? String(r[idxItemId] || '').trim() : '';
+        // Skip Totals row and Report footer row
+        if (/^totals:/i.test(itemId) || /^report generated/i.test(itemId)) continue;
+        const status = String(r[idxStatus] || '').trim();
+        const canceledDate = idxCanceledDate >= 0 ? String(r[idxCanceledDate] || '').trim() : '';
+        if (status.toLowerCase() !== 'completed' || canceledDate) continue;
+
+        const isoDate = mercariDateToIso(String(r[idxSoldDate] || '').trim());
+        if (!isoDate) continue;
+        const title = String(r[idxTitle] || '').trim() || 'Mercari Sale';
+        const itemPrice = parseUsd(r[idxItemPrice]);
+        if (itemPrice <= 0) continue;
+
+        pendingMercariImportSales.push({ isoDate, title, itemPrice });
+
+        const sellerShipping = idxSellerShipping >= 0 ? parseUsd(r[idxSellerShipping]) : 0;
+        const mercariFee = idxMercariFee >= 0 ? parseUsd(r[idxMercariFee]) : 0;
+        const processingFee = idxProcessingFee >= 0 ? parseUsd(r[idxProcessingFee]) : 0;
+        const shippingAdj = idxShippingAdj >= 0 ? parseUsd(r[idxShippingAdj]) : 0;
+        const penaltyFee = idxPenaltyFee >= 0 ? parseUsd(r[idxPenaltyFee]) : 0;
+
+        if (sellerShipping > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Shipping Costs', amount: sellerShipping, notes: `Shipping for: ${title}`, paidVia: 'mercari' });
+        if (mercariFee > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Mercari Selling Fees', amount: mercariFee, notes: `Selling fee for: ${title}`, paidVia: 'mercari' });
+        if (processingFee > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Payment Processing Fees', amount: processingFee, notes: `Processing fee for: ${title}`, paidVia: 'mercari' });
+        if (shippingAdj > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Shipping Costs', amount: shippingAdj, notes: `Shipping adjustment for: ${title}`, paidVia: 'mercari' });
+        if (penaltyFee > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Other Expense', amount: penaltyFee, notes: `Penalty fee for: ${title}`, paidVia: 'mercari' });
+      }
+
+      const salesTotal = pendingMercariImportSales.reduce((s, r) => s + r.itemPrice, 0);
+      const expTotal = pendingMercariImportExpenses.reduce((s, r) => s + Number(r.amount || 0), 0);
+
+      if (taxSaleMercariImportPreviewEl) {
+        const allSales = pendingMercariImportSales.map(s => `<div>${escHtml(s.isoDate)} | SALE | ${escHtml(s.title)} | $${Number(s.itemPrice).toFixed(2)} (sales tax excluded)</div>`).join('');
+        const allExp = pendingMercariImportExpenses.map(e => `<div>${escHtml(e.date)} | ${escHtml(e.category)} | $${Number(e.amount).toFixed(2)} — ${escHtml(e.notes)}</div>`).join('');
+        taxSaleMercariImportPreviewEl.innerHTML = `
+          <div><strong>Ready to Import</strong> — Sales: ${pendingMercariImportSales.length} ($${salesTotal.toFixed(2)}) | Expenses: ${pendingMercariImportExpenses.length} ($${expTotal.toFixed(2)})</div>
+          <div style="margin-top:.35rem;"><strong>Sales Transactions</strong>${allSales || '<div>None</div>'}</div>
+          <div style="margin-top:.35rem;"><strong>Expense Transactions</strong>${allExp || '<div>None</div>'}</div>
+        `;
+      }
+
+      markMoneyBlurTargets();
+    }
+
+    async function importMercariSalesCsv() {
+      if (mercariImportInProgress) return;
+      if (!pendingMercariImportSales.length && !pendingMercariImportExpenses.length) {
+        openErrorModal('Preview transactions first.');
+        return;
+      }
+
+      mercariImportInProgress = true;
+      const importBtn = taxImportMercariCsvBtn;
+      const prevText = importBtn?.textContent || 'Import Transactions';
+      if (importBtn) { importBtn.disabled = true; importBtn.textContent = 'Importing…'; }
+      if (taxPreviewMercariCsvBtn) taxPreviewMercariCsvBtn.disabled = true;
+      if (taxSaleMercariCsvEl) taxSaleMercariCsvEl.disabled = true;
+
+      try {
+        for (const s of pendingMercariImportSales) {
+          await postTaxIncomeEntry({
+            date: s.isoDate,
+            source: s.title,
+            category: 'Product Sale',
+            amount: s.itemPrice,
+            notes: 'Imported from Mercari CSV (sales tax excluded — remitted by Mercari)'
+          });
+        }
+        for (const e of pendingMercariImportExpenses) {
+          await postTaxExpenseEntry(e);
+        }
+        const cSales = pendingMercariImportSales.length;
+        const cExp = pendingMercariImportExpenses.length;
+        pendingMercariImportSales = [];
+        pendingMercariImportExpenses = [];
+        if (taxSaleMercariImportPreviewEl) taxSaleMercariImportPreviewEl.textContent = 'Import complete. Run a new preview to import another file.';
+
+        await loadTaxTransactions();
+        await loadAccountsData();
+        await loadStatsData();
+        openSuccessModal(`Mercari import complete: ${cSales} sales, ${cExp} expenses.`, 'Import Complete ✅');
+      } catch (err) {
+        openErrorModal(`Mercari import failed: ${err.message || err}`);
+      } finally {
+        mercariImportInProgress = false;
+        if (importBtn) { importBtn.disabled = false; importBtn.textContent = prevText; }
+        if (taxPreviewMercariCsvBtn) taxPreviewMercariCsvBtn.disabled = false;
+        if (taxSaleMercariCsvEl) taxSaleMercariCsvEl.disabled = false;
+      }
+    }
+
     async function runReconciliation() {
       if (!reconCsvEl?.files?.[0]) { openErrorModal('Select a CSV file first.'); return; }
       const year = reconYearEl?.value || taxYearEl?.value;
@@ -4227,6 +4390,7 @@
     taxModeExpenseBtn?.addEventListener('click', () => setTaxEntryMode('expense'));
     taxModeSaleBtn?.addEventListener('click', () => setTaxEntryMode('sale'));
     taxModeImportSalesBtn?.addEventListener('click', () => setTaxEntryMode('import_sales'));
+    taxModeImportMercariBtn?.addEventListener('click', () => setTaxEntryMode('import_mercari'));
     taxModeOwnerTransferBtn?.addEventListener('click', openOwnerTransferModal);
     taxModeIncomeBtn?.addEventListener('click', () => setTaxEntryMode('income'));
     adminUserGuideBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
@@ -4312,6 +4476,12 @@
       taxMinimizeImportSalesBtn.textContent = isHidden ? 'Minimize' : 'Expand';
     });
 
+    taxMinimizeImportMercariBtn?.addEventListener('click', () => {
+      const isHidden = taxImportMercariFields?.style.display === 'none';
+      if (taxImportMercariFields) taxImportMercariFields.style.display = isHidden ? '' : 'none';
+      taxMinimizeImportMercariBtn.textContent = isHidden ? 'Minimize' : 'Expand';
+    });
+
     taxMinimizeOwnerTransferBtn?.addEventListener('click', () => {
       const isHidden = taxOwnerTransferFields?.style.display === 'none';
       if (taxOwnerTransferFields) taxOwnerTransferFields.style.display = isHidden ? '' : 'none';
@@ -4345,6 +4515,8 @@
     taxSaleItemEl?.addEventListener('change', syncTaxSaleItemUi);
     taxPreviewEtsyCsvBtn?.addEventListener('click', previewEtsyStatementCsv);
     taxImportEtsyCsvBtn?.addEventListener('click', importEtsyStatementCsv);
+    taxPreviewMercariCsvBtn?.addEventListener('click', previewMercariSalesCsv);
+    taxImportMercariCsvBtn?.addEventListener('click', importMercariSalesCsv);
     taxAddOwnerTransferBtn?.addEventListener('click', addTaxOwnerTransfer);
     taxClearOwnerTransferBtn?.addEventListener('click', clearTaxOwnerTransferForm);
     taxAddIncomeBtn.addEventListener('click', addTaxIncome);
