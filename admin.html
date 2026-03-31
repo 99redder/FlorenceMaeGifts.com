@@ -4575,20 +4575,27 @@
 
     accountsRefreshBtn?.addEventListener('click', loadAccountsData);
     accountsRebuildJournalBtn?.addEventListener('click', async () => {
-      if (!confirm('Rebuild auto journal? This will delete and re-post all journal entries derived from the tax ledger using current account mappings.')) return;
+      const confirmed = await openConfirmModal(
+        'This will delete and re-post all journal entries derived from the tax ledger using the current account mappings. Existing hand-created journal entries are not affected.',
+        'Rebuild Auto Journal?',
+        'Rebuild'
+      );
+      if (!confirmed) return;
       accountsRebuildJournalBtn.disabled = true;
+      accountsRebuildJournalBtn.classList.add('active');
       accountsRebuildJournalBtn.textContent = 'Rebuilding…';
       try {
         const res = await fetch(ACCOUNTS_REBUILD_JOURNAL_API_URL, { method: 'POST', headers: { 'X-Admin-Password': adminPassword } });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Rebuild failed');
         const r = data.rebuilt || {};
-        alert(`Journal rebuilt. ${(r.expenseEntries ?? 0)} expense entries and ${(r.incomeEntries ?? 0)} income entries posted.`);
-        loadAccountsData();
+        openConfirmModal(`Journal rebuilt. ${(r.expenseEntries ?? 0)} expense entries and ${(r.incomeEntries ?? 0)} income entries posted.`, 'Rebuild Complete', 'OK')
+          .then(() => loadAccountsData());
       } catch (e) {
-        alert('Error: ' + e.message);
+        openErrorModal('Rebuild failed: ' + e.message);
       } finally {
         accountsRebuildJournalBtn.disabled = false;
+        accountsRebuildJournalBtn.classList.remove('active');
         accountsRebuildJournalBtn.textContent = 'Rebuild Auto Journal';
       }
     });
