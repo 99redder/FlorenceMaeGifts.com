@@ -324,11 +324,11 @@
                   <div class="admin-calendar-title" id="stats-yearly-title" style="color:var(--stats-text);">Year Stats</div>
                   <div class="tax-summary-line"><span>Total Number of Sales</span><strong id="stats-sales-count">0</strong></div>
                   <div class="tax-summary-line"><span>Total Sales Volume</span><strong id="stats-sales-volume" class="money-blur-target">$0.00</strong></div>
-                  <div class="tax-summary-line"><span>Total Etsy Fees</span><strong id="stats-etsy-fees" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Marketplace Fees</span><strong id="stats-etsy-fees" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Shipping Costs</span><strong id="stats-shipping-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Supplies Costs</span><strong id="stats-supplies-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Advertising Costs</span><strong id="stats-advertising-costs" class="money-blur-target">$0.00</strong></div>
-                  <div class="tax-summary-line"><span>Total Fees and Costs</span><strong id="stats-fees-costs" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line" style="font-weight:700;"><span>Total Fees and Costs</span><strong id="stats-fees-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Profit</span><strong id="stats-profit" class="money-blur-target">$0.00</strong></div>
                   <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">2026 stats are cutover-aware: January 1 through March 17, 2026 use the sole proprietorship baseline, and March 18, 2026 forward is driven by live LLC ledger data.</p>
                 </div>
@@ -337,11 +337,11 @@
                   <div class="admin-calendar-title" style="color:var(--stats-text);">All-Time Stats</div>
                   <div class="tax-summary-line"><span>Total Number of Sales</span><strong id="stats-alltime-sales-count">0</strong></div>
                   <div class="tax-summary-line"><span>Total Sales Volume</span><strong id="stats-alltime-sales-volume" class="money-blur-target">$0.00</strong></div>
-                  <div class="tax-summary-line"><span>Total Etsy Fees</span><strong id="stats-alltime-etsy-fees" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line"><span>Total Marketplace Fees</span><strong id="stats-alltime-etsy-fees" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Shipping Costs</span><strong id="stats-alltime-shipping-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Supplies Costs</span><strong id="stats-alltime-supplies-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line"><span>Total Advertising Costs</span><strong id="stats-alltime-advertising-costs" class="money-blur-target">$0.00</strong></div>
-                  <div class="tax-summary-line"><span>Total Fees and Costs</span><strong id="stats-alltime-fees-costs" class="money-blur-target">$0.00</strong></div>
+                  <div class="tax-summary-line" style="font-weight:700;"><span>Total Fees and Costs</span><strong id="stats-alltime-fees-costs" class="money-blur-target">$0.00</strong></div>
                   <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Profit</span><strong id="stats-alltime-profit" class="money-blur-target">$0.00</strong></div>
                   <p style="margin:.65rem 0 0; font-size:.86rem; color:var(--muted);">All-time baseline is seeded through March 17, 2026 and will continue increasing as new LLC sales/imports are recorded starting March 18, 2026.</p>
                 </div>
@@ -604,6 +604,7 @@
               <label>To</label>
               <input id="accounts-to" type="date" style="max-width:170px;" />
               <button type="button" class="btn" id="accounts-refresh-btn">Refresh</button>
+              <button type="button" class="btn" id="accounts-rebuild-journal-btn" title="Re-posts all auto journal entries from tax ledger using current account mappings">Rebuild Auto Journal</button>
             </div>
             <div id="accounts-balance-status" class="admin-calendar-title" style="margin-bottom:.4rem;">Trial Balance: —</div>
             <div class="admin-list" id="accounts-list">No data yet.</div>
@@ -1285,6 +1286,7 @@
     const ACCOUNTS_JOURNAL_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/journal');
     const ACCOUNTS_STATEMENTS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/statements');
     const ACCOUNTS_YEAR_CLOSE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/year-close');
+    const ACCOUNTS_REBUILD_JOURNAL_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/rebuild-auto-journal');
     const INVOICES_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices');
     const INVOICE_STATUS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/status');
     const INVOICE_PAYMENT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/payment');
@@ -1456,6 +1458,7 @@
     const accountsFromEl = document.getElementById('accounts-from');
     const accountsToEl = document.getElementById('accounts-to');
     const accountsRefreshBtn = document.getElementById('accounts-refresh-btn');
+    const accountsRebuildJournalBtn = document.getElementById('accounts-rebuild-journal-btn');
     const reconYearEl = document.getElementById('recon-year');
     const reconMonthEl = document.getElementById('recon-month');
     const reconCsvEl = document.getElementById('recon-csv');
@@ -4571,6 +4574,24 @@
     taxExportBtn?.addEventListener('click', downloadTaxCsv);
 
     accountsRefreshBtn?.addEventListener('click', loadAccountsData);
+    accountsRebuildJournalBtn?.addEventListener('click', async () => {
+      if (!confirm('Rebuild auto journal? This will delete and re-post all journal entries derived from the tax ledger using current account mappings.')) return;
+      accountsRebuildJournalBtn.disabled = true;
+      accountsRebuildJournalBtn.textContent = 'Rebuilding…';
+      try {
+        const res = await fetch(ACCOUNTS_REBUILD_JOURNAL_API_URL, { method: 'POST', headers: { 'X-Admin-Password': adminPassword } });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Rebuild failed');
+        const r = data.rebuilt || {};
+        alert(`Journal rebuilt. ${(r.expenseEntries ?? 0)} expense entries and ${(r.incomeEntries ?? 0)} income entries posted.`);
+        loadAccountsData();
+      } catch (e) {
+        alert('Error: ' + e.message);
+      } finally {
+        accountsRebuildJournalBtn.disabled = false;
+        accountsRebuildJournalBtn.textContent = 'Rebuild Auto Journal';
+      }
+    });
     notesScopeEl?.addEventListener('change', () => { if (notesYearEl) notesYearEl.disabled = notesScopeEl.value !== 'year'; refreshAdminNotes(); });
     notesYearEl?.addEventListener('change', refreshAdminNotes);
     notesRefreshBtn?.addEventListener('click', refreshAdminNotes);

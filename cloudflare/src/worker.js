@@ -3387,7 +3387,8 @@ async function ensureAccountingSetup(db) {
     ['5300','Payment Processing Fees','expense','debit'],
     ['5400','Contractor Expense','expense','debit'],
     ['5500','Travel Expense','expense','debit'],
-    ['5600','Utilities Expense','expense','debit']
+    ['5600','Utilities Expense','expense','debit'],
+    ['5700','Marketplace Fees','expense','debit']
   ];
 
   for (const s of seed) {
@@ -3426,7 +3427,8 @@ async function upsertTaxExpenseJournal(db, row) {
   const amount = Number(row.amount_cents || 0);
   if (!Number.isFinite(amount) || amount <= 0) return;
 
-  const expenseAccountCode = row.category === 'Payment Processing Fees' ? '5300' : '5200';
+  const marketplaceFeeCategories = ['Etsy Listing Fees', 'Etsy Transaction Fees', 'Mercari Selling Fees', 'Payment Processing Fees'];
+  const expenseAccountCode = marketplaceFeeCategories.includes(row.category) ? '5700' : '5200';
   const paidVia = (row.paid_via || '').toLowerCase();
 
   let offsetCode = '3100'; // default: treat as owner capital contribution
