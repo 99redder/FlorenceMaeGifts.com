@@ -3388,7 +3388,8 @@ async function ensureAccountingSetup(db) {
     ['5400','Contractor Expense','expense','debit'],
     ['5500','Travel Expense','expense','debit'],
     ['5600','Utilities Expense','expense','debit'],
-    ['5700','Marketplace Fees','expense','debit']
+    ['5700','Marketplace Fees','expense','debit'],
+    ['5800','Shipping Expense','expense','debit']
   ];
 
   for (const s of seed) {
@@ -3427,8 +3428,21 @@ async function upsertTaxExpenseJournal(db, row) {
   const amount = Number(row.amount_cents || 0);
   if (!Number.isFinite(amount) || amount <= 0) return;
 
-  const marketplaceFeeCategories = ['Etsy Listing Fees', 'Etsy Transaction Fees', 'Mercari Selling Fees', 'Payment Processing Fees'];
-  const expenseAccountCode = marketplaceFeeCategories.includes(row.category) ? '5700' : '5200';
+  const cat = row.category || '';
+  let expenseAccountCode;
+  if (['Etsy Listing Fees', 'Etsy Transaction Fees', 'Mercari Selling Fees', 'Payment Processing Fees'].includes(cat)) {
+    expenseAccountCode = '5700'; // Marketplace Fees
+  } else if (cat === 'Advertising/Marketing') {
+    expenseAccountCode = '5100'; // Marketing Expense
+  } else if (cat === 'Software/SaaS' || cat === 'Hosting/Cloud') {
+    expenseAccountCode = '5000'; // Software Expense
+  } else if (cat === 'Travel') {
+    expenseAccountCode = '5500'; // Travel Expense
+  } else if (cat === 'Shipping Costs' || cat === 'Shipping & Packaging Supplies') {
+    expenseAccountCode = '5800'; // Shipping Expense
+  } else {
+    expenseAccountCode = '5200'; // Office Expense (catch-all)
+  }
   const paidVia = (row.paid_via || '').toLowerCase();
 
   let offsetCode = '3100'; // default: treat as owner capital contribution
