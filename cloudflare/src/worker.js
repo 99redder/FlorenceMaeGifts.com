@@ -3383,10 +3383,9 @@ async function ensureAccountingSetup(db) {
     ['4900','Other Income','income','credit'],
     ['5000','Software Expense','expense','debit'],
     ['5100','Marketing Expense','expense','debit'],
-    ['5200','Office Expense','expense','debit'],
+    ['5200','Supplies Expense','expense','debit'],
     ['5300','Payment Processing Fees','expense','debit'],
     ['5400','Contractor Expense','expense','debit'],
-    ['5500','Travel Expense','expense','debit'],
     ['5600','Utilities Expense','expense','debit'],
     ['5700','Marketplace Fees','expense','debit'],
     ['5800','Shipping Expense','expense','debit']
@@ -3436,12 +3435,10 @@ async function upsertTaxExpenseJournal(db, row) {
     expenseAccountCode = '5100'; // Marketing Expense
   } else if (cat === 'Software/SaaS' || cat === 'Hosting/Cloud') {
     expenseAccountCode = '5000'; // Software Expense
-  } else if (cat === 'Travel') {
-    expenseAccountCode = '5500'; // Travel Expense
-  } else if (cat === 'Shipping Costs' || cat === 'Shipping & Packaging Supplies') {
+  } else if (cat === 'Shipping Costs') {
     expenseAccountCode = '5800'; // Shipping Expense
   } else {
-    expenseAccountCode = '5200'; // Office Expense (catch-all)
+    expenseAccountCode = '5200'; // Supplies Expense (catch-all, includes Shipping & Packaging Supplies)
   }
   const paidVia = (row.paid_via || '').toLowerCase();
 
