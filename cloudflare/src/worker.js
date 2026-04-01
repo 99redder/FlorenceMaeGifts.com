@@ -2072,12 +2072,12 @@ async function handleAccountsRebuildAutoJournal(request, env, corsHeaders, url) 
     `SELECT id, income_date, source, category, amount_cents, notes, is_owner_funded FROM tax_income ORDER BY id ASC`
   ).all();
 
-  let expenseErrors = 0, incomeErrors = 0;
+  const errors = [];
   for (const e of (expenses.results || [])) {
-    try { await upsertTaxExpenseJournal(env.DB, e); } catch { expenseErrors++; }
+    try { await upsertTaxExpenseJournal(env.DB, e); } catch (err) { errors.push({ type: 'expense', id: e.id, category: e.category, amount_cents: e.amount_cents, error: String(err?.message || err) }); }
   }
   for (const i of (income.results || [])) {
-    try { await upsertTaxIncomeJournal(env.DB, i); } catch { incomeErrors++; }
+    try { await upsertTaxIncomeJournal(env.DB, i); } catch (err) { errors.push({ type: 'income', id: i.id, category: i.category, amount_cents: i.amount_cents, error: String(err?.message || err) }); }
   }
 
   return json({
@@ -2085,8 +2085,9 @@ async function handleAccountsRebuildAutoJournal(request, env, corsHeaders, url) 
     rebuilt: {
       expenseEntries: (expenses.results || []).length,
       incomeEntries: (income.results || []).length,
-      expenseErrors,
-      incomeErrors
+      expenseErrors: errors.filter(e => e.type === 'expense').length,
+      incomeErrors: errors.filter(e => e.type === 'income').length,
+      errors
     }
   }, 200, corsHeaders);
 }
