@@ -3425,7 +3425,7 @@ async function upsertTaxExpenseJournal(db, row) {
   await deleteAutoJournalBySource(db, 'tax_expense', row.id);
 
   const amount = Number(row.amount_cents || 0);
-  if (!Number.isFinite(amount) || amount <= 0) return;
+  if (!Number.isFinite(amount) || amount === 0) return;
 
   const cat = row.category || '';
   let expenseAccountCode;
@@ -3456,7 +3456,10 @@ async function upsertTaxExpenseJournal(db, row) {
   const memo = `${row.category || 'Expense'}${row.vendor ? ` - ${row.vendor}` : ''}`;
   const ins = await db.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, source_id) VALUES (?1, ?2, 'tax_expense', ?3)`).bind(row.expense_date, memo, row.id).run();
   const entryId = Number(ins.meta?.last_row_id || 0);
-  await db.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, debitAccountId, amount, creditAccountId).run();
+  const absAmount = Math.abs(amount);
+  // Normal expense: debit expense account, credit offset. Credit/reversal: flip sides.
+  const [lineDebitId, lineCreditId] = amount > 0 ? [debitAccountId, creditAccountId] : [creditAccountId, debitAccountId];
+  await db.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, lineDebitId, absAmount, lineCreditId).run();
 }
 
 async function upsertTaxIncomeJournal(db, row) {
