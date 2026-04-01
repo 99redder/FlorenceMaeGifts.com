@@ -3453,7 +3453,7 @@ async function upsertTaxExpenseJournal(db, row, skipDelete = false) {
 
   const cat = row.category || '';
   let expenseAccountCode;
-  if (['Etsy Listing Fees', 'Etsy Transaction Fees', 'Etsy Offsite Ads', 'Mercari Selling Fees', 'Payment Processing Fees'].includes(cat)) {
+  if (['Etsy Listing Fees', 'Etsy Transaction Fees', 'Etsy Offsite Ads', 'Etsy Processing Fees', 'Mercari Selling Fees', 'Mercari Processing Fees', 'Stripe Processing Fees', 'Payment Processing Fees'].includes(cat)) {
     expenseAccountCode = '5700'; // Marketplace Fees
   } else if (cat === 'Advertising/Marketing') {
     expenseAccountCode = '5100'; // Marketing Expense (voluntary spend only)

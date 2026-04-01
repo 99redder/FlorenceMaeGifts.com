@@ -2616,7 +2616,7 @@
     const DEFAULT_TAX_EXPENSE_CATEGORIES = [
       'Startup cost', 'Advertising/Marketing', 'Software/SaaS', 'Hosting/Cloud',
       'Product Testing', 'Office Supplies',
-      'Professional Services', 'Payment Processing Fees', 'Etsy Listing Fees', 'Etsy Transaction Fees', 'Etsy Offsite Ads', 'Mercari Selling Fees', 'Shipping Costs', 'Shipping & Packaging Supplies', 'Other Expense', 'Other'
+      'Professional Services', 'Stripe Processing Fees', 'Etsy Processing Fees', 'Mercari Processing Fees', 'Etsy Listing Fees', 'Etsy Transaction Fees', 'Etsy Offsite Ads', 'Mercari Selling Fees', 'Shipping Costs', 'Shipping & Packaging Supplies', 'Other Expense', 'Other'
     ];
 
     const DEFAULT_TAX_INCOME_CATEGORIES = [
@@ -3212,7 +3212,7 @@
         });
 
         const feeDefs = [
-          { amount: Number(taxSaleFeeProcessingEl?.value || 0), category: 'Payment Processing Fees', label: 'Processing fee' },
+          { amount: Number(taxSaleFeeProcessingEl?.value || 0), category: 'Stripe Processing Fees', label: 'Processing fee' },
           { amount: Number(taxSaleFeeTransactionEl?.value || 0), category: 'Etsy Transaction Fees', label: 'Transaction fee' },
           { amount: Number(taxSaleFeeListingEl?.value || 0), category: 'Etsy Listing Fees', label: 'Listing fee' },
           { amount: Number(taxSaleFeeShippingEl?.value || 0), category: 'Shipping Costs', label: 'Shipping cost' },
@@ -3515,7 +3515,7 @@
         if (p.type === 'Marketing' && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Offsite Ads', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
         if (p.type === 'Fee' && /listing fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Listing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
         if (p.type === 'Fee' && /transaction fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Transaction Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Fee' && /processing fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Payment Processing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
+        if (p.type === 'Fee' && /processing fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Processing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
       }
 
       const salesGross = pendingEtsyImportSales.reduce((s, r) => s + Number(r.amount || 0), 0);
@@ -3653,7 +3653,7 @@
 
         if (sellerShipping > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Shipping Costs', amount: sellerShipping, notes: `Shipping for: ${title}`, paidVia: 'mercari' });
         if (mercariFee > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Mercari Selling Fees', amount: mercariFee, notes: `Selling fee for: ${title}`, paidVia: 'mercari' });
-        if (processingFee > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Payment Processing Fees', amount: processingFee, notes: `Processing fee for: ${title}`, paidVia: 'mercari' });
+        if (processingFee > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Mercari Processing Fees', amount: processingFee, notes: `Processing fee for: ${title}`, paidVia: 'mercari' });
         if (shippingAdj > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Shipping Costs', amount: shippingAdj, notes: `Shipping adjustment for: ${title}`, paidVia: 'mercari' });
         if (penaltyFee > 0) pendingMercariImportExpenses.push({ date: isoDate, vendor: 'Mercari', category: 'Other Expense', amount: penaltyFee, notes: `Penalty fee for: ${title}`, paidVia: 'mercari' });
       }
