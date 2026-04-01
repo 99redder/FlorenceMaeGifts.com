@@ -390,3 +390,52 @@ Booking Controls were intentionally removed from the Florence admin codebase.
 
 ### Key behavior note
 The seeded baseline numbers for 2023–2025 represent all pre-admin historical sales. DB imports for those years add on top of (not replace) those baselines. Do not double-count by re-importing data that was already factored into the seeded totals.
+
+---
+
+## Session Update — 2026-03-31 (Item Stats, Accounting Fixes, Modal UX)
+
+### Bug fixes
+
+#### Manage Categories — deleted defaults reappearing on reload
+- **Root cause**: `loadCategoryPrefs()` unconditionally re-added any missing default categories on every page load, undoing user deletions.
+- **Fix**: Added `DELETED_DEFAULT_EXPENSE_KEYS` and `DELETED_DEFAULT_INCOME_KEYS` sets (persisted to `localStorage` as `esa_tax_expense_deleted_defaults` / `esa_tax_income_deleted_defaults`). The re-add loop now skips anything in those sets. Adding a category back removes it from the deleted set.
+
+#### Item Stats not updating from imports
+- **Root cause (Mercari)**: `detectItemStatEntry()` used strict consecutive-word substring matching (e.g. `"gohan hat"`). Mercari listing titles like `"Handmade Gohan Inspired Four Star Dragon Ball Baby Hat"` have words between key terms, so nothing matched.
+- **Fix**: Added broader single-phrase keywords to each product — `"gohan inspired"`, `"four star dragon ball"`, `"luffy inspired"`, `"goku inspired"`, `"rumi inspired"`, `"trunks inspired"`, `"majin buu inspired"` etc.
+- **Root cause (Etsy)**: Etsy statement CSV `Title` column for Sale rows contains the order ID (e.g. `"Order #1234567890"`), not the listing title. The income entry `source` field was set to this order ID, so `detectItemStatEntry` never matched.
+- **Fix**: `previewEtsyStatementCsv()` now builds a `titleByOrder` Map by reading Transaction Fee rows, whose `Title` column is `"Transaction fee: [Listing Title]"`. The listing title is extracted and stored keyed by order ID (from the `Info` column). Sale rows look up their order ID in this map and use the listing title as `source`. The order ID is preserved in the `notes` field for audit trail.
+
+#### Item Stats UI cleanup (2026-03-31)
+- Removed per-size breakdown rows from Item Stats cards — size is not reliably captured from CSV titles.
+- Removed "Total Products Sold" summary row from the Item Stats card.
+
+#### Expense journal offset for Etsy/Mercari fees posting to Owner Contributions
+- **Root cause**: `buildExpenseJournalEntry()` in `worker.js` defaults the offset account to `3100` (Owner Contributions) when `paid_via` doesn't match known payment methods. Etsy imports set `paid_via = 'etsy'` and Mercari imports set `paid_via = 'mercari'` — neither matched `stripe`, `cash`, `checking`, or `bank`, so all their fees were incorrectly crediting Owner Contributions.
+- **Fix**: Added `'etsy'` and `'mercari'` to the Cash (1000) branch of the `paid_via` check. These fees are deducted from marketplace payouts (cash-equivalent). After deploying, run **Rebuild Auto Journal** in Accounts tab to repost all entries correctly.
+
+### How Owner Contributions (3100) gets populated
+Three sources post to Owner Contributions:
+1. **Owner Transfer** (`personal_to_business` or `personal_paid_business_card` type) — via Add Owner Transfer modal. These go directly to journal entries and do NOT appear in the income ledger.
+2. **Owner-funded income entries** — income rows where `is_owner_funded = 1`, OR category contains "owner funded"/"non-revenue", OR source contains the word "test". These DO appear in the income ledger but are excluded from all revenue/stats calculations and post to 3100 instead of 4000.
+3. **Expense default fallback** — any expense where `paid_via` is blank or unrecognized still falls through to Owner Contributions. Keep `paid_via` filled in (use "cash", "bank", "card", "etsy", "mercari", "stripe", "business card") to avoid this.
+
+### How Item Stats work
+- `buildAllTimeItemStats()` fetches all 2026 income rows (category = "Product Sale", date ≥ 2026-03-18) from the DB and runs `detectItemStatEntry()` on each row's `source` and `notes` fields combined.
+- `detectItemStatEntry()` does case-insensitive substring matching against keyword lists per product. Keyword lists are intentionally broad (e.g. `"gohan inspired"`, not just `"gohan hat"`) to handle varying title formats across platforms.
+- The hardcoded `ITEM_STATS_BASELINE` in `admin.html` contains all pre-LLC-cutover historical counts. DB counts are added on top.
+- **Mercari imports**: `source` is set to the full `Item Title` column — detection works automatically.
+- **Etsy imports**: `source` is set to the listing title extracted from the Transaction Fee row for that order ID. This only works for imports made after the 2026-03-31 fix. Entries imported before that fix will have an order ID as source and won't match.
+- Size tracking was removed — CSV titles are too inconsistently formatted to reliably capture size.
+
+### Tax Ledger UX — modal conversion
+Add Expense, Add Sale, Import Etsy Sales, Import Mercari Sales, and Add Income were converted from inline collapsible panels to branded modals (same pattern as Add Owner Transfer and Manage Categories). Modal IDs: `add-expense-modal`, `add-sale-modal`, `import-etsy-modal`, `import-mercari-modal`, `add-income-modal`. The `setTaxEntryMode()` function was removed; each button now calls its own `open*Modal()` function directly.
+
+### Etsy CSV import — how listing titles are captured
+The Etsy payment account statement CSV has one row per line item type per order. For Sale rows, the `Title` column only contains the order ID. Transaction Fee rows for the same order contain `"Transaction fee: [Listing Title]"` in the `Title` column and the order ID in the `Info` column. The importer builds an order ID → listing title map from fee rows, then assigns the listing title to the matching sale's income entry `source` field. Multi-item orders join titles with ` + `.
+
+### Key operational notes
+- After any worker.js change that affects journal logic, run **Rebuild Auto Journal** (Accounts tab) to repost all auto journal entries.
+- Etsy and Mercari expense entries are identified for bulk operations by `paid_via = 'etsy'` / `paid_via = 'mercari'` respectively.
+- The Etsy statement CSV is the payment account export (monthly), NOT the orders export. The orders export is not needed — listing titles come from Transaction Fee rows in the statement CSV.
