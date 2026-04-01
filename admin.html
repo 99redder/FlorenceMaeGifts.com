@@ -511,13 +511,6 @@
                       </div>
                       <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports sales + fee rows and maps fees to categories automatically.</div>
                       <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
-                      <div style="margin-top:.75rem; padding-top:.65rem; border-top:1px solid var(--line);">
-                        <label style="display:block; margin-bottom:.35rem; font-size:.88rem; color:var(--muted);">Fix already-imported entries (missing item titles)</label>
-                        <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
-                          <button type="button" class="btn delete" id="tax-etsy-delete-imports-btn">Delete All Etsy Imports</button>
-                        </div>
-                        <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Removes all income entries imported from Etsy CSVs so you can re-import with correct item titles.</div>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -4599,42 +4592,6 @@
     taxPreviewEtsyCsvBtn?.addEventListener('click', previewEtsyStatementCsv);
     taxImportEtsyCsvBtn?.addEventListener('click', importEtsyStatementCsv);
 
-    document.getElementById('tax-etsy-delete-imports-btn')?.addEventListener('click', async () => {
-      try {
-        const res = await fetch(`${TAX_TX_API_URL}?year=2026&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
-        if (!res.ok) throw new Error('Failed to fetch entries.');
-        const data = await res.json();
-        const etsyIncome = (data.income || []).filter(r => String(r.notes || '').includes('Imported from Etsy statement CSV'));
-        const etsyExpenses = (data.expenses || []).filter(r => String(r.paid_via || '').toLowerCase() === 'etsy');
-        const total = etsyIncome.length + etsyExpenses.length;
-        if (!total) { openErrorModal('No Etsy-imported entries found.'); return; }
-        const ok = await openConfirmModal(`Delete ${etsyIncome.length} income and ${etsyExpenses.length} expense entries from Etsy CSV imports? Re-import the CSV afterward.`, 'Delete Etsy Imports?', 'Delete');
-        if (!ok) return;
-        let deleted = 0;
-        for (const row of etsyIncome) {
-          const delRes = await fetch(TAX_INCOME_DELETE_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
-            body: JSON.stringify({ id: row.id })
-          });
-          if (delRes.ok) deleted++;
-        }
-        for (const row of etsyExpenses) {
-          const delRes = await fetch(TAX_EXPENSE_DELETE_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
-            body: JSON.stringify({ id: row.id })
-          });
-          if (delRes.ok) deleted++;
-        }
-        await loadTaxTransactions();
-        await loadAccountsData();
-        await loadStatsData();
-        openSuccessModal(`Deleted ${deleted} of ${total} Etsy-imported entries. Now re-import the CSV.`, 'Deleted ✅');
-      } catch (err) {
-        openErrorModal(`Delete failed: ${err.message || err}`);
-      }
-    });
 
     taxPreviewMercariCsvBtn?.addEventListener('click', previewMercariSalesCsv);
     taxImportMercariCsvBtn?.addEventListener('click', importMercariSalesCsv);
