@@ -354,7 +354,6 @@
 
                 <div class="admin-calendar-wrap" style="margin:0; background:var(--stats-bg); color:var(--stats-text);">
                   <div class="admin-calendar-title" style="color:var(--stats-text);">Item Stats</div>
-                  <div class="tax-summary-line"><span>Total Products Sold</span><strong id="stats-products-sold">0</strong></div>
                   <div class="tax-summary-line"><span>Top Product</span><strong id="stats-top-product">—</strong></div>
                   <div class="tax-summary-line"><span>Pattern Downloads</span><strong id="stats-pattern-downloads">0</strong></div>
                   <div id="stats-item-breakdown" style="margin-top:.7rem; display:grid; gap:.5rem;"></div>
@@ -513,12 +512,11 @@
                       <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports sales + fee rows and maps fees to categories automatically.</div>
                       <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
                       <div style="margin-top:.75rem; padding-top:.65rem; border-top:1px solid var(--line);">
-                        <label style="display:block; margin-bottom:.35rem; font-size:.88rem; color:var(--muted);">Backfill item titles on already-imported entries</label>
+                        <label style="display:block; margin-bottom:.35rem; font-size:.88rem; color:var(--muted);">Fix already-imported entries (missing item titles)</label>
                         <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
-                          <input id="tax-etsy-fix-titles-csv" type="file" accept=".csv,text/csv" />
-                          <button type="button" class="btn" id="tax-etsy-fix-titles-btn">Fix Item Titles</button>
+                          <button type="button" class="btn delete" id="tax-etsy-delete-imports-btn">Delete All Etsy Imports</button>
                         </div>
-                        <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Upload the same Etsy CSV to patch listing titles on existing ledger entries.</div>
+                        <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Removes all income entries imported from Etsy CSVs so you can re-import with correct item titles.</div>
                       </div>
                     </div>
                   </div>
@@ -1810,17 +1808,13 @@
     function renderItemStats(stats) {
       const productEntries = Object.entries(stats.products || {}).sort((a, b) => Number(b[1]?.total || 0) - Number(a[1]?.total || 0));
       const patternEntries = Object.entries(stats.patternDownloads || {}).sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0));
-      const totalProducts = productEntries.reduce((sum, [, v]) => sum + Number(v?.total || 0), 0);
       const topProduct = productEntries[0]?.[0] || '—';
       const patternTotal = patternEntries.reduce((sum, [, v]) => sum + Number(v || 0), 0);
-      if (statsProductsSoldEl) statsProductsSoldEl.textContent = String(totalProducts);
       if (statsTopProductEl) statsTopProductEl.textContent = topProduct;
       if (statsPatternDownloadsEl) statsPatternDownloadsEl.textContent = String(patternTotal);
       if (!statsItemBreakdownEl) return;
-      const sizeOrder = ['0-3 months','3-6 months','6-9 months','9-12 months','12-18 months','18-24 months','Youth Small','Youth Large','Adult'];
       const cards = productEntries.map(([name, data]) => {
-        const lines = sizeOrder.filter((label) => Object.prototype.hasOwnProperty.call(data.breakdown || {}, label)).map((label) => `<div class="tax-summary-line" style="font-size:.92rem;"><span>${escHtml(label)}</span><strong>${escHtml(String(data.breakdown[label] || 0))}</strong></div>`).join('');
-        return `<div style="padding:.55rem .65rem; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(0,0,0,.18);"><div class="tax-summary-line" style="padding-top:0;"><span><strong>${escHtml(name)}</strong></span><strong>${escHtml(String(data.total || 0))}</strong></div>${lines}</div>`;
+        return `<div style="padding:.55rem .65rem; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(0,0,0,.18);"><div class="tax-summary-line" style="padding-top:0;"><span><strong>${escHtml(name)}</strong></span><strong>${escHtml(String(data.total || 0))}</strong></div></div>`;
       }).join('');
       const patternCard = `<div style="padding:.55rem .65rem; border:1px solid rgba(255,255,255,.12); border-radius:10px; background:rgba(0,0,0,.18);"><div style="font-weight:700; margin-bottom:.3rem;">Pattern Downloads</div>${patternEntries.map(([name, count]) => `<div class="tax-summary-line" style="font-size:.92rem;"><span>${escHtml(name)}</span><strong>${escHtml(String(count || 0))}</strong></div>`).join('')}</div>`;
       statsItemBreakdownEl.innerHTML = cards + patternCard;
@@ -4605,67 +4599,30 @@
     taxPreviewEtsyCsvBtn?.addEventListener('click', previewEtsyStatementCsv);
     taxImportEtsyCsvBtn?.addEventListener('click', importEtsyStatementCsv);
 
-    document.getElementById('tax-etsy-fix-titles-btn')?.addEventListener('click', async () => {
-      const file = document.getElementById('tax-etsy-fix-titles-csv')?.files?.[0];
-      if (!file) { openErrorModal('Choose the Etsy statement CSV first.'); return; }
+    document.getElementById('tax-etsy-delete-imports-btn')?.addEventListener('click', async () => {
       try {
-        const rows = parseCsvTable(await file.text());
-        if (rows.length < 2) { openErrorModal('CSV appears empty.'); return; }
-        const header = rows[0].map(h => String(h).trim().toLowerCase());
-        const idxType = header.indexOf('type');
-        const idxTitle = header.indexOf('title');
-        const idxInfo = header.indexOf('info');
-        if ([idxType, idxTitle].some(i => i < 0)) { openErrorModal('Unrecognized Etsy CSV format.'); return; }
-
-        const extractOid = (...vals) => {
-          for (const txt of vals) { const m = String(txt || '').match(/Order\s*#(\d+)/i); if (m) return m[1]; }
-          return null;
-        };
-        const titleByOrder = new Map();
-        for (let i = 1; i < rows.length; i++) {
-          const r = rows[i];
-          const type = String(r[idxType] || '').trim();
-          const title = String(r[idxTitle] || '').trim();
-          const info = idxInfo >= 0 ? String(r[idxInfo] || '').trim() : '';
-          if (type === 'Fee' && /^transaction fee:/i.test(title)) {
-            const oid = extractOid(title, info);
-            if (oid) {
-              const listingTitle = title.replace(/^transaction fee:\s*/i, '').trim();
-              if (listingTitle) titleByOrder.set(oid, titleByOrder.has(oid) ? titleByOrder.get(oid) + ' + ' + listingTitle : listingTitle);
-            }
-          }
-        }
-        if (!titleByOrder.size) { openErrorModal('No transaction fee rows with listing titles found.'); return; }
-
-        let updated = 0;
         const res = await fetch(`${TAX_TX_API_URL}?year=2026&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
         if (!res.ok) throw new Error('Failed to fetch income entries.');
         const data = await res.json();
-        for (const row of (data.income || [])) {
-          const src = String(row.source || '').trim();
-          const m = src.match(/^Order\s*#(\d+)$/i);
-          if (!m) continue;
-          const oid = m[1];
-          const listingTitle = titleByOrder.get(oid);
-          if (!listingTitle) continue;
-          let notes = String(row.notes || '');
-          if (!notes.includes(`Order #${oid}`)) notes = `Order #${oid}${notes ? ' — ' + notes : ''}`;
-          const updateRes = await fetch(TAX_INCOME_UPDATE_API_URL, {
+        const etsyEntries = (data.income || []).filter(r => String(r.notes || '').includes('Imported from Etsy statement CSV'));
+        if (!etsyEntries.length) { openErrorModal('No Etsy-imported income entries found.'); return; }
+        const ok = await openConfirmModal(`Delete ${etsyEntries.length} Etsy-imported income ${etsyEntries.length === 1 ? 'entry' : 'entries'}? Re-import the CSV afterward to restore with correct item titles.`, 'Delete Etsy Imports?', 'Delete');
+        if (!ok) return;
+        let deleted = 0;
+        for (const row of etsyEntries) {
+          const delRes = await fetch(TAX_INCOME_DELETE_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
-            body: JSON.stringify({
-              id: row.id, date: row.date, source: listingTitle, category: row.category,
-              amount: (Number(row.amount_cents || 0) / 100).toFixed(2),
-              notes, stripeSessionId: row.stripe_session_id || '',
-              isOwnerFunded: Number(row.is_owner_funded || 0) === 1
-            })
+            body: JSON.stringify({ id: row.id })
           });
-          if (updateRes.ok) updated++;
+          if (delRes.ok) deleted++;
         }
+        await loadTaxTransactions();
+        await loadAccountsData();
         await loadStatsData();
-        openSuccessModal(`Updated ${updated} income ${updated === 1 ? 'entry' : 'entries'} with listing titles.`, 'Titles Fixed ✅');
+        openSuccessModal(`Deleted ${deleted} Etsy income ${deleted === 1 ? 'entry' : 'entries'}. Now re-import the CSV to restore with item titles.`, 'Deleted ✅');
       } catch (err) {
-        openErrorModal(`Fix failed: ${err.message || err}`);
+        openErrorModal(`Delete failed: ${err.message || err}`);
       }
     });
 
