@@ -1766,7 +1766,7 @@
       if (hasAny(['gohan pattern', 'four star ball pattern', 'dragon ball pattern gohan'])) return { type: 'pattern', key: 'Gohan Patterns' };
       if (hasAny(['goku pattern', 'goku inspired pattern'])) return { type: 'pattern', key: 'Goku Patterns' };
       if (hasAny(['gohan hat', 'four star ball hat', 'four star crochet hat', 'dragon ball hat gohan', 'gohan inspired hat', 'gohan inspired', 'four star dragon ball'])) return { type: 'product', key: 'Gohan Hats', size: findSize() };
-      if (hasAny(['luffy hat', 'straw hat pirate hat', 'one piece hat luffy', 'luffy inspired hat', 'luffy inspired'])) return { type: 'product', key: 'Luffy Hats', size: findSize() };
+      if (hasAny(['luffy hat', 'straw hat pirate hat', 'one piece hat luffy', 'luffy inspired hat', 'luffy inspired', 'luffy inspired baby straw hat', 'baby straw hat'])) return { type: 'product', key: 'Luffy Hats', size: findSize() };
       if (hasAny(['rumi hat', 'rumi inspired hat', 'rumi inspired'])) return { type: 'product', key: 'Rumi Hats', size: findSize() };
       if (hasAny(['trunks set', 'trunks inspired set', 'dragon ball trunks set', 'trunks inspired'])) return { type: 'product', key: 'Trunks Sets', size: findSize() };
       if (hasAny(['goku hat', 'goku inspired hat', 'five point hat', 'five point crochet hat', 'goku inspired'])) return { type: 'product', key: 'Goku Hats', size: findSize() };
@@ -3508,10 +3508,22 @@
       };
 
       const taxByOrder = new Map();
+      const titleByOrder = new Map();
       for (const p of parsed) {
         if (p.type === 'Tax' && /sales tax paid by buyer/i.test(p.title || '') && p.fee < 0) {
           const oid = extractOrderId(p.title, p.info);
           if (oid) taxByOrder.set(oid, (taxByOrder.get(oid) || 0) + Math.abs(p.fee));
+        }
+        if (p.type === 'Fee' && /^transaction fee:/i.test(p.title || '')) {
+          const oid = extractOrderId(p.title, p.info);
+          if (oid) {
+            const listingTitle = p.title.replace(/^transaction fee:\s*/i, '').trim();
+            if (listingTitle) {
+              titleByOrder.set(oid, titleByOrder.has(oid)
+                ? titleByOrder.get(oid) + ' + ' + listingTitle
+                : listingTitle);
+            }
+          }
         }
       }
 
@@ -3521,7 +3533,8 @@
           const oid = extractOrderId(p.title, p.info);
           const tax = oid ? Number(taxByOrder.get(oid) || 0) : 0;
           const netSale = Math.max(0, Number(p.amount || 0) - tax);
-          return { ...p, orderId: oid, taxDeducted: tax, netAmount: netSale };
+          const listingTitle = oid ? (titleByOrder.get(oid) || null) : null;
+          return { ...p, orderId: oid, taxDeducted: tax, netAmount: netSale, listingTitle };
         });
 
       pendingEtsyImportExpenses = [];
@@ -3540,7 +3553,7 @@
       const expTotal = pendingEtsyImportExpenses.reduce((s, r) => s + Number(r.amount || 0), 0);
 
       if (taxSaleImportPreviewEl) {
-        const allSales = pendingEtsyImportSales.map(s => `<div>${escHtml(s.isoDate)} | SALE | ${escHtml(s.title || 'Etsy Sale')} | Gross $${Number(s.amount||0).toFixed(2)} | Tax -$${Number(s.taxDeducted||0).toFixed(2)} | Net $${Number(s.netAmount||0).toFixed(2)}</div>`).join('');
+        const allSales = pendingEtsyImportSales.map(s => `<div>${escHtml(s.isoDate)} | SALE | ${escHtml(s.listingTitle || s.title || 'Etsy Sale')} | Gross $${Number(s.amount||0).toFixed(2)} | Tax -$${Number(s.taxDeducted||0).toFixed(2)} | Net $${Number(s.netAmount||0).toFixed(2)}</div>`).join('');
         const allExp = pendingEtsyImportExpenses.map(e => {
           const amt = Number(e.amount || 0);
           const label = amt < 0 ? `<span style="color:#4caf50;">CREDIT -$${Math.abs(amt).toFixed(2)}</span>` : `$${amt.toFixed(2)}`;
@@ -3577,10 +3590,10 @@
         for (const s of pendingEtsyImportSales) {
           await postTaxIncomeEntry({
             date: s.isoDate,
-            source: s.title || 'Etsy Sale',
+            source: s.listingTitle || s.title || 'Etsy Sale',
             category: 'Product Sale',
             amount: s.netAmount,
-            notes: `Imported from Etsy statement CSV${s.taxDeducted ? ` (sales tax removed: $${Number(s.taxDeducted).toFixed(2)})` : ''}`
+            notes: `${s.orderId ? `Order #${s.orderId} — ` : ''}Imported from Etsy statement CSV${s.taxDeducted ? ` (sales tax removed: $${Number(s.taxDeducted).toFixed(2)})` : ''}`
           });
         }
         for (const e of pendingEtsyImportExpenses) {
