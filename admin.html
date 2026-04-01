@@ -4602,15 +4602,25 @@
     document.getElementById('tax-etsy-delete-imports-btn')?.addEventListener('click', async () => {
       try {
         const res = await fetch(`${TAX_TX_API_URL}?year=2026&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
-        if (!res.ok) throw new Error('Failed to fetch income entries.');
+        if (!res.ok) throw new Error('Failed to fetch entries.');
         const data = await res.json();
-        const etsyEntries = (data.income || []).filter(r => String(r.notes || '').includes('Imported from Etsy statement CSV'));
-        if (!etsyEntries.length) { openErrorModal('No Etsy-imported income entries found.'); return; }
-        const ok = await openConfirmModal(`Delete ${etsyEntries.length} Etsy-imported income ${etsyEntries.length === 1 ? 'entry' : 'entries'}? Re-import the CSV afterward to restore with correct item titles.`, 'Delete Etsy Imports?', 'Delete');
+        const etsyIncome = (data.income || []).filter(r => String(r.notes || '').includes('Imported from Etsy statement CSV'));
+        const etsyExpenses = (data.expenses || []).filter(r => String(r.paid_via || '').toLowerCase() === 'etsy');
+        const total = etsyIncome.length + etsyExpenses.length;
+        if (!total) { openErrorModal('No Etsy-imported entries found.'); return; }
+        const ok = await openConfirmModal(`Delete ${etsyIncome.length} income and ${etsyExpenses.length} expense entries from Etsy CSV imports? Re-import the CSV afterward.`, 'Delete Etsy Imports?', 'Delete');
         if (!ok) return;
         let deleted = 0;
-        for (const row of etsyEntries) {
+        for (const row of etsyIncome) {
           const delRes = await fetch(TAX_INCOME_DELETE_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+            body: JSON.stringify({ id: row.id })
+          });
+          if (delRes.ok) deleted++;
+        }
+        for (const row of etsyExpenses) {
+          const delRes = await fetch(TAX_EXPENSE_DELETE_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
             body: JSON.stringify({ id: row.id })
@@ -4620,7 +4630,7 @@
         await loadTaxTransactions();
         await loadAccountsData();
         await loadStatsData();
-        openSuccessModal(`Deleted ${deleted} Etsy income ${deleted === 1 ? 'entry' : 'entries'}. Now re-import the CSV to restore with item titles.`, 'Deleted ✅');
+        openSuccessModal(`Deleted ${deleted} of ${total} Etsy-imported entries. Now re-import the CSV.`, 'Deleted ✅');
       } catch (err) {
         openErrorModal(`Delete failed: ${err.message || err}`);
       }
