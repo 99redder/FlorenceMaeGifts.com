@@ -3399,7 +3399,7 @@ async function ensureAccountingSetup(db) {
     ['3000','Owner Equity','equity','credit'],
     ['3100','Owner Contributions','equity','credit'],
     ['3200','Owner Draw','equity','debit'],
-    ['4000','Service Revenue','income','credit'],
+    ['4000','Sales Revenue','income','credit'],
     ['4900','Other Income','income','credit'],
     ['5000','Software Expense','expense','debit'],
     ['5100','Marketing Expense','expense','debit'],
