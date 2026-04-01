@@ -4600,7 +4600,8 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Rebuild failed');
         const r = data.rebuilt || {};
-        openConfirmModal(`Journal rebuilt. ${(r.expenseEntries ?? 0)} expense entries and ${(r.incomeEntries ?? 0)} income entries posted.`, 'Rebuild Complete', 'OK')
+        const errNote = (r.expenseErrors || r.incomeErrors) ? ` (${(r.expenseErrors||0) + (r.incomeErrors||0)} rows skipped with errors)` : '';
+        openConfirmModal(`Journal rebuilt. ${(r.expenseEntries ?? 0)} expense entries and ${(r.incomeEntries ?? 0)} income entries posted.${errNote}`, 'Rebuild Complete', 'OK')
           .then(() => loadAccountsData());
       } catch (e) {
         openErrorModal('Rebuild failed: ' + e.message);

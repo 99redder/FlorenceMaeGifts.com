@@ -34,6 +34,7 @@
 
 export default {
   async fetch(request, env) {
+    try {
     const origin = request.headers.get('Origin') || '';
     const allowedOrigins = (env.ALLOWED_ORIGINS || '*')
       .split(',')
@@ -298,6 +299,12 @@ export default {
     }
 
     return json({ ok: false, error: 'Not found' }, 404, corsHeaders);
+    } catch (err) {
+      return new Response(JSON.stringify({ ok: false, error: String(err?.message || err) }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
 };
 
@@ -2065,14 +2072,21 @@ async function handleAccountsRebuildAutoJournal(request, env, corsHeaders, url) 
     `SELECT id, income_date, source, category, amount_cents, notes, is_owner_funded FROM tax_income ORDER BY id ASC`
   ).all();
 
-  for (const e of (expenses.results || [])) await upsertTaxExpenseJournal(env.DB, e);
-  for (const i of (income.results || [])) await upsertTaxIncomeJournal(env.DB, i);
+  let expenseErrors = 0, incomeErrors = 0;
+  for (const e of (expenses.results || [])) {
+    try { await upsertTaxExpenseJournal(env.DB, e); } catch { expenseErrors++; }
+  }
+  for (const i of (income.results || [])) {
+    try { await upsertTaxIncomeJournal(env.DB, i); } catch { incomeErrors++; }
+  }
 
   return json({
     ok: true,
     rebuilt: {
       expenseEntries: (expenses.results || []).length,
-      incomeEntries: (income.results || []).length
+      incomeEntries: (income.results || []).length,
+      expenseErrors,
+      incomeErrors
     }
   }, 200, corsHeaders);
 }
