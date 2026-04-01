@@ -115,6 +115,7 @@
     #tax-category-modal { z-index:1250; }
     #tax-category-edit-modal { z-index:1300; }
     #invoice-create-modal, #quote-create-modal { z-index:1350; }
+    #add-expense-modal, #add-sale-modal, #import-etsy-modal, #import-mercari-modal, #add-income-modal { z-index:1220; }
     #confirm-modal, #success-modal, #error-modal { z-index:1400; }
     .success-modal { width:min(560px,96vw); background:var(--card); border:1px solid var(--line); border-radius:8px; padding:1rem; }
     .success-modal h3 { margin:.1rem 0 .4rem; color:var(--cyan); }
@@ -407,12 +408,12 @@
                 </div>
 
                 <div class="admin-row" style="gap:.4rem; flex-wrap:wrap; margin-top:.4rem;">
-                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-expense-btn">Add Expense</button>
-                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-sale-btn">Add Sale</button>
-                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-import-sales-btn">Import Etsy Sales</button>
-                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-import-mercari-btn">Import Mercari Sales</button>
+                  <button type="button" class="btn btn-primary" id="tax-mode-expense-btn">Add Expense</button>
+                  <button type="button" class="btn btn-primary" id="tax-mode-sale-btn">Add Sale</button>
+                  <button type="button" class="btn btn-primary" id="tax-mode-import-sales-btn">Import Etsy Sales</button>
+                  <button type="button" class="btn btn-primary" id="tax-mode-import-mercari-btn">Import Mercari Sales</button>
                   <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-owner-transfer-btn">Add Owner Transfer</button>
-                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-income-btn">Add Income</button>
+                  <button type="button" class="btn btn-primary" id="tax-mode-income-btn">Add Income</button>
                   <button type="button" class="btn btn-primary" id="tax-manage-categories-btn" onclick="window.openTaxCategoryManager && window.openTaxCategoryManager()">Manage Categories</button>
                 </div>
                 <p style="margin:.55rem 0 0; font-size:.9rem; color:var(--muted);">LLC cutover note: <strong style="color:var(--text);">March 18, 2026</strong> is the first official day as Florence Mae Gifts, LLC. Use this date when splitting sole proprietorship vs. LLC bookkeeping/imports.</p>
@@ -427,148 +428,6 @@
                     <option value="expense">Expenses</option>
                   </select>
                   <button type="button" class="btn" id="tax-refresh-btn">Refresh</button>
-                </div>
-
-                <div class="tax-entry-wrap" id="tax-expense-panel" style="margin-top:.5rem; display:none;">
-                  <div class="admin-calendar-wrap">
-                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Add Expense</div><button type="button" class="btn" id="tax-minimize-expense-btn">Minimize</button></div>
-                    <div class="admin-row" id="tax-expense-fields" style="flex-direction:column; align-items:stretch;">
-                      <label>Date</label>
-                      <input id="tax-expense-date" type="date" />
-                      <label>Vendor</label>
-                      <input id="tax-expense-vendor" placeholder="e.g. Amazon, Cloudflare" />
-                      <label>Category</label>
-                      <select id="tax-expense-category"></select>
-                      <label>Amount (USD)</label>
-                      <input id="tax-expense-amount" type="number" step="0.01" placeholder="0.00" />
-                      <label>Paid via</label>
-                      <input id="tax-expense-paidvia" placeholder="card, cash, bank, etc." />
-                      <label>Notes</label>
-                      <input id="tax-expense-notes" placeholder="optional" />
-                      <label>Receipt <span style="font-size:0.78rem; color:var(--muted); font-weight:400;">(optional — PDF, JPG, PNG)</span></label>
-                      <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
-                        <label for="tax-expense-receipt" class="btn" style="cursor:pointer; white-space:nowrap; margin:0;">Browse…</label>
-                        <input id="tax-expense-receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
-                        <span id="tax-expense-receipt-name" style="font-size:0.8rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">No file chosen</span>
-                      </div>
-                      <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary" id="tax-add-expense-btn">Add Expense</button>
-                        <button type="button" class="btn btn-primary" id="tax-update-expense-btn" style="display:none;">Save Expense Update</button>
-                        <button type="button" class="btn" id="tax-cancel-expense-edit-btn" style="display:none;">Cancel Edit</button>
-                        <button type="button" class="btn" id="tax-clear-expense-btn">Clear</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="tax-entry-wrap" id="tax-sale-panel" style="margin-top:.5rem; display:none;">
-                  <div class="admin-calendar-wrap">
-                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Add Sale</div><button type="button" class="btn" id="tax-minimize-sale-btn">Minimize</button></div>
-                    <div class="admin-row" id="tax-sale-fields" style="flex-direction:column; align-items:stretch;">
-                      <label>Date</label>
-                      <input id="tax-sale-date" type="date" />
-                      <label>Item Name</label>
-                      <select id="tax-sale-item"><option value="">Select item</option><option value="Gohan Hats">Gohan Hats</option><option value="Luffy Hats">Luffy Hats</option><option value="Rumi Hats">Rumi Hats</option><option value="Trunks Sets">Trunks Sets</option><option value="Goku Hats">Goku Hats</option><option value="Majin Buu Sets">Majin Buu Sets</option><option value="Gohan Patterns">Gohan Patterns</option><option value="Goku Patterns">Goku Patterns</option><option value="Commission">Commission</option></select>
-                      <select id="tax-sale-size" style="display:none; margin-top:.35rem;"><option value="">Select size</option><option value="0-3 months">0-3 months</option><option value="3-6 months">3-6 months</option><option value="6-9 months">6-9 months</option><option value="9-12 months">9-12 months</option><option value="12-18 months">12-18 months</option><option value="18-24 months">18-24 months</option><option value="Youth Small">Youth Small</option><option value="Youth Large">Youth Large</option><option value="Adult">Adult</option></select>
-                      <input id="tax-sale-item-custom" placeholder="Commission details / optional item details" style="display:none; margin-top:.35rem;" />
-                      <label>Channel</label>
-                      <select id="tax-sale-channel"><option value="Etsy">Etsy</option><option value="Website">Website</option><option value="In Person">In Person</option><option value="Other">Other</option></select>
-                      <label>Sale Amount (USD)</label>
-                      <input id="tax-sale-amount" type="number" step="0.01" placeholder="0.00" />
-                      <label>Processing Fee (USD)</label>
-                      <input id="tax-sale-fee-processing" type="number" step="0.01" placeholder="0.00" />
-                      <label>Transaction Fee (USD)</label>
-                      <input id="tax-sale-fee-transaction" type="number" step="0.01" placeholder="0.00" />
-                      <label>Listing Fee (USD)</label>
-                      <input id="tax-sale-fee-listing" type="number" step="0.01" placeholder="0.00" />
-                      <label>Shipping Cost (USD)</label>
-                      <input id="tax-sale-fee-shipping" type="number" step="0.01" placeholder="0.00" />
-                      <label>Marketing / Ads Fee (USD)</label>
-                      <input id="tax-sale-fee-marketing" type="number" step="0.01" placeholder="0.00" />
-                      <label>Other Fee (USD)</label>
-                      <input id="tax-sale-fee-other" type="number" step="0.01" placeholder="0.00" />
-                      <label>Notes</label>
-                      <input id="tax-sale-notes" placeholder="optional" />
-                      <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary" id="tax-add-sale-btn">Add Sale</button>
-                        <button type="button" class="btn" id="tax-clear-sale-btn">Clear</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="tax-entry-wrap" id="tax-import-sales-panel" style="margin-top:.5rem; display:none;">
-                  <div class="admin-calendar-wrap">
-                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Import Etsy Sales (CSV)</div><button type="button" class="btn" id="tax-minimize-import-sales-btn">Minimize</button></div>
-                    <div class="admin-row" id="tax-import-sales-fields" style="flex-direction:column; align-items:stretch;">
-                      <label>Etsy Statement CSV (Month)</label>
-                      <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
-                        <input id="tax-sale-etsy-csv" type="file" accept=".csv,text/csv" />
-                        <span style="color:var(--muted);">→</span>
-                        <button type="button" class="btn" id="tax-preview-etsy-csv-btn">Preview Transactions</button>
-                        <span style="color:var(--muted);">→</span>
-                        <button type="button" class="btn btn-primary" id="tax-import-etsy-csv-btn">Import Transactions</button>
-                      </div>
-                      <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports sales + fee rows and maps fees to categories automatically.</div>
-                      <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="tax-entry-wrap" id="tax-import-mercari-panel" style="margin-top:.5rem; display:none;">
-                  <div class="admin-calendar-wrap">
-                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Import Mercari Sales (CSV)</div><button type="button" class="btn" id="tax-minimize-import-mercari-btn">Minimize</button></div>
-                    <div class="admin-row" id="tax-import-mercari-fields" style="flex-direction:column; align-items:stretch;">
-                      <label>Mercari Custom Sales Report CSV</label>
-                      <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
-                        <input id="tax-sale-mercari-csv" type="file" accept=".csv,text/csv" />
-                        <span style="color:var(--muted);">→</span>
-                        <button type="button" class="btn" id="tax-preview-mercari-csv-btn">Preview Transactions</button>
-                        <span style="color:var(--muted);">→</span>
-                        <button type="button" class="btn btn-primary" id="tax-import-mercari-csv-btn">Import Transactions</button>
-                      </div>
-                      <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports completed sales + fee rows. Sales tax (paid by Mercari) is excluded automatically.</div>
-                      <div id="tax-sale-mercari-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="tax-entry-wrap" id="tax-income-panel" style="margin-top:.5rem; display:none;">
-                  <div class="admin-calendar-wrap">
-                    <div class="admin-calendar-head" style="display:flex; justify-content:space-between; align-items:center;"><div class="admin-calendar-title">Add Income</div><button type="button" class="btn" id="tax-minimize-income-btn">Minimize</button></div>
-                    <div class="admin-row" id="tax-income-fields" style="flex-direction:column; align-items:stretch;">
-                      <label>Date</label>
-                      <input id="tax-income-date" type="date" />
-                      <label>Source</label>
-                      <input id="tax-income-source" placeholder="e.g. Stripe, Client" />
-                      <label>Category</label>
-                      <select id="tax-income-category"></select>
-                      <div id="tax-income-category-account-hint" style="margin-top:.35rem; font-size:.86rem; color:var(--muted);"></div>
-                      <label>Amount (USD)</label>
-                      <input id="tax-income-amount" type="number" step="0.01" placeholder="0.00" />
-                      <label>Stripe session id (optional)</label>
-                      <input id="tax-income-stripe" placeholder="cs_test_..." />
-                      <label>Notes</label>
-                      <input id="tax-income-notes" placeholder="optional" />
-                      <label style="display:inline-flex; align-items:center; gap:.3rem; margin-top:.25rem; font-weight:600; line-height:1.2;">
-                        <input id="tax-income-owner-funded" type="checkbox" style="margin:0; width:16px; height:16px;" />
-                        <span>Treat as owner-funded (non-revenue)</span>
-                        <span title="Use this for owner money, test payments, or non-customer deposits. It will post to Owner Contributions instead of Revenue." style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border:1px solid var(--line); border-radius:999px; color:var(--cyan); font-size:12px; cursor:help;">?</span>
-                      </label>
-                      <label>Receipt <span style="font-size:0.78rem; color:var(--muted); font-weight:400;">(optional — PDF, JPG, PNG)</span></label>
-                      <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
-                        <label for="tax-income-receipt" class="btn" style="cursor:pointer; white-space:nowrap; margin:0;">Browse…</label>
-                        <input id="tax-income-receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
-                        <span id="tax-income-receipt-name" style="font-size:0.8rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">No file chosen</span>
-                      </div>
-                      <div class="form-actions" style="justify-content:flex-start; gap:.5rem; flex-wrap:wrap;">
-                        <button type="button" class="btn btn-primary" id="tax-add-income-btn" style="padding:.85rem 1.35rem; font-size:1.05rem;">Add Income</button>
-                        <button type="button" class="btn btn-primary" id="tax-update-income-btn" style="display:none;">Save Income Update</button>
-                        <button type="button" class="btn" id="tax-cancel-income-edit-btn" style="display:none;">Cancel Edit</button>
-                        <button type="button" class="btn" id="tax-clear-income-btn" style="padding:.85rem 1.35rem; font-size:1.05rem;">Clear</button>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 <div>
@@ -951,6 +810,178 @@
       </div>
     </div>
   </div>
+
+  <!-- Add Expense Modal -->
+  <div class="success-modal-overlay" id="add-expense-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="add-expense-title" style="width:min(700px,94vw); max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.6rem;">
+        <h3 id="add-expense-title" style="margin:0;">Add Expense</h3>
+        <button type="button" class="btn" id="add-expense-x-btn" style="padding:.3rem .65rem; font-size:1.1rem; line-height:1;">&#x2715;</button>
+      </div>
+      <div class="admin-row" style="flex-direction:column; align-items:stretch;">
+        <label>Date</label>
+        <input id="tax-expense-date" type="date" />
+        <label>Vendor</label>
+        <input id="tax-expense-vendor" placeholder="e.g. Amazon, Cloudflare" />
+        <label>Category</label>
+        <select id="tax-expense-category"></select>
+        <label>Amount (USD)</label>
+        <input id="tax-expense-amount" type="number" step="0.01" placeholder="0.00" />
+        <label>Paid via</label>
+        <input id="tax-expense-paidvia" placeholder="card, cash, bank, etc." />
+        <label>Notes</label>
+        <input id="tax-expense-notes" placeholder="optional" />
+        <label>Receipt <span style="font-size:0.78rem; color:var(--muted); font-weight:400;">(optional &#8212; PDF, JPG, PNG)</span></label>
+        <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+          <label for="tax-expense-receipt" class="btn" style="cursor:pointer; white-space:nowrap; margin:0;">Browse&#8230;</label>
+          <input id="tax-expense-receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
+          <span id="tax-expense-receipt-name" style="font-size:0.8rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">No file chosen</span>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end; flex-wrap:wrap;">
+        <button type="button" class="btn" id="add-expense-cancel-btn">Cancel</button>
+        <button type="button" class="btn" id="tax-clear-expense-btn">Clear</button>
+        <button type="button" class="btn btn-primary" id="tax-add-expense-btn">Add Expense</button>
+        <button type="button" class="btn btn-primary" id="tax-update-expense-btn" style="display:none;">Save Expense Update</button>
+        <button type="button" class="btn" id="tax-cancel-expense-edit-btn" style="display:none;">Cancel Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Sale Modal -->
+  <div class="success-modal-overlay" id="add-sale-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="add-sale-title" style="width:min(700px,94vw); max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.6rem;">
+        <h3 id="add-sale-title" style="margin:0;">Add Sale</h3>
+        <button type="button" class="btn" id="add-sale-x-btn" style="padding:.3rem .65rem; font-size:1.1rem; line-height:1;">&#x2715;</button>
+      </div>
+      <div class="admin-row" style="flex-direction:column; align-items:stretch;">
+        <label>Date</label>
+        <input id="tax-sale-date" type="date" />
+        <label>Item Name</label>
+        <select id="tax-sale-item"><option value="">Select item</option><option value="Gohan Hats">Gohan Hats</option><option value="Luffy Hats">Luffy Hats</option><option value="Rumi Hats">Rumi Hats</option><option value="Trunks Sets">Trunks Sets</option><option value="Goku Hats">Goku Hats</option><option value="Majin Buu Sets">Majin Buu Sets</option><option value="Gohan Patterns">Gohan Patterns</option><option value="Goku Patterns">Goku Patterns</option><option value="Commission">Commission</option></select>
+        <select id="tax-sale-size" style="display:none; margin-top:.35rem;"><option value="">Select size</option><option value="0-3 months">0-3 months</option><option value="3-6 months">3-6 months</option><option value="6-9 months">6-9 months</option><option value="9-12 months">9-12 months</option><option value="12-18 months">12-18 months</option><option value="18-24 months">18-24 months</option><option value="Youth Small">Youth Small</option><option value="Youth Large">Youth Large</option><option value="Adult">Adult</option></select>
+        <input id="tax-sale-item-custom" placeholder="Commission details / optional item details" style="display:none; margin-top:.35rem;" />
+        <label>Channel</label>
+        <select id="tax-sale-channel"><option value="Etsy">Etsy</option><option value="Website">Website</option><option value="In Person">In Person</option><option value="Other">Other</option></select>
+        <label>Sale Amount (USD)</label>
+        <input id="tax-sale-amount" type="number" step="0.01" placeholder="0.00" />
+        <label>Processing Fee (USD)</label>
+        <input id="tax-sale-fee-processing" type="number" step="0.01" placeholder="0.00" />
+        <label>Transaction Fee (USD)</label>
+        <input id="tax-sale-fee-transaction" type="number" step="0.01" placeholder="0.00" />
+        <label>Listing Fee (USD)</label>
+        <input id="tax-sale-fee-listing" type="number" step="0.01" placeholder="0.00" />
+        <label>Shipping Cost (USD)</label>
+        <input id="tax-sale-fee-shipping" type="number" step="0.01" placeholder="0.00" />
+        <label>Marketing / Ads Fee (USD)</label>
+        <input id="tax-sale-fee-marketing" type="number" step="0.01" placeholder="0.00" />
+        <label>Other Fee (USD)</label>
+        <input id="tax-sale-fee-other" type="number" step="0.01" placeholder="0.00" />
+        <label>Notes</label>
+        <input id="tax-sale-notes" placeholder="optional" />
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end; flex-wrap:wrap;">
+        <button type="button" class="btn" id="add-sale-cancel-btn">Cancel</button>
+        <button type="button" class="btn" id="tax-clear-sale-btn">Clear</button>
+        <button type="button" class="btn btn-primary" id="tax-add-sale-btn">Add Sale</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Etsy Sales Modal -->
+  <div class="success-modal-overlay" id="import-etsy-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="import-etsy-title" style="width:min(820px,94vw); max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.6rem;">
+        <h3 id="import-etsy-title" style="margin:0;">Import Etsy Sales</h3>
+        <button type="button" class="btn" id="import-etsy-x-btn" style="padding:.3rem .65rem; font-size:1.1rem; line-height:1;">&#x2715;</button>
+      </div>
+      <div class="admin-row" style="flex-direction:column; align-items:stretch;">
+        <label>Etsy Statement CSV (Month)</label>
+        <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
+          <input id="tax-sale-etsy-csv" type="file" accept=".csv,text/csv" />
+          <span style="color:var(--muted);">&#8594;</span>
+          <button type="button" class="btn" id="tax-preview-etsy-csv-btn">Preview Transactions</button>
+          <span style="color:var(--muted);">&#8594;</span>
+          <button type="button" class="btn btn-primary" id="tax-import-etsy-csv-btn">Import Transactions</button>
+        </div>
+        <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports sales + fee rows and maps fees to categories automatically.</div>
+        <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="import-etsy-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Mercari Sales Modal -->
+  <div class="success-modal-overlay" id="import-mercari-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="import-mercari-title" style="width:min(820px,94vw); max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.6rem;">
+        <h3 id="import-mercari-title" style="margin:0;">Import Mercari Sales</h3>
+        <button type="button" class="btn" id="import-mercari-x-btn" style="padding:.3rem .65rem; font-size:1.1rem; line-height:1;">&#x2715;</button>
+      </div>
+      <div class="admin-row" style="flex-direction:column; align-items:stretch;">
+        <label>Mercari Custom Sales Report CSV</label>
+        <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
+          <input id="tax-sale-mercari-csv" type="file" accept=".csv,text/csv" />
+          <span style="color:var(--muted);">&#8594;</span>
+          <button type="button" class="btn" id="tax-preview-mercari-csv-btn">Preview Transactions</button>
+          <span style="color:var(--muted);">&#8594;</span>
+          <button type="button" class="btn btn-primary" id="tax-import-mercari-csv-btn">Import Transactions</button>
+        </div>
+        <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports completed sales + fee rows. Sales tax (paid by Mercari) is excluded automatically.</div>
+        <div id="tax-sale-mercari-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="import-mercari-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Income Modal -->
+  <div class="success-modal-overlay" id="add-income-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="add-income-title" style="width:min(700px,94vw); max-height:90vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.6rem;">
+        <h3 id="add-income-title" style="margin:0;">Add Income</h3>
+        <button type="button" class="btn" id="add-income-x-btn" style="padding:.3rem .65rem; font-size:1.1rem; line-height:1;">&#x2715;</button>
+      </div>
+      <div class="admin-row" style="flex-direction:column; align-items:stretch;">
+        <label>Date</label>
+        <input id="tax-income-date" type="date" />
+        <label>Source</label>
+        <input id="tax-income-source" placeholder="e.g. Stripe, Client" />
+        <label>Category</label>
+        <select id="tax-income-category"></select>
+        <div id="tax-income-category-account-hint" style="margin-top:.35rem; font-size:.86rem; color:var(--muted);"></div>
+        <label>Amount (USD)</label>
+        <input id="tax-income-amount" type="number" step="0.01" placeholder="0.00" />
+        <label>Stripe session id (optional)</label>
+        <input id="tax-income-stripe" placeholder="cs_test_..." />
+        <label>Notes</label>
+        <input id="tax-income-notes" placeholder="optional" />
+        <label style="display:inline-flex; align-items:center; gap:.3rem; margin-top:.25rem; font-weight:600; line-height:1.2;">
+          <input id="tax-income-owner-funded" type="checkbox" style="margin:0; width:16px; height:16px;" />
+          <span>Treat as owner-funded (non-revenue)</span>
+          <span title="Use this for owner money, test payments, or non-customer deposits. It will post to Owner Contributions instead of Revenue." style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border:1px solid var(--line); border-radius:999px; color:var(--cyan); font-size:12px; cursor:help;">?</span>
+        </label>
+        <label>Receipt <span style="font-size:0.78rem; color:var(--muted); font-weight:400;">(optional &#8212; PDF, JPG, PNG)</span></label>
+        <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+          <label for="tax-income-receipt" class="btn" style="cursor:pointer; white-space:nowrap; margin:0;">Browse&#8230;</label>
+          <input id="tax-income-receipt" type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" />
+          <span id="tax-income-receipt-name" style="font-size:0.8rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">No file chosen</span>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end; flex-wrap:wrap;">
+        <button type="button" class="btn" id="add-income-cancel-btn">Cancel</button>
+        <button type="button" class="btn" id="tax-clear-income-btn">Clear</button>
+        <button type="button" class="btn btn-primary" id="tax-add-income-btn">Add Income</button>
+        <button type="button" class="btn btn-primary" id="tax-update-income-btn" style="display:none;">Save Income Update</button>
+        <button type="button" class="btn" id="tax-cancel-income-edit-btn" style="display:none;">Cancel Edit</button>
+      </div>
+    </div>
+  </div>
+
 
   <div class="success-modal-overlay" id="audit-package-modal" aria-hidden="true">
     <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="audit-package-title" style="width:min(760px,94vw); max-height:86vh; overflow-y:auto;">
@@ -1375,24 +1406,9 @@
     const adminUserGuideBtn = document.getElementById('admin-user-guide-btn');
     const adminBlurAmountsBtn = document.getElementById('admin-blur-amounts-btn');
     const adminUserGuideTopBtn = document.getElementById('admin-user-guide-top-btn');
-    const taxExpensePanel = document.getElementById('tax-expense-panel');
-    const taxSalePanel = document.getElementById('tax-sale-panel');
-    const taxImportSalesPanel = document.getElementById('tax-import-sales-panel');
-    const taxImportMercariPanel = document.getElementById('tax-import-mercari-panel');
     const taxOwnerTransferPanel = document.getElementById('tax-owner-transfer-panel');
-    const taxIncomePanel = document.getElementById('tax-income-panel');
-    const taxExpenseFields = document.getElementById('tax-expense-fields');
-    const taxSaleFields = document.getElementById('tax-sale-fields');
-    const taxImportSalesFields = document.getElementById('tax-import-sales-fields');
-    const taxImportMercariFields = document.getElementById('tax-import-mercari-fields');
     const taxOwnerTransferFields = document.getElementById('tax-owner-transfer-fields');
-    const taxIncomeFields = document.getElementById('tax-income-fields');
-    const taxMinimizeExpenseBtn = document.getElementById('tax-minimize-expense-btn');
-    const taxMinimizeSaleBtn = document.getElementById('tax-minimize-sale-btn');
-    const taxMinimizeImportSalesBtn = document.getElementById('tax-minimize-import-sales-btn');
-    const taxMinimizeImportMercariBtn = document.getElementById('tax-minimize-import-mercari-btn');
     const taxMinimizeOwnerTransferBtn = document.getElementById('tax-minimize-owner-transfer-btn');
-    const taxMinimizeIncomeBtn = document.getElementById('tax-minimize-income-btn');
     const taxCategoryModal = document.getElementById('tax-category-modal');
     const taxCategoryCloseBtn = document.getElementById('tax-category-close-btn');
     const taxCategoryXBtn = document.getElementById('tax-category-x-btn');
@@ -2067,6 +2083,47 @@
     function closeOwnerTransferModal() {
       ownerTransferModal?.classList.remove('active');
       ownerTransferModal?.setAttribute('aria-hidden', 'true');
+    }
+
+    function openAddExpenseModal() {
+      document.getElementById('add-expense-modal')?.classList.add('active');
+      document.getElementById('add-expense-modal')?.setAttribute('aria-hidden','false');
+    }
+    function closeAddExpenseModal() {
+      document.getElementById('add-expense-modal')?.classList.remove('active');
+      document.getElementById('add-expense-modal')?.setAttribute('aria-hidden','true');
+    }
+    function openAddSaleModal() {
+      document.getElementById('add-sale-modal')?.classList.add('active');
+      document.getElementById('add-sale-modal')?.setAttribute('aria-hidden','false');
+    }
+    function closeAddSaleModal() {
+      document.getElementById('add-sale-modal')?.classList.remove('active');
+      document.getElementById('add-sale-modal')?.setAttribute('aria-hidden','true');
+    }
+    function openImportEtsyModal() {
+      document.getElementById('import-etsy-modal')?.classList.add('active');
+      document.getElementById('import-etsy-modal')?.setAttribute('aria-hidden','false');
+    }
+    function closeImportEtsyModal() {
+      document.getElementById('import-etsy-modal')?.classList.remove('active');
+      document.getElementById('import-etsy-modal')?.setAttribute('aria-hidden','true');
+    }
+    function openImportMercariModal() {
+      document.getElementById('import-mercari-modal')?.classList.add('active');
+      document.getElementById('import-mercari-modal')?.setAttribute('aria-hidden','false');
+    }
+    function closeImportMercariModal() {
+      document.getElementById('import-mercari-modal')?.classList.remove('active');
+      document.getElementById('import-mercari-modal')?.setAttribute('aria-hidden','true');
+    }
+    function openAddIncomeModal() {
+      document.getElementById('add-income-modal')?.classList.add('active');
+      document.getElementById('add-income-modal')?.setAttribute('aria-hidden','false');
+    }
+    function closeAddIncomeModal() {
+      document.getElementById('add-income-modal')?.classList.remove('active');
+      document.getElementById('add-income-modal')?.setAttribute('aria-hidden','true');
     }
 
     async function openYearCloseWizard() {
@@ -2774,7 +2831,7 @@
 
     async function editTaxRecord(type, r) {
       if (type === 'expense') {
-        setTaxEntryMode('expense');
+        openAddExpenseModal();
         editingExpenseId = Number(r.id || 0);
         taxExpenseDateEl.value = r.date || '';
         taxExpenseVendorEl.value = r.vendor || '';
@@ -2787,7 +2844,7 @@
         taxCancelExpenseEditBtn.style.display = '';
         taxExpenseAmountEl.focus();
       } else {
-        setTaxEntryMode('income');
+        openAddIncomeModal();
         editingIncomeId = Number(r.id || 0);
         taxIncomeDateEl.value = r.date || '';
         taxIncomeSourceEl.value = r.source || '';
@@ -2838,39 +2895,6 @@
       return true;
     }
 
-    function setTaxEntryMode(mode) {
-      const showExpense = mode === 'expense';
-      const showSale = mode === 'sale';
-      const showImportSales = mode === 'import_sales';
-      const showImportMercari = mode === 'import_mercari';
-      const showOwnerTransfer = mode === 'owner_transfer';
-      const showIncome = mode === 'income';
-      if (taxExpensePanel) taxExpensePanel.style.display = showExpense ? '' : 'none';
-      if (taxSalePanel) taxSalePanel.style.display = showSale ? '' : 'none';
-      if (taxImportSalesPanel) taxImportSalesPanel.style.display = showImportSales ? '' : 'none';
-      if (taxImportMercariPanel) taxImportMercariPanel.style.display = showImportMercari ? '' : 'none';
-      if (taxOwnerTransferPanel) taxOwnerTransferPanel.style.display = showOwnerTransfer ? '' : 'none';
-      if (taxIncomePanel) taxIncomePanel.style.display = showIncome ? '' : 'none';
-      if (taxExpenseFields) taxExpenseFields.style.display = showExpense ? '' : 'none';
-      if (taxSaleFields) taxSaleFields.style.display = showSale ? '' : 'none';
-      if (taxImportSalesFields) taxImportSalesFields.style.display = showImportSales ? '' : 'none';
-      if (taxImportMercariFields) taxImportMercariFields.style.display = showImportMercari ? '' : 'none';
-      if (taxOwnerTransferFields) taxOwnerTransferFields.style.display = showOwnerTransfer ? '' : 'none';
-      if (taxIncomeFields) taxIncomeFields.style.display = showIncome ? '' : 'none';
-      if (taxMinimizeExpenseBtn) taxMinimizeExpenseBtn.textContent = 'Minimize';
-      if (taxMinimizeSaleBtn) taxMinimizeSaleBtn.textContent = 'Minimize';
-      if (taxMinimizeImportSalesBtn) taxMinimizeImportSalesBtn.textContent = 'Minimize';
-      if (taxMinimizeImportMercariBtn) taxMinimizeImportMercariBtn.textContent = 'Minimize';
-      if (taxMinimizeOwnerTransferBtn) taxMinimizeOwnerTransferBtn.textContent = 'Minimize';
-      if (taxMinimizeIncomeBtn) taxMinimizeIncomeBtn.textContent = 'Minimize';
-      if (taxModeExpenseBtn) taxModeExpenseBtn.classList.toggle('active', showExpense);
-      if (taxModeSaleBtn) taxModeSaleBtn.classList.toggle('active', showSale);
-      if (taxModeImportSalesBtn) taxModeImportSalesBtn.classList.toggle('active', showImportSales);
-      if (taxModeImportMercariBtn) taxModeImportMercariBtn.classList.toggle('active', showImportMercari);
-      if (taxModeOwnerTransferBtn) taxModeOwnerTransferBtn.classList.toggle('active', showOwnerTransfer);
-      if (taxModeIncomeBtn) taxModeIncomeBtn.classList.toggle('active', showIncome);
-    }
-
     function initTaxUiDefaults() {
       const now = nowEtParts();
       const thisYear = Number(now.date.split('-')[0] || new Date().getFullYear());
@@ -2890,7 +2914,6 @@
       if (taxOwnerTransferDateEl) taxOwnerTransferDateEl.value = now.date;
       taxIncomeDateEl.value = now.date;
       if (statsYearEl) statsYearEl.value = String(thisYear);
-      setTaxEntryMode('none');
     }
 
     function renderTxList() {
@@ -3068,6 +3091,7 @@
       if (expReceiptNameEl) expReceiptNameEl.textContent = 'No file chosen';
       if (taxExpenseCategoryEl.options.length) taxExpenseCategoryEl.selectedIndex = 0;
       resetExpenseEditMode();
+      closeAddExpenseModal();
     }
 
     function clearTaxIncomeForm() {
@@ -3085,6 +3109,7 @@
       if (taxIncomeCategoryEl.options.length) taxIncomeCategoryEl.selectedIndex = 0;
       updateTaxIncomeCategoryAccountHint();
       resetIncomeEditMode();
+      closeAddIncomeModal();
     }
 
     async function addTaxExpense() {
@@ -3167,6 +3192,7 @@
       pendingEtsyImportSales = [];
       pendingEtsyImportExpenses = [];
       if (taxSaleImportPreviewEl) taxSaleImportPreviewEl.textContent = 'No import preview yet.';
+      closeAddSaleModal();
     }
 
     async function postTaxExpenseEntry({ date, vendor, category, amount, notes, paidVia = 'etsy' }) {
@@ -3603,6 +3629,7 @@
         await loadTaxTransactions();
         await loadAccountsData();
         await loadStatsData();
+        closeImportEtsyModal();
         openSuccessModal(`Etsy import complete: ${cSales} sales, ${cExp} expenses.`, 'Import Complete ✅');
       } catch (err) {
         openErrorModal(`Etsy import failed: ${err.message || err}`);
@@ -3734,6 +3761,7 @@
         await loadTaxTransactions();
         await loadAccountsData();
         await loadStatsData();
+        closeImportMercariModal();
         openSuccessModal(`Mercari import complete: ${cSales} sales, ${cExp} expenses.`, 'Import Complete ✅');
       } catch (err) {
         openErrorModal(`Mercari import failed: ${err.message || err}`);
@@ -4461,12 +4489,12 @@
     taxYearEl.addEventListener('change', loadTaxTransactions);
     taxSummaryYearEl?.addEventListener('change', loadTaxTransactions);
     taxTypeEl.addEventListener('change', loadTaxTransactions);
-    taxModeExpenseBtn?.addEventListener('click', () => setTaxEntryMode('expense'));
-    taxModeSaleBtn?.addEventListener('click', () => setTaxEntryMode('sale'));
-    taxModeImportSalesBtn?.addEventListener('click', () => setTaxEntryMode('import_sales'));
-    taxModeImportMercariBtn?.addEventListener('click', () => setTaxEntryMode('import_mercari'));
+    taxModeExpenseBtn?.addEventListener('click', openAddExpenseModal);
+    taxModeSaleBtn?.addEventListener('click', openAddSaleModal);
+    taxModeImportSalesBtn?.addEventListener('click', openImportEtsyModal);
+    taxModeImportMercariBtn?.addEventListener('click', openImportMercariModal);
     taxModeOwnerTransferBtn?.addEventListener('click', openOwnerTransferModal);
-    taxModeIncomeBtn?.addEventListener('click', () => setTaxEntryMode('income'));
+    taxModeIncomeBtn?.addEventListener('click', openAddIncomeModal);
     adminUserGuideBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
     adminUserGuideTopBtn?.addEventListener('click', () => openUserGuideModal('expenses'));
     adminBlurAmountsBtn?.addEventListener('click', () => setBlurMoney(!blurMoneyEnabled));
@@ -4534,41 +4562,29 @@
       openSuccessModal('Income category added.', 'Category Added ✅');
     });
 
-    taxMinimizeExpenseBtn?.addEventListener('click', () => {
-      const isHidden = taxExpenseFields?.style.display === 'none';
-      if (taxExpenseFields) taxExpenseFields.style.display = isHidden ? '' : 'none';
-      taxMinimizeExpenseBtn.textContent = isHidden ? 'Minimize' : 'Expand';
-    });
-
-    taxMinimizeSaleBtn?.addEventListener('click', () => {
-      const isHidden = taxSaleFields?.style.display === 'none';
-      if (taxSaleFields) taxSaleFields.style.display = isHidden ? '' : 'none';
-      taxMinimizeSaleBtn.textContent = isHidden ? 'Minimize' : 'Expand';
-    });
-
-    taxMinimizeImportSalesBtn?.addEventListener('click', () => {
-      const isHidden = taxImportSalesFields?.style.display === 'none';
-      if (taxImportSalesFields) taxImportSalesFields.style.display = isHidden ? '' : 'none';
-      taxMinimizeImportSalesBtn.textContent = isHidden ? 'Minimize' : 'Expand';
-    });
-
-    taxMinimizeImportMercariBtn?.addEventListener('click', () => {
-      const isHidden = taxImportMercariFields?.style.display === 'none';
-      if (taxImportMercariFields) taxImportMercariFields.style.display = isHidden ? '' : 'none';
-      taxMinimizeImportMercariBtn.textContent = isHidden ? 'Minimize' : 'Expand';
-    });
-
     taxMinimizeOwnerTransferBtn?.addEventListener('click', () => {
       const isHidden = taxOwnerTransferFields?.style.display === 'none';
       if (taxOwnerTransferFields) taxOwnerTransferFields.style.display = isHidden ? '' : 'none';
       taxMinimizeOwnerTransferBtn.textContent = isHidden ? 'Minimize' : 'Expand';
     });
 
-    taxMinimizeIncomeBtn?.addEventListener('click', () => {
-      const isHidden = taxIncomeFields?.style.display === 'none';
-      if (taxIncomeFields) taxIncomeFields.style.display = isHidden ? '' : 'none';
-      taxMinimizeIncomeBtn.textContent = isHidden ? 'Minimize' : 'Expand';
-    });
+    // New modal close/cancel listeners
+    document.getElementById('add-expense-x-btn')?.addEventListener('click', closeAddExpenseModal);
+    document.getElementById('add-expense-cancel-btn')?.addEventListener('click', closeAddExpenseModal);
+    document.getElementById('add-sale-x-btn')?.addEventListener('click', closeAddSaleModal);
+    document.getElementById('add-sale-cancel-btn')?.addEventListener('click', closeAddSaleModal);
+    document.getElementById('import-etsy-x-btn')?.addEventListener('click', closeImportEtsyModal);
+    document.getElementById('import-etsy-close-btn')?.addEventListener('click', closeImportEtsyModal);
+    document.getElementById('import-mercari-x-btn')?.addEventListener('click', closeImportMercariModal);
+    document.getElementById('import-mercari-close-btn')?.addEventListener('click', closeImportMercariModal);
+    document.getElementById('add-income-x-btn')?.addEventListener('click', closeAddIncomeModal);
+    document.getElementById('add-income-cancel-btn')?.addEventListener('click', closeAddIncomeModal);
+    // Click-outside-to-close for each modal
+    document.getElementById('add-expense-modal')?.addEventListener('click', e => { if (e.target === document.getElementById('add-expense-modal')) closeAddExpenseModal(); });
+    document.getElementById('add-sale-modal')?.addEventListener('click', e => { if (e.target === document.getElementById('add-sale-modal')) closeAddSaleModal(); });
+    document.getElementById('import-etsy-modal')?.addEventListener('click', e => { if (e.target === document.getElementById('import-etsy-modal')) closeImportEtsyModal(); });
+    document.getElementById('import-mercari-modal')?.addEventListener('click', e => { if (e.target === document.getElementById('import-mercari-modal')) closeImportMercariModal(); });
+    document.getElementById('add-income-modal')?.addEventListener('click', e => { if (e.target === document.getElementById('add-income-modal')) closeAddIncomeModal(); });
 
     txFilterBtns.forEach(btn => {
       btn.addEventListener('click', () => {
