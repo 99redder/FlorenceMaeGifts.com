@@ -3429,10 +3429,10 @@ async function upsertTaxExpenseJournal(db, row) {
 
   const cat = row.category || '';
   let expenseAccountCode;
-  if (['Etsy Listing Fees', 'Etsy Transaction Fees', 'Mercari Selling Fees', 'Payment Processing Fees'].includes(cat)) {
+  if (['Etsy Listing Fees', 'Etsy Transaction Fees', 'Etsy Offsite Ads', 'Mercari Selling Fees', 'Payment Processing Fees'].includes(cat)) {
     expenseAccountCode = '5700'; // Marketplace Fees
   } else if (cat === 'Advertising/Marketing') {
-    expenseAccountCode = '5100'; // Marketing Expense
+    expenseAccountCode = '5100'; // Marketing Expense (voluntary spend only)
   } else if (cat === 'Software/SaaS' || cat === 'Hosting/Cloud') {
     expenseAccountCode = '5000'; // Software Expense
   } else if (cat === 'Shipping Costs') {
