@@ -32,6 +32,10 @@
 // verifyStripeSignature(payload, sig, secret) — HMAC-SHA256 Stripe webhook verification
 // json(data, status, headers)          — Build JSON Response
 
+// Module-level caches — safe because account IDs and setup state are stable within a Worker isolate.
+const _acctIdCache = new Map();
+let _accountingSetupDone = false;
+
 export default {
   async fetch(request, env) {
     try {
@@ -2074,10 +2078,10 @@ async function handleAccountsRebuildAutoJournal(request, env, corsHeaders, url) 
 
   const errors = [];
   for (const e of (expenses.results || [])) {
-    try { await upsertTaxExpenseJournal(env.DB, e); } catch (err) { errors.push({ type: 'expense', id: e.id, category: e.category, amount_cents: e.amount_cents, error: String(err?.message || err) }); }
+    try { await upsertTaxExpenseJournal(env.DB, e, true); } catch (err) { errors.push({ type: 'expense', id: e.id, category: e.category, amount_cents: e.amount_cents, error: String(err?.message || err) }); }
   }
   for (const i of (income.results || [])) {
-    try { await upsertTaxIncomeJournal(env.DB, i); } catch (err) { errors.push({ type: 'income', id: i.id, category: i.category, amount_cents: i.amount_cents, error: String(err?.message || err) }); }
+    try { await upsertTaxIncomeJournal(env.DB, i, true); } catch (err) { errors.push({ type: 'income', id: i.id, category: i.category, amount_cents: i.amount_cents, error: String(err?.message || err) }); }
   }
 
   return json({
@@ -3379,10 +3383,11 @@ async function accountingTablesReady(db) {
 }
 
 async function ensureAccountingSetup(db) {
+  if (_accountingSetupDone) return true;
   const ready = await accountingTablesReady(db);
   if (!ready) return false;
   const existing = await db.prepare(`SELECT COUNT(*) AS c FROM accounts`).first();
-  if (Number(existing?.c || 0) > 0) return true;
+  if (Number(existing?.c || 0) > 0) { _accountingSetupDone = true; return true; }
 
   const seed = [
     ['1000','Cash on Hand','asset','debit'],
@@ -3409,6 +3414,7 @@ async function ensureAccountingSetup(db) {
   for (const s of seed) {
     await db.prepare(`INSERT INTO accounts (code, name, account_type, normal_side, is_system, active) VALUES (?1, ?2, ?3, ?4, 1, 1)`).bind(...s).run();
   }
+  _accountingSetupDone = true;
   return true;
 }
 
@@ -3420,8 +3426,11 @@ async function ensureAccountByCode(db, code, name, accountType, normalSide) {
 }
 
 async function getAccountIdByCode(db, code) {
+  if (_acctIdCache.has(code)) return _acctIdCache.get(code);
   const row = await db.prepare(`SELECT id FROM accounts WHERE code = ?1 LIMIT 1`).bind(code).first();
-  return Number(row?.id || 0) || null;
+  const id = Number(row?.id || 0) || null;
+  _acctIdCache.set(code, id);
+  return id;
 }
 
 async function deleteAutoJournalBySource(db, sourceType, sourceId) {
@@ -3434,10 +3443,10 @@ async function deleteAutoJournalBySource(db, sourceType, sourceId) {
   }
 }
 
-async function upsertTaxExpenseJournal(db, row) {
+async function upsertTaxExpenseJournal(db, row, skipDelete = false) {
   const accountingReady = await ensureAccountingSetup(db);
   if (!accountingReady) return;
-  await deleteAutoJournalBySource(db, 'tax_expense', row.id);
+  if (!skipDelete) await deleteAutoJournalBySource(db, 'tax_expense', row.id);
 
   const amount = Number(row.amount_cents || 0);
   if (!Number.isFinite(amount) || amount === 0) return;
@@ -3477,10 +3486,10 @@ async function upsertTaxExpenseJournal(db, row) {
   await db.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, lineDebitId, absAmount, lineCreditId).run();
 }
 
-async function upsertTaxIncomeJournal(db, row) {
+async function upsertTaxIncomeJournal(db, row, skipDelete = false) {
   const accountingReady = await ensureAccountingSetup(db);
   if (!accountingReady) return;
-  await deleteAutoJournalBySource(db, 'tax_income', row.id);
+  if (!skipDelete) await deleteAutoJournalBySource(db, 'tax_income', row.id);
 
   const amount = Number(row.amount_cents || 0);
   if (!Number.isFinite(amount) || amount <= 0) return;
