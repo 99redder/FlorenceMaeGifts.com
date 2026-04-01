@@ -512,6 +512,14 @@
                       </div>
                       <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Imports sales + fee rows and maps fees to categories automatically.</div>
                       <div id="tax-sale-import-preview" class="admin-list" style="margin-top:.45rem; max-height:260px; overflow:auto;">No import preview yet.</div>
+                      <div style="margin-top:.75rem; padding-top:.65rem; border-top:1px solid var(--line);">
+                        <label style="display:block; margin-bottom:.35rem; font-size:.88rem; color:var(--muted);">Backfill item titles on already-imported entries</label>
+                        <div style="display:flex; gap:.45rem; flex-wrap:wrap; align-items:center;">
+                          <input id="tax-etsy-fix-titles-csv" type="file" accept=".csv,text/csv" />
+                          <button type="button" class="btn" id="tax-etsy-fix-titles-btn">Fix Item Titles</button>
+                        </div>
+                        <div style="font-size:.82rem; color:var(--muted); margin-top:.25rem;">Upload the same Etsy CSV to patch listing titles on existing ledger entries.</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -4596,6 +4604,71 @@
     taxSaleItemEl?.addEventListener('change', syncTaxSaleItemUi);
     taxPreviewEtsyCsvBtn?.addEventListener('click', previewEtsyStatementCsv);
     taxImportEtsyCsvBtn?.addEventListener('click', importEtsyStatementCsv);
+
+    document.getElementById('tax-etsy-fix-titles-btn')?.addEventListener('click', async () => {
+      const file = document.getElementById('tax-etsy-fix-titles-csv')?.files?.[0];
+      if (!file) { openErrorModal('Choose the Etsy statement CSV first.'); return; }
+      try {
+        const rows = parseCsvTable(await file.text());
+        if (rows.length < 2) { openErrorModal('CSV appears empty.'); return; }
+        const header = rows[0].map(h => String(h).trim().toLowerCase());
+        const idxType = header.indexOf('type');
+        const idxTitle = header.indexOf('title');
+        const idxInfo = header.indexOf('info');
+        if ([idxType, idxTitle].some(i => i < 0)) { openErrorModal('Unrecognized Etsy CSV format.'); return; }
+
+        const extractOid = (...vals) => {
+          for (const txt of vals) { const m = String(txt || '').match(/Order\s*#(\d+)/i); if (m) return m[1]; }
+          return null;
+        };
+        const titleByOrder = new Map();
+        for (let i = 1; i < rows.length; i++) {
+          const r = rows[i];
+          const type = String(r[idxType] || '').trim();
+          const title = String(r[idxTitle] || '').trim();
+          const info = idxInfo >= 0 ? String(r[idxInfo] || '').trim() : '';
+          if (type === 'Fee' && /^transaction fee:/i.test(title)) {
+            const oid = extractOid(title, info);
+            if (oid) {
+              const listingTitle = title.replace(/^transaction fee:\s*/i, '').trim();
+              if (listingTitle) titleByOrder.set(oid, titleByOrder.has(oid) ? titleByOrder.get(oid) + ' + ' + listingTitle : listingTitle);
+            }
+          }
+        }
+        if (!titleByOrder.size) { openErrorModal('No transaction fee rows with listing titles found.'); return; }
+
+        let updated = 0;
+        const res = await fetch(`${TAX_TX_API_URL}?year=2026&type=all&limit=5000`, { headers: { 'X-Admin-Password': adminPassword } });
+        if (!res.ok) throw new Error('Failed to fetch income entries.');
+        const data = await res.json();
+        for (const row of (data.income || [])) {
+          const src = String(row.source || '').trim();
+          const m = src.match(/^Order\s*#(\d+)$/i);
+          if (!m) continue;
+          const oid = m[1];
+          const listingTitle = titleByOrder.get(oid);
+          if (!listingTitle) continue;
+          let notes = String(row.notes || '');
+          if (!notes.includes(`Order #${oid}`)) notes = `Order #${oid}${notes ? ' — ' + notes : ''}`;
+          const updateRes = await fetch(TAX_INCOME_UPDATE_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+            body: JSON.stringify({
+              id: row.id, date: row.date, source: listingTitle, category: row.category,
+              amount: (Number(row.amount_cents || 0) / 100).toFixed(2),
+              notes, stripeSessionId: row.stripe_session_id || '',
+              isOwnerFunded: Number(row.is_owner_funded || 0) === 1
+            })
+          });
+          if (updateRes.ok) updated++;
+        }
+        await loadStatsData();
+        openSuccessModal(`Updated ${updated} income ${updated === 1 ? 'entry' : 'entries'} with listing titles.`, 'Titles Fixed ✅');
+      } catch (err) {
+        openErrorModal(`Fix failed: ${err.message || err}`);
+      }
+    });
+
     taxPreviewMercariCsvBtn?.addEventListener('click', previewMercariSalesCsv);
     taxImportMercariCsvBtn?.addEventListener('click', importMercariSalesCsv);
     taxAddOwnerTransferBtn?.addEventListener('click', addTaxOwnerTransfer);
