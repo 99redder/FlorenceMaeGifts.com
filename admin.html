@@ -2625,6 +2625,8 @@
 
     let TAX_EXPENSE_CATEGORIES = [...DEFAULT_TAX_EXPENSE_CATEGORIES];
     let TAX_INCOME_CATEGORIES = [...DEFAULT_TAX_INCOME_CATEGORIES];
+    let DELETED_DEFAULT_EXPENSE_KEYS = new Set();
+    let DELETED_DEFAULT_INCOME_KEYS = new Set();
 
     function escHtml(v) {
       return String(v == null ? '' : v)
@@ -2638,21 +2640,29 @@
     function saveCategoryPrefs() {
       localStorage.setItem('esa_tax_expense_categories', JSON.stringify(TAX_EXPENSE_CATEGORIES));
       localStorage.setItem('esa_tax_income_categories', JSON.stringify(TAX_INCOME_CATEGORIES));
+      localStorage.setItem('esa_tax_expense_deleted_defaults', JSON.stringify([...DELETED_DEFAULT_EXPENSE_KEYS]));
+      localStorage.setItem('esa_tax_income_deleted_defaults', JSON.stringify([...DELETED_DEFAULT_INCOME_KEYS]));
     }
 
     function loadCategoryPrefs() {
       try {
         const exp = JSON.parse(localStorage.getItem('esa_tax_expense_categories') || 'null');
         const inc = JSON.parse(localStorage.getItem('esa_tax_income_categories') || 'null');
+        const delExp = JSON.parse(localStorage.getItem('esa_tax_expense_deleted_defaults') || 'null');
+        const delInc = JSON.parse(localStorage.getItem('esa_tax_income_deleted_defaults') || 'null');
         if (Array.isArray(exp) && exp.length) TAX_EXPENSE_CATEGORIES = [...new Set(exp.map(v => String(v).trim()).filter(Boolean))];
         if (Array.isArray(inc) && inc.length) TAX_INCOME_CATEGORIES = [...new Set(inc.map(v => String(v).trim()).filter(Boolean))];
+        if (Array.isArray(delExp)) DELETED_DEFAULT_EXPENSE_KEYS = new Set(delExp);
+        if (Array.isArray(delInc)) DELETED_DEFAULT_INCOME_KEYS = new Set(delInc);
       } catch {}
-      // Ensure newly shipped default categories still appear for existing users with saved prefs.
+      // Ensure newly shipped default categories still appear, unless the user explicitly deleted them.
       for (const c of DEFAULT_TAX_EXPENSE_CATEGORIES) {
-        if (!TAX_EXPENSE_CATEGORIES.some(v => v.toLowerCase() === c.toLowerCase())) TAX_EXPENSE_CATEGORIES.push(c);
+        const key = c.toLowerCase();
+        if (!DELETED_DEFAULT_EXPENSE_KEYS.has(key) && !TAX_EXPENSE_CATEGORIES.some(v => v.toLowerCase() === key)) TAX_EXPENSE_CATEGORIES.push(c);
       }
       for (const c of DEFAULT_TAX_INCOME_CATEGORIES) {
-        if (!TAX_INCOME_CATEGORIES.some(v => v.toLowerCase() === c.toLowerCase())) TAX_INCOME_CATEGORIES.push(c);
+        const key = c.toLowerCase();
+        if (!DELETED_DEFAULT_INCOME_KEYS.has(key) && !TAX_INCOME_CATEGORIES.some(v => v.toLowerCase() === key)) TAX_INCOME_CATEGORIES.push(c);
       }
     }
 
@@ -2744,8 +2754,14 @@
           if (!ok) return;
           if (type === 'income') {
             TAX_INCOME_CATEGORIES = TAX_INCOME_CATEGORIES.filter(c => c !== name);
+            if (DEFAULT_TAX_INCOME_CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase())) {
+              DELETED_DEFAULT_INCOME_KEYS.add(name.toLowerCase());
+            }
           } else {
             TAX_EXPENSE_CATEGORIES = TAX_EXPENSE_CATEGORIES.filter(c => c !== name);
+            if (DEFAULT_TAX_EXPENSE_CATEGORIES.some(c => c.toLowerCase() === name.toLowerCase())) {
+              DELETED_DEFAULT_EXPENSE_KEYS.add(name.toLowerCase());
+            }
           }
           saveCategoryPrefs();
           renderCategoryOptions();
@@ -4485,6 +4501,7 @@
         openErrorModal('Expense category already exists.');
         return;
       }
+      DELETED_DEFAULT_EXPENSE_KEYS.delete(name.toLowerCase());
       TAX_EXPENSE_CATEGORIES.push(name);
       newExpenseCategoryEl.value = '';
       saveCategoryPrefs();
@@ -4500,6 +4517,7 @@
         openErrorModal('Income category already exists.');
         return;
       }
+      DELETED_DEFAULT_INCOME_KEYS.delete(name.toLowerCase());
       TAX_INCOME_CATEGORIES.push(name);
       newIncomeCategoryEl.value = '';
       saveCategoryPrefs();
