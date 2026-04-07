@@ -2035,20 +2035,52 @@ async function handleAccountsJournalCreate(request, env, corsHeaders, url) {
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
 
-  const entryDate = (data.date || '').toString().trim();
+  const entryDate = (data.entry_date || data.date || '').toString().trim();
   const memo = (data.memo || '').toString().trim();
-  const debitAccountId = Number(data.debitAccountId || 0);
-  const creditAccountId = Number(data.creditAccountId || 0);
-  const cents = toCents(data.amount);
+  const notes = (data.notes || '').toString().trim();
+  const lines = data.lines || [];
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) return json({ ok: false, error: 'Invalid date' }, 400, corsHeaders);
-  if (!debitAccountId || !creditAccountId || debitAccountId === creditAccountId) return json({ ok: false, error: 'Invalid debit/credit accounts' }, 400, corsHeaders);
-  if (!Number.isFinite(cents) || cents <= 0) return json({ ok: false, error: 'Invalid amount' }, 400, corsHeaders);
+  if (!Array.isArray(lines) || lines.length < 2) return json({ ok: false, error: 'At least 2 journal lines required' }, 400, corsHeaders);
 
-  const ins = await env.DB.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type) VALUES (?1, ?2, 'manual')`).bind(entryDate, memo || null).run();
+  let totalDebit = 0;
+  let totalCredit = 0;
+  const lineValues = [];
+
+  for (const line of lines) {
+    // Support both account_id (numeric) and code (string)
+    let accountId = Number(line.account_id || line.accountId || 0);
+    if (!accountId && line.code) {
+      // Look up account ID by code
+      const account = await env.DB.prepare(`SELECT id FROM accounts WHERE code = ?1`).bind(line.code).first();
+      if (!account) return json({ ok: false, error: `Account code '${line.code}' not found` }, 400, corsHeaders);
+      accountId = account.id;
+    }
+    if (!accountId) return json({ ok: false, error: 'Invalid account_id or code in lines' }, 400, corsHeaders);
+
+    const debitCents = Number(line.debit_cents || line.debitCents || 0);
+    const creditCents = Number(line.credit_cents || line.creditCents || 0);
+    if (!Number.isInteger(debitCents) || !Number.isInteger(creditCents) || debitCents < 0 || creditCents < 0) {
+      return json({ ok: false, error: 'Invalid debit/credit cents in lines' }, 400, corsHeaders);
+    }
+    totalDebit += debitCents;
+    totalCredit += creditCents;
+    lineValues.push({ accountId, debitCents, creditCents });
+  }
+
+  if (totalDebit !== totalCredit) return json({ ok: false, error: 'Journal must balance (total debit must equal total credit)' }, 400, corsHeaders);
+  if (totalDebit <= 0) return json({ ok: false, error: 'Total amount must be greater than 0' }, 400, corsHeaders);
+
+  const ins = await env.DB.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, notes) VALUES (?1, ?2, 'manual', ?3)`).bind(entryDate, memo || null, notes || null).run();
   const entryId = Number(ins.meta?.last_row_id || 0);
 
-  await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, debitAccountId, cents, creditAccountId).run();
+  const values = [];
+  for (const lv of lineValues) {
+    values.push(entryId, lv.accountId, lv.debitCents, lv.creditCents);
+  }
+
+  const placeholders = lineValues.map(() => '(?, ?, ?, ?)').join(', ');
+  await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES ${placeholders}`).bind(...values).run();
 
   return json({ ok: true, id: entryId }, 200, corsHeaders);
 }

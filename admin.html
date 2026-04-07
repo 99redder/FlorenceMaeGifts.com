@@ -461,6 +461,7 @@
               <button type="button" class="btn" id="accounts-tab-pnl">Income Statement (P&L)</button>
               <button type="button" class="btn" id="accounts-tab-cashflow">Cash Flow</button>
               <button type="button" class="btn" id="accounts-tab-journal">Journal</button>
+              <button type="button" class="btn" id="accounts-cc-payment-btn" title="Create journal entry for credit card payment">Credit Card Payment</button>
               <label>Year</label>
               <select id="accounts-year" style="max-width:140px;"></select>
               <label>From</label>
@@ -700,6 +701,31 @@
       <div class="form-actions" style="margin-top:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
         <button type="button" class="btn" id="confirm-cancel-btn">Cancel</button>
         <button type="button" class="btn btn-primary" id="confirm-ok-btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="cc-payment-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="cc-payment-title" style="width:min(560px,94vw);">
+      <h3 id="cc-payment-title">Credit Card Payment</h3>
+      <p style="margin-bottom:.65rem; color:var(--text); font-size:.95rem;">Record a payment to your credit card. This reduces your liability (what you owe) and your cash.</p>
+      <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:.65rem;">
+        <div>
+          <label for="cc-payment-date">Payment Date</label>
+          <input id="cc-payment-date" type="date" style="width:100%;" />
+        </div>
+        <div>
+          <label for="cc-payment-amount">Amount ($)</label>
+          <input id="cc-payment-amount" type="number" step="0.01" placeholder="0.00" style="width:100%;" />
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label for="cc-payment-memo">Memo (Optional)</label>
+          <input id="cc-payment-memo" type="text" placeholder="e.g., April 2026 credit card payment" style="width:100%;" />
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:1.2rem; display:flex; gap:.5rem; justify-content:flex-end;">
+        <button type="button" class="btn" id="cc-payment-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cc-payment-save-btn">Save Payment</button>
       </div>
     </div>
   </div>
@@ -1480,6 +1506,7 @@
     const accountsTabPnlBtn = document.getElementById('accounts-tab-pnl');
     const accountsTabCashflowBtn = document.getElementById('accounts-tab-cashflow');
     const accountsTabJournalBtn = document.getElementById('accounts-tab-journal');
+    const accountsCcPaymentBtn = document.getElementById('accounts-cc-payment-btn');
     const accountsYearEl = document.getElementById('accounts-year');
     const accountsFromEl = document.getElementById('accounts-from');
     const accountsToEl = document.getElementById('accounts-to');
@@ -2383,6 +2410,64 @@
       });
     }
 
+    let ccPaymentModal = document.getElementById('cc-payment-modal');
+    let ccPaymentCancelBtn = document.getElementById('cc-payment-cancel-btn');
+    let ccPaymentSaveBtn = document.getElementById('cc-payment-save-btn');
+
+    function openCcPaymentModal() {
+      if (!ccPaymentModal) return;
+      document.getElementById('cc-payment-date').valueAsDate = new Date();
+      document.getElementById('cc-payment-amount').value = '';
+      document.getElementById('cc-payment-memo').value = '';
+      ccPaymentModal.classList.add('active');
+      ccPaymentModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeCcPaymentModal() {
+      if (!ccPaymentModal) return;
+      ccPaymentModal.classList.remove('active');
+      ccPaymentModal.setAttribute('aria-hidden', 'true');
+    }
+
+    ccPaymentCancelBtn?.addEventListener('click', closeCcPaymentModal);
+    ccPaymentSaveBtn?.addEventListener('click', handleCcPaymentSave);
+    ccPaymentModal?.addEventListener('click', (e) => { if (e.target === ccPaymentModal) closeCcPaymentModal(); });
+
+    async function handleCcPaymentSave() {
+      const date = document.getElementById('cc-payment-date').value;
+      const amountStr = document.getElementById('cc-payment-amount').value;
+      const memo = document.getElementById('cc-payment-memo').value || 'Credit card payment';
+
+      const amountCents = Math.round(Number(amountStr) * 100);
+      if (!date || !amountCents || amountCents <= 0) {
+        openErrorModal('Please enter a valid date and amount.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/accounts/journal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Password': adminPassword },
+          body: JSON.stringify({
+            entry_date: date,
+            memo: memo,
+            notes: 'Credit card payment',
+            lines: [
+              { account_id: 2100, debit_cents: amountCents, credit_cents: 0 },  // Credit Card Payable (debit liability)
+              { account_id: 1000, debit_cents: 0, credit_cents: amountCents }      // Cash on Hand (credit asset)
+            ]
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to save journal entry');
+        closeCcPaymentModal();
+        openConfirmModal(`Journal entry saved. ${memo}`, 'Payment Recorded', 'OK')
+          .then(() => loadAccountsData());
+      } catch (e) {
+        openErrorModal('Failed to save: ' + e.message);
+      }
+    }
+
     successCloseBtn.addEventListener('click', closeSuccessModal);
     successModal.addEventListener('click', (e) => { if (e.target === successModal) closeSuccessModal(); });
     errorCloseBtn.addEventListener('click', closeErrorModal);
@@ -2415,6 +2500,7 @@
       if (e.key === 'Escape' && ownerTransferModal?.classList.contains('active')) closeOwnerTransferModal();
       if (e.key === 'Escape' && yearCloseModal?.classList.contains('active')) closeYearCloseWizard();
       if (e.key === 'Escape' && auditPackageModal?.classList.contains('active')) closeAuditPackageModal();
+      if (e.key === 'Escape' && ccPaymentModal?.classList.contains('active')) closeCcPaymentModal();
     });
 
     // ===== Admin Controls =====
@@ -4662,6 +4748,9 @@
         accountsRebuildJournalBtn.textContent = 'Rebuild Auto Journal';
       }
     });
+
+    accountsCcPaymentBtn?.addEventListener('click', () => openCcPaymentModal());
+
     notesScopeEl?.addEventListener('change', () => { if (notesYearEl) notesYearEl.disabled = notesScopeEl.value !== 'year'; refreshAdminNotes(); });
     notesYearEl?.addEventListener('change', refreshAdminNotes);
     notesRefreshBtn?.addEventListener('click', refreshAdminNotes);
