@@ -1927,7 +1927,7 @@ async function handleAccountsJournal(request, env, corsHeaders, url) {
   if (/^\d{4}$/.test(year)) { where = 'WHERE entry_date >= ?1 AND entry_date <= ?2'; binds.push(`${year}-01-01`, `${year}-12-31`); }
   else if (/^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to)) { where = 'WHERE entry_date >= ?1 AND entry_date <= ?2'; binds.push(from, to); }
 
-  const entriesQ = env.DB.prepare(`SELECT id, entry_date, memo, source_type, source_id, created_at FROM journal_entries ${where} ORDER BY entry_date DESC, id DESC LIMIT ?${binds.length + 1}`);
+  const entriesQ = env.DB.prepare(`SELECT id, entry_date, memo, source_type, source_id, created_at, notes FROM journal_entries ${where} ORDER BY entry_date DESC, id DESC LIMIT ?${binds.length + 1}`);
   const entries = await entriesQ.bind(...binds, limit).all();
   const entryIds = (entries.results || []).map(e => Number(e.id)).filter(Boolean);
   if (!entryIds.length) return json({ ok: true, entries: [] }, 200, corsHeaders);
@@ -3478,7 +3478,8 @@ async function upsertTaxExpenseJournal(db, row, skipDelete = false) {
   if (!debitAccountId || !creditAccountId) return;
 
   const memo = `${row.category || 'Expense'}${row.vendor ? ` - ${row.vendor}` : ''}`;
-  const ins = await db.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, source_id) VALUES (?1, ?2, 'tax_expense', ?3)`).bind(row.expense_date, memo, row.id).run();
+  const notes = (row.notes || '').toString().trim();
+  const ins = await db.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, source_id, notes) VALUES (?1, ?2, 'tax_expense', ?3, ?4)`).bind(row.expense_date, memo, row.id, notes).run();
   const entryId = Number(ins.meta?.last_row_id || 0);
   const absAmount = Math.abs(amount);
   // Normal expense: debit expense account, credit offset. Credit/reversal: flip sides.
@@ -3504,7 +3505,8 @@ async function upsertTaxIncomeJournal(db, row, skipDelete = false) {
   if (!debitAccountId || !creditAccountId) return;
 
   const memo = `${row.category || 'Income'}${row.source ? ` - ${row.source}` : ''}`;
-  const ins = await db.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, source_id) VALUES (?1, ?2, 'tax_income', ?3)`).bind(row.income_date, memo, row.id).run();
+  const notes = (row.notes || '').toString().trim();
+  const ins = await db.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, source_id, notes) VALUES (?1, ?2, 'tax_income', ?3, ?4)`).bind(row.income_date, memo, row.id, notes).run();
   const entryId = Number(ins.meta?.last_row_id || 0);
   await db.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, debitAccountId, amount, creditAccountId).run();
 }
