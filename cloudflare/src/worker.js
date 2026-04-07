@@ -2078,10 +2078,10 @@ async function handleAccountsRebuildAutoJournal(request, env, corsHeaders, url) 
 
   const errors = [];
   for (const e of (expenses.results || [])) {
-    try { await upsertTaxExpenseJournal(env.DB, e, true); } catch (err) { errors.push({ type: 'expense', id: e.id, category: e.category, amount_cents: e.amount_cents, error: String(err?.message || err) }); }
+    try { await upsertTaxExpenseJournal(env.DB, e, false); } catch (err) { errors.push({ type: 'expense', id: e.id, category: e.category, amount_cents: e.amount_cents, error: String(err?.message || err) }); }
   }
   for (const i of (income.results || [])) {
-    try { await upsertTaxIncomeJournal(env.DB, i, true); } catch (err) { errors.push({ type: 'income', id: i.id, category: i.category, amount_cents: i.amount_cents, error: String(err?.message || err) }); }
+    try { await upsertTaxIncomeJournal(env.DB, i, false); } catch (err) { errors.push({ type: 'income', id: i.id, category: i.category, amount_cents: i.amount_cents, error: String(err?.message || err) }); }
   }
 
   return json({
