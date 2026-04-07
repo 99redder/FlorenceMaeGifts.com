@@ -828,7 +828,12 @@
         <label>Amount (USD)</label>
         <input id="tax-expense-amount" type="number" step="0.01" placeholder="0.00" />
         <label>Paid via</label>
-        <input id="tax-expense-paidvia" placeholder="card, cash, bank, etc." />
+        <select id="tax-expense-paidvia">
+          <option value="">Select payment method</option>
+          <option value="Cash on hand">Cash on hand</option>
+          <option value="Credit">Credit</option>
+          <option value="Owner Contribution">Owner Contribution</option>
+        </select>
         <label>Notes</label>
         <input id="tax-expense-notes" placeholder="optional" />
         <label>Receipt <span style="font-size:0.78rem; color:var(--muted); font-weight:400;">(optional &#8212; PDF, JPG, PNG)</span></label>
