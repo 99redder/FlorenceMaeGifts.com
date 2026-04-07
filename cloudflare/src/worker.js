@@ -3467,9 +3467,9 @@ async function upsertTaxExpenseJournal(db, row, skipDelete = false) {
   const paidVia = (row.paid_via || '').toLowerCase();
 
   let offsetCode = '3100'; // default: treat as owner capital contribution
-  if (paidVia.includes('stripe') || paidVia.includes('cash') || paidVia.includes('checking') || paidVia.includes('bank') || paidVia.includes('etsy') || paidVia.includes('mercari')) {
+  if (paidVia.includes('stripe') || paidVia.includes('cash') || paidVia.includes('checking') || paidVia.includes('bank') || paidVia.includes('etsy') || paidVia.includes('mercari') || paidVia.includes('cash on hand')) {
     offsetCode = '1000';
-  } else if (paidVia.includes('business card') || paidVia.includes('corp card')) {
+  } else if (paidVia.includes('business card') || paidVia.includes('corp card') || paidVia.includes('credit')) {
     offsetCode = '2100';
   }
 
