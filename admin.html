@@ -3937,12 +3937,16 @@
           fetch(`${ACCOUNTS_STATEMENTS_API_URL}?${periodQuery}`, { headers: { 'X-Admin-Password': adminPassword } }),
           fetch(`${ACCOUNTS_JOURNAL_API_URL}?${periodQuery}&limit=200`, { headers: { 'X-Admin-Password': adminPassword } })
         ]);
-        const summary = await summaryRes.json();
-        const statements = await statementsRes.json();
-        const journal = await journalRes.json();
-        if (!summaryRes.ok) throw new Error(summary.error || 'Failed to load account summary');
-        if (!statementsRes.ok) throw new Error(statements.error || 'Failed to load statements');
-        if (!journalRes.ok) throw new Error(journal.error || 'Failed to load journal');
+        const parseJson = async (res, label) => {
+          const ct = res.headers.get('content-type') || '';
+          if (!ct.includes('json')) throw new Error(`${label} API unreachable (HTTP ${res.status}) — verify the Cloudflare Worker is deployed and routing /api/* correctly`);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `Failed to load ${label}`);
+          return data;
+        };
+        const summary = await parseJson(summaryRes, 'accounts/summary');
+        const statements = await parseJson(statementsRes, 'accounts/statements');
+        const journal = await parseJson(journalRes, 'accounts/journal');
 
         const groups = { asset: [], liability: [], equity: [], income: [], expense: [] };
         for (const a of (summary.accounts || [])) groups[a.account_type]?.push(a);
