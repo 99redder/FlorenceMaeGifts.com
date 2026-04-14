@@ -188,11 +188,11 @@ export default {
     }
 
     if (url.pathname === '/api/accounts/summary') {
-      return handleAccountsSummary(request, env, corsHeaders, url);
+      return await handleAccountsSummary(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/accounts/journal' && request.method === 'GET') {
-      return handleAccountsJournal(request, env, corsHeaders, url);
+      return await handleAccountsJournal(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/accounts/notes' && request.method === 'GET') {
@@ -200,19 +200,19 @@ export default {
     }
 
     if (url.pathname === '/api/accounts/statements' && request.method === 'GET') {
-      return handleAccountsStatements(request, env, corsHeaders, url);
+      return await handleAccountsStatements(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/accounts/invoices' && request.method === 'GET') {
-      return handleInvoicesList(request, env, corsHeaders, url);
+      return await handleInvoicesList(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/accounts/invoices/detail' && request.method === 'GET') {
-      return handleInvoiceDetail(request, env, corsHeaders, url);
+      return await handleInvoiceDetail(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/accounts/journal' && request.method === 'POST') {
-      return handleAccountsJournalCreate(request, env, corsHeaders, url);
+      return await handleAccountsJournalCreate(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/accounts/notes' && request.method === 'POST') {
@@ -1922,32 +1922,59 @@ async function handleAccountsJournal(request, env, corsHeaders, url) {
   const from = (url.searchParams.get('from') || '').trim();
   const to = (url.searchParams.get('to') || '').trim();
 
-  let where = '';
+  let entryWhere = '';
   const binds = [];
-  if (/^\d{4}$/.test(year)) { where = 'WHERE entry_date >= ?1 AND entry_date <= ?2'; binds.push(`${year}-01-01`, `${year}-12-31`); }
-  else if (/^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to)) { where = 'WHERE entry_date >= ?1 AND entry_date <= ?2'; binds.push(from, to); }
+  if (/^\d{4}$/.test(year)) { entryWhere = 'WHERE entry_date >= ?1 AND entry_date <= ?2'; binds.push(`${year}-01-01`, `${year}-12-31`); }
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to)) { entryWhere = 'WHERE entry_date >= ?1 AND entry_date <= ?2'; binds.push(from, to); }
 
-  const entriesQ = env.DB.prepare(`SELECT id, entry_date, memo, source_type, source_id, created_at, notes FROM journal_entries ${where} ORDER BY entry_date DESC, id DESC LIMIT ?${binds.length + 1}`);
-  const entries = await entriesQ.bind(...binds, limit).all();
-  const entryIds = (entries.results || []).map(e => Number(e.id)).filter(Boolean);
-  if (!entryIds.length) return json({ ok: true, entries: [] }, 200, corsHeaders);
+  // Use a subquery JOIN to avoid passing up to 500 entry IDs as bind parameters
+  // (D1 caps bound parameters at 100 per statement).
+  const limitParam = `?${binds.length + 1}`;
+  const sql = `
+    SELECT je.id AS entry_id, je.entry_date, je.memo, je.source_type, je.source_id, je.created_at, je.notes,
+           jl.id AS line_id, jl.account_id, jl.debit_cents, jl.credit_cents, a.code, a.name
+    FROM (
+      SELECT id, entry_date, memo, source_type, source_id, created_at, notes
+      FROM journal_entries ${entryWhere}
+      ORDER BY entry_date DESC, id DESC
+      LIMIT ${limitParam}
+    ) je
+    JOIN journal_lines jl ON jl.entry_id = je.id
+    JOIN accounts a ON a.id = jl.account_id
+    ORDER BY je.entry_date DESC, je.id DESC, jl.id ASC`;
 
-  const placeholders = entryIds.map(() => '?').join(',');
-  const lines = await env.DB.prepare(
-    `SELECT jl.id, jl.entry_id, jl.account_id, jl.debit_cents, jl.credit_cents, a.code, a.name
-     FROM journal_lines jl JOIN accounts a ON a.id = jl.account_id
-     WHERE jl.entry_id IN (${placeholders})
-     ORDER BY jl.entry_id ASC, jl.id ASC`
-  ).bind(...entryIds).all();
+  const q = env.DB.prepare(sql);
+  const rows = await (binds.length ? q.bind(...binds, limit) : q.bind(limit)).all();
 
-  const linesByEntry = new Map();
-  for (const l of (lines.results || [])) {
-    const key = Number(l.entry_id);
-    if (!linesByEntry.has(key)) linesByEntry.set(key, []);
-    linesByEntry.get(key).push(l);
+  // Group flat rows into entry objects with nested lines arrays.
+  const entriesMap = new Map();
+  const entryOrder = [];
+  for (const row of (rows.results || [])) {
+    const eid = Number(row.entry_id);
+    if (!entriesMap.has(eid)) {
+      entryOrder.push(eid);
+      entriesMap.set(eid, {
+        id: eid,
+        entry_date: row.entry_date,
+        memo: row.memo,
+        source_type: row.source_type,
+        source_id: row.source_id,
+        created_at: row.created_at,
+        notes: row.notes,
+        lines: []
+      });
+    }
+    entriesMap.get(eid).lines.push({
+      id: Number(row.line_id),
+      entry_id: eid,
+      account_id: Number(row.account_id),
+      debit_cents: Number(row.debit_cents || 0),
+      credit_cents: Number(row.credit_cents || 0),
+      code: row.code,
+      name: row.name
+    });
   }
-
-  const out = (entries.results || []).map((e) => ({ ...e, lines: linesByEntry.get(Number(e.id)) || [] }));
+  const out = entryOrder.map(id => entriesMap.get(id));
   return json({ ok: true, entries: out }, 200, corsHeaders);
 }
 
