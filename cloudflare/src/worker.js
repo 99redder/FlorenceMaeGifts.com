@@ -347,7 +347,7 @@ async function handleContact(request, env, corsHeaders) {
     return json({ ok: false, error: 'Missing required fields' }, 400, corsHeaders);
   }
 
-  if (!env.RESEND_API_KEY || (!env.CONTACT_TO_EMAIL && !env.TO_EMAIL)) {
+  if (!env.RESEND_API_KEY || (!env.CONTACT_TO_EMAIL && !env.TO_EMAIL) || (!env.RESEND_FROM_EMAIL && !env.FROM_EMAIL)) {
     return json({ ok: false, error: 'Email provider not configured' }, 500, corsHeaders);
   }
 
@@ -366,7 +366,7 @@ async function handleContact(request, env, corsHeaders) {
   ].join('\n');
 
   const emailPayload = {
-    from: env.FROM_EMAIL,
+    from: env.RESEND_FROM_EMAIL || env.FROM_EMAIL,
     to: [env.CONTACT_TO_EMAIL || env.TO_EMAIL],
     subject,
     text,
