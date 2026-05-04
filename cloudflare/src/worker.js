@@ -40,7 +40,7 @@ export default {
   async fetch(request, env) {
     try {
     const origin = request.headers.get('Origin') || '';
-    const allowedOrigins = (env.ALLOWED_ORIGINS || '*')
+    const allowedOrigins = (env.ALLOWED_ORIGINS || env.ALLOWED_ORIGIN || '')
       .split(',')
       .map(v => v.trim())
       .filter(Boolean);
@@ -72,13 +72,14 @@ export default {
       const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes'].includes(url.pathname) && request.method === 'POST';
       const isQuotePublic = ['/api/quote/accept','/api/quote/deny'].includes(url.pathname) && request.method === 'GET';
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
+      const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
       const isPostRoute = ['/api/contact', '/api/checkout-session', '/api/create-checkout-session', '/api/zombie-bag-checkout'].includes(url.pathname) && request.method === 'POST';
-      if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic) {
+      if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead) {
         return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
       }
 
       // Public quote accept/deny endpoints don't require CORS origin check
-      if (!originAllowed && !isQuotePublic && !isInvoicePublic) {
+      if (!originAllowed && !isQuotePublic && !isInvoicePublic && !isDownloadRead) {
         return json({ ok: false, error: 'Origin not allowed' }, 403, corsHeaders);
       }
     }
@@ -101,6 +102,10 @@ export default {
 
     if (url.pathname === '/api/stripe-webhook') {
       return handleStripeWebhook(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/download' && request.method === 'GET') {
+      return handleDownload(request, env, corsHeaders);
     }
 
     if (url.pathname === '/api/bookings') {
@@ -342,6 +347,10 @@ async function handleContact(request, env, corsHeaders) {
     return json({ ok: false, error: 'Missing required fields' }, 400, corsHeaders);
   }
 
+  if (!env.RESEND_API_KEY || (!env.CONTACT_TO_EMAIL && !env.TO_EMAIL)) {
+    return json({ ok: false, error: 'Email provider not configured' }, 500, corsHeaders);
+  }
+
   const subject = mode === 'offer'
     ? `Domain Offer: easternshoreai.com (${offer || 'no amount'})`
     : 'General Inquiry: Florence Mae Gifts';
@@ -358,7 +367,7 @@ async function handleContact(request, env, corsHeaders) {
 
   const emailPayload = {
     from: env.FROM_EMAIL,
-    to: [env.TO_EMAIL],
+    to: [env.CONTACT_TO_EMAIL || env.TO_EMAIL],
     subject,
     text,
     reply_to: email
@@ -910,9 +919,15 @@ async function handleStripeWebhook(request, env, corsHeaders) {
     const preferredContactMethod = (session.metadata?.preferred_contact_method || 'email').toString();
     const serviceType = (session.metadata?.service_type || 'openclaw_setup').toString();
     const serviceLabel = (session.metadata?.service_label || '').toString().trim();
-    const incomeCategory = serviceType === 'lessons' ? 'AI Lessons' : 'OpenClaw Setup';
-    const incomeSource = serviceType === 'lessons' ? 'Stripe - Lessons' : 'Stripe';
+    const checkoutType = (session.metadata?.checkout_type || '').toString().trim().toLowerCase();
+    const itemName = (session.metadata?.item_name || session.metadata?.selectedItemName || '').toString().trim();
+    const priceId = (session.metadata?.price_id || '').toString().trim();
+    const isFmgShopItem = checkoutType === 'fmg_shop_item' || !!itemName;
+    const incomeCategory = isFmgShopItem ? 'Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'AI Lessons' : 'OpenClaw Setup');
+    const incomeSource = isFmgShopItem ? 'Stripe - Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'Stripe - Lessons' : 'Stripe');
     const amount = Number(session.amount_total || 10000);
+    let downloadUrl = null;
+    let shouldSendOrderConfirmation = false;
 
     if (sessionId) {
       try {
@@ -1005,9 +1020,10 @@ async function handleStripeWebhook(request, env, corsHeaders) {
         ).bind(sessionId).first();
 
         const incomeNotes = customerName
-          ? `Auto-imported from Stripe checkout (${serviceLabel || incomeCategory}) for ${customerName}`
-          : `Auto-imported from Stripe checkout (${serviceLabel || incomeCategory})`;
+          ? `Auto-imported from Stripe checkout (${itemName || serviceLabel || incomeCategory}) for ${customerName}`
+          : `Auto-imported from Stripe checkout (${itemName || serviceLabel || incomeCategory})`;
         let incomeId = Number(existingIncome?.id || 0) || null;
+        const isNewIncome = !incomeId;
         if (!incomeId) {
           const ins = await env.DB.prepare(
             `INSERT INTO tax_income (
@@ -1033,6 +1049,20 @@ async function handleStripeWebhook(request, env, corsHeaders) {
             notes: incomeNotes
           });
         }
+
+        if (isNewIncome && isFmgShopItem) {
+          try {
+            downloadUrl = await createDownloadTokenForPurchase(env, {
+              itemName,
+              priceId,
+              customerEmail,
+              sessionId
+            });
+          } catch (e) {
+            console.error('Download token generation failed', e);
+          }
+        }
+        shouldSendOrderConfirmation = isNewIncome;
 
         // Clean up stale pending rows for same slot(s) after successful payment
         for (const slot of slots) {
@@ -1080,6 +1110,14 @@ async function handleStripeWebhook(request, env, corsHeaders) {
             }
           }
         }
+
+        if (shouldSendOrderConfirmation) {
+          await sendOrderConfirmationEmail(env, {
+            customerEmail,
+            customerName,
+            downloadUrl
+          });
+        }
       } catch (e) {
         console.error('Stripe webhook DB write failed', e);
         return json({ ok: false, error: `Webhook DB write failed: ${e?.message || e}` }, 500, corsHeaders);
@@ -1088,6 +1126,134 @@ async function handleStripeWebhook(request, env, corsHeaders) {
   }
 
   return json({ ok: true }, 200, corsHeaders);
+}
+
+async function createDownloadTokenForPurchase(env, { itemName, priceId, customerEmail, sessionId }) {
+  if (!env.DOWNLOAD_TOKENS || !env.DOWNLOADS_BUCKET || !env.DOWNLOAD_FILE_MAP || !env.DOWNLOAD_BASE_URL || (!itemName && !priceId)) {
+    return null;
+  }
+
+  let fileMap = {};
+  try {
+    fileMap = JSON.parse(env.DOWNLOAD_FILE_MAP || '{}') || {};
+  } catch (e) {
+    console.error('Invalid DOWNLOAD_FILE_MAP JSON', e);
+    return null;
+  }
+
+  const lookupKeys = [itemName, priceId]
+    .map((v) => (v || '').toString().trim().toLowerCase())
+    .filter(Boolean);
+  const entry = Object.entries(fileMap).find(([name]) => lookupKeys.includes(name.toString().trim().toLowerCase()));
+  const r2Key = (entry?.[1] || '').toString().trim();
+  if (!r2Key) return null;
+
+  const ttlSeconds = Math.max(60, parseInt(env.DOWNLOAD_TOKEN_TTL_SECONDS || '86400', 10) || 86400);
+  const maxUses = Math.max(1, parseInt(env.DOWNLOAD_TOKEN_MAX_USES || '3', 10) || 3);
+  const token = crypto.randomUUID();
+  const expiresAt = Date.now() + ttlSeconds * 1000;
+
+  await env.DOWNLOAD_TOKENS.put(token, JSON.stringify({
+    r2Key,
+    usesRemaining: maxUses,
+    email: customerEmail || null,
+    sessionId: sessionId || null,
+    expiresAt
+  }), { expirationTtl: ttlSeconds });
+
+  const url = new URL(env.DOWNLOAD_BASE_URL);
+  url.searchParams.set('token', token);
+  return url.toString();
+}
+
+async function handleDownload(request, env, corsHeaders) {
+  if (!env.DOWNLOAD_TOKENS || !env.DOWNLOADS_BUCKET) {
+    return json({ ok: false, error: 'Downloads not configured' }, 500, corsHeaders);
+  }
+
+  const url = new URL(request.url);
+  const token = (url.searchParams.get('token') || '').trim();
+  if (!token) return json({ ok: false, error: 'Missing token' }, 400, corsHeaders);
+
+  const storedRaw = await env.DOWNLOAD_TOKENS.get(token);
+  if (!storedRaw) return json({ ok: false, error: 'Download token not found' }, 404, corsHeaders);
+
+  let stored;
+  try {
+    stored = JSON.parse(storedRaw);
+  } catch {
+    await env.DOWNLOAD_TOKENS.delete(token);
+    return json({ ok: false, error: 'Invalid download token' }, 410, corsHeaders);
+  }
+
+  const usesRemaining = Number(stored.usesRemaining || 0);
+  if (!stored.r2Key || usesRemaining <= 0) {
+    await env.DOWNLOAD_TOKENS.delete(token).catch(() => {});
+    return json({ ok: false, error: 'Download token exhausted' }, 410, corsHeaders);
+  }
+
+  const r2Object = await env.DOWNLOADS_BUCKET.get(stored.r2Key);
+  if (!r2Object) return json({ ok: false, error: 'Download file not found' }, 404, corsHeaders);
+
+  const nextUsesRemaining = usesRemaining - 1;
+  if (nextUsesRemaining <= 0) {
+    await env.DOWNLOAD_TOKENS.delete(token);
+  } else {
+    const remainingTtlSeconds = stored.expiresAt
+      ? Math.max(60, Math.ceil((Number(stored.expiresAt) - Date.now()) / 1000))
+      : Math.max(60, parseInt(env.DOWNLOAD_TOKEN_TTL_SECONDS || '86400', 10) || 86400);
+    await env.DOWNLOAD_TOKENS.put(token, JSON.stringify({ ...stored, usesRemaining: nextUsesRemaining }), {
+      expirationTtl: remainingTtlSeconds
+    });
+  }
+
+  const filename = stored.r2Key.split('/').pop() || 'download.pdf';
+  return new Response(r2Object.body, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': r2Object.httpMetadata?.contentType || 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename.replace(/"/g, '')}"`,
+      'Cache-Control': 'private, no-store'
+    }
+  });
+}
+
+async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl }) {
+  if (!env.RESEND_API_KEY || !customerEmail) return;
+
+  const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
+  if (!fromEmail) return;
+
+  const ttlSeconds = parseInt(env.DOWNLOAD_TOKEN_TTL_SECONDS || '86400', 10) || 86400;
+  const maxUses = parseInt(env.DOWNLOAD_TOKEN_MAX_USES || '3', 10) || 3;
+  const validHours = Math.max(1, Math.round(ttlSeconds / 3600));
+  const supportEmail = env.SUPPORT_EMAIL || env.CONTACT_TO_EMAIL || env.TO_EMAIL || 'contact@florencemaegifts.com';
+  const safeName = escapeHtml(customerName || 'there');
+  const safeDownloadUrl = downloadUrl ? escapeHtml(downloadUrl) : '';
+  const emailBody = {
+    from: fromEmail,
+    to: [customerEmail],
+    subject: 'Your Florence Mae Gifts Order Confirmation',
+    html: `<p>Hi ${safeName},</p>
+<p>Thank you for your order! Your payment was successful.</p>
+${safeDownloadUrl ? `<p>Download your file here (link valid for ${validHours} hours, up to ${maxUses} downloads):<br><a href="${safeDownloadUrl}">${safeDownloadUrl}</a></p>` : ''}
+<p>Questions? Reply to this email or contact us at ${escapeHtml(supportEmail)}.</p>
+<p>— Florence Mae Gifts</p>`
+  };
+
+  try {
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(emailBody)
+    });
+    if (!resendRes.ok) {
+      console.error('Order confirmation email failed', await resendRes.text());
+    }
+  } catch (e) {
+    console.error('Order confirmation email failed', e);
+  }
 }
 
 // ===== Utility Functions =====
