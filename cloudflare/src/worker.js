@@ -2,7 +2,6 @@
 // POST /api/contact                 → handleContact()        — Form submissions (domain offers, questions) + Resend email
 // POST /api/checkout-session        → handleCheckoutSession() — Create Stripe checkout with conflict + past-time checks
 // POST /api/create-checkout-session → handleStoreCheckoutSession() — Create Stripe checkout session for shop items (priceId)
-// POST /api/zombie-bag-checkout     → handleZombieBagCheckout() — Create Stripe checkout for Zombie Bag product sales
 // POST /api/stripe-webhook      → handleStripeWebhook()   — Stripe payment confirmation, records booking in D1, auto-inserts tax income
 // GET  /api/availability        → handleAvailability()    — Public unavailable slots + blocked dates
 // GET  /api/bookings            → handleBookings()        — Admin: read bookings + blocked slots + blocked days
@@ -73,7 +72,7 @@ export default {
       const isQuotePublic = ['/api/quote/accept','/api/quote/deny'].includes(url.pathname) && request.method === 'GET';
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
-      const isPostRoute = ['/api/contact', '/api/checkout-session', '/api/create-checkout-session', '/api/zombie-bag-checkout'].includes(url.pathname) && request.method === 'POST';
+      const isPostRoute = ['/api/contact', '/api/checkout-session', '/api/create-checkout-session'].includes(url.pathname) && request.method === 'POST';
       if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead) {
         return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
       }
@@ -94,10 +93,6 @@ export default {
 
     if (url.pathname === '/api/create-checkout-session') {
       return handleStoreCheckoutSession(request, env, corsHeaders, originAllowed, allowedOrigins);
-    }
-
-    if (url.pathname === '/api/zombie-bag-checkout') {
-      return handleZombieBagCheckout(request, env, corsHeaders, originAllowed, allowedOrigins);
     }
 
     if (url.pathname === '/api/stripe-webhook') {
@@ -724,92 +719,6 @@ async function handleStoreCheckoutSession(request, env, corsHeaders, originAllow
 }
 
 /**
- * POST /api/zombie-bag-checkout — Create Stripe checkout for Zombie Bag ecommerce purchase
- * @param {Request} request - optional JSON body
- * @param {Object} env - Worker env (STRIPE_SECRET_KEY)
- * @returns {Response} {ok: true, checkoutUrl, id} or error
- */
-async function handleZombieBagCheckout(request, env, corsHeaders, originAllowed, allowedOrigins) {
-  if (!env.STRIPE_SECRET_KEY) {
-    return json({ ok: false, error: 'Stripe not configured' }, 500, corsHeaders);
-  }
-
-  let data = {};
-  try {
-    data = await request.json();
-  } catch {
-    data = {};
-  }
-
-  const bagColor = (data.bagColor || 'not_selected').toString().trim().toLowerCase();
-  const checkoutType = (data.checkoutType || 'zombie_bag').toString().trim().toLowerCase();
-  const isByogSetup = checkoutType === 'byog_setup';
-  const termsAccepted = data.termsAccepted === true;
-
-  if (!termsAccepted) {
-    return json({ ok: false, error: 'You must read and accept the Terms of Sale before checkout.' }, 400, corsHeaders);
-  }
-
-  const siteOrigin = originAllowed ? (request.headers.get('Origin') || '') : (allowedOrigins[0] || 'https://www.florencemaegifts.com');
-  const successUrl = `${siteOrigin}/zombies.html?paid=1`;
-  const cancelUrl = `${siteOrigin}/zombies.html?canceled=1`;
-
-  const body = new URLSearchParams({
-    mode: 'payment',
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    billing_address_collection: 'required',
-    'automatic_tax[enabled]': 'true',
-    'line_items[0][price_data][currency]': 'usd',
-    'line_items[0][price_data][unit_amount]': isByogSetup ? '4999' : '14999',
-    'line_items[0][price_data][product_data][name]': isByogSetup ? 'Zombie Bag BYOG Setup-Only Service' : 'Zombie Bag',
-    'line_items[0][price_data][product_data][description]': isByogSetup ? 'Bring your own gear setup-only service' : 'Android tablet + solar charger + go bag with pre-installed emergency apps',
-    'line_items[0][price_data][product_data][tax_code]': 'txcd_99999999',
-    'line_items[0][quantity]': '1',
-    'metadata[product]': isByogSetup ? 'zombie_bag_byog_setup' : 'zombie_bag',
-    'metadata[unit_price_cents]': isByogSetup ? '4999' : '14999',
-    'metadata[bag_color]': bagColor,
-    'metadata[checkout_type]': isByogSetup ? 'byog_setup' : 'zombie_bag'
-  });
-
-  if (!isByogSetup) {
-    body.set('shipping_address_collection[allowed_countries][0]', 'US');
-    body.set('shipping_options[0][shipping_rate_data][type]', 'fixed_amount');
-    body.set('shipping_options[0][shipping_rate_data][fixed_amount][amount]', '0');
-    body.set('shipping_options[0][shipping_rate_data][fixed_amount][currency]', 'usd');
-    body.set('shipping_options[0][shipping_rate_data][display_name]', 'Free Delivery (Eastern Shore, MD area)');
-    body.set('shipping_options[0][shipping_rate_data][delivery_estimate][minimum][unit]', 'business_day');
-    body.set('shipping_options[0][shipping_rate_data][delivery_estimate][minimum][value]', '1');
-    body.set('shipping_options[0][shipping_rate_data][delivery_estimate][maximum][unit]', 'business_day');
-    body.set('shipping_options[0][shipping_rate_data][delivery_estimate][maximum][value]', '3');
-    body.set('shipping_options[1][shipping_rate_data][type]', 'fixed_amount');
-    body.set('shipping_options[1][shipping_rate_data][fixed_amount][amount]', '1999');
-    body.set('shipping_options[1][shipping_rate_data][fixed_amount][currency]', 'usd');
-    body.set('shipping_options[1][shipping_rate_data][display_name]', 'Continental U.S. Shipping');
-    body.set('shipping_options[1][shipping_rate_data][delivery_estimate][minimum][unit]', 'business_day');
-    body.set('shipping_options[1][shipping_rate_data][delivery_estimate][minimum][value]', '3');
-    body.set('shipping_options[1][shipping_rate_data][delivery_estimate][maximum][unit]', 'business_day');
-    body.set('shipping_options[1][shipping_rate_data][delivery_estimate][maximum][value]', '7');
-  }
-
-  const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: body.toString()
-  });
-
-  const stripeData = await stripeRes.json().catch(() => ({}));
-  if (!stripeRes.ok) {
-    return json({ ok: false, error: 'Stripe session failed', detail: stripeData }, 502, corsHeaders);
-  }
-
-  return json({ ok: true, checkoutUrl: stripeData.url, id: stripeData.id }, 200, corsHeaders);
-}
-
-/**
  * POST /api/stripe-webhook — Verify Stripe signature, upsert booking as paid, auto-insert tax income
  * @param {Request} request - Raw body with Stripe-Signature header
  * @param {Object} env - Worker env (STRIPE_WEBHOOK_SECRET, DB)
@@ -947,9 +856,8 @@ async function handleStripeWebhook(request, env, corsHeaders) {
     const itemName = (session.metadata?.item_name || session.metadata?.selectedItemName || '').toString().trim();
     const priceId = (session.metadata?.price_id || '').toString().trim();
     const isFmgShopItem = checkoutType === 'fmg_shop_item' || !!itemName;
-    const isZombieBagItem = checkoutType === 'zombie_bag' || checkoutType === 'zombie_bag_byog_setup';
-    const incomeCategory = (isFmgShopItem || isZombieBagItem) ? 'Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'AI Lessons' : 'OpenClaw Setup');
-    const incomeSource = (isFmgShopItem || isZombieBagItem) ? 'Stripe - Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'Stripe - Lessons' : 'Stripe');
+    const incomeCategory = isFmgShopItem ? 'Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'AI Lessons' : 'OpenClaw Setup');
+    const incomeSource = isFmgShopItem ? 'Stripe - Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'Stripe - Lessons' : 'Stripe');
     const amount = Number(session.amount_total || 10000);
     let downloadUrl = null;
     let shouldSendOrderConfirmation = false;
