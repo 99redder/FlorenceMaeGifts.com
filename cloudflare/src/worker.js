@@ -309,10 +309,20 @@ export default {
 
     return json({ ok: false, error: 'Not found' }, 404, corsHeaders);
     } catch (err) {
-      return new Response(JSON.stringify({ ok: false, error: String(err?.message || err) }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const origin = request.headers.get('Origin') || '';
+      const allowedOrigins = (env.ALLOWED_ORIGINS || env.ALLOWED_ORIGIN || '')
+        .split(',')
+        .map(v => v.trim())
+        .filter(Boolean);
+      const allowAll = allowedOrigins.includes('*');
+      const originAllowed = allowAll || !origin || allowedOrigins.includes(origin);
+      const corsHeaders = {
+        'Access-Control-Allow-Origin': allowAll ? '*' : (originAllowed ? origin : allowedOrigins[0] || ''),
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
+        'Vary': 'Origin'
+      };
+      return json({ ok: false, error: String(err?.message || err) }, 500, corsHeaders);
     }
   }
 };
@@ -352,7 +362,7 @@ async function handleContact(request, env, corsHeaders) {
   }
 
   const subject = mode === 'offer'
-    ? `Domain Offer: easternshoreai.com (${offer || 'no amount'})`
+    ? `Domain Offer: florencemaegifts.com (${offer || 'no amount'})`
     : 'General Inquiry: Florence Mae Gifts';
 
   const text = [
@@ -636,6 +646,14 @@ async function handleCheckoutSession(request, env, corsHeaders, originAllowed, a
   return json({ ok: true, checkoutUrl: stripeData.url, id: stripeData.id }, 200, corsHeaders);
 }
 
+
+function parseAllowedPriceIds(raw) {
+  return new Set(String(raw || '')
+    .split(',')
+    .map(v => v.trim())
+    .filter(v => v.startsWith('price_')));
+}
+
 /**
  * POST /api/create-checkout-session — Create Stripe checkout for FMG shop items by Stripe price id
  * @param {Request} request - JSON body: { selectedItemName, priceId }
@@ -659,6 +677,11 @@ async function handleStoreCheckoutSession(request, env, corsHeaders, originAllow
 
   if (!priceId || !priceId.startsWith('price_')) {
     return json({ ok: false, error: 'Missing or invalid Stripe price id.' }, 400, corsHeaders);
+  }
+
+  const allowedPriceIds = parseAllowedPriceIds(env.STORE_ALLOWED_PRICE_IDS);
+  if (!allowedPriceIds.has(priceId)) {
+    return json({ ok: false, error: 'Unknown Stripe price id.' }, 400, corsHeaders);
   }
 
   const requestOrigin = (request.headers.get('Origin') || '').trim();
@@ -741,6 +764,7 @@ async function handleZombieBagCheckout(request, env, corsHeaders, originAllowed,
     'line_items[0][price_data][unit_amount]': isByogSetup ? '4999' : '14999',
     'line_items[0][price_data][product_data][name]': isByogSetup ? 'Zombie Bag BYOG Setup-Only Service' : 'Zombie Bag',
     'line_items[0][price_data][product_data][description]': isByogSetup ? 'Bring your own gear setup-only service' : 'Android tablet + solar charger + go bag with pre-installed emergency apps',
+    'line_items[0][price_data][product_data][tax_code]': 'txcd_99999999',
     'line_items[0][quantity]': '1',
     'metadata[product]': isByogSetup ? 'zombie_bag_byog_setup' : 'zombie_bag',
     'metadata[unit_price_cents]': isByogSetup ? '4999' : '14999',
@@ -923,8 +947,9 @@ async function handleStripeWebhook(request, env, corsHeaders) {
     const itemName = (session.metadata?.item_name || session.metadata?.selectedItemName || '').toString().trim();
     const priceId = (session.metadata?.price_id || '').toString().trim();
     const isFmgShopItem = checkoutType === 'fmg_shop_item' || !!itemName;
-    const incomeCategory = isFmgShopItem ? 'Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'AI Lessons' : 'OpenClaw Setup');
-    const incomeSource = isFmgShopItem ? 'Stripe - Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'Stripe - Lessons' : 'Stripe');
+    const isZombieBagItem = checkoutType === 'zombie_bag' || checkoutType === 'zombie_bag_byog_setup';
+    const incomeCategory = (isFmgShopItem || isZombieBagItem) ? 'Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'AI Lessons' : 'OpenClaw Setup');
+    const incomeSource = (isFmgShopItem || isZombieBagItem) ? 'Stripe - Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'Stripe - Lessons' : 'Stripe');
     const amount = Number(session.amount_total || 10000);
     let downloadUrl = null;
     let shouldSendOrderConfirmation = false;
@@ -3802,9 +3827,13 @@ async function verifyStripeSignature(payload, stripeSignature, webhookSecret) {
       .filter(pair => pair.length === 2)
   );
 
-  const timestamp = parts.t;
+  const timestamp = Number(parts.t);
   const expected = parts.v1;
-  if (!timestamp || !expected) return { ok: false };
+  if (!Number.isFinite(timestamp) || !expected) return { ok: false };
+
+  const toleranceSeconds = 300;
+  const ageSeconds = Math.abs(Math.floor(Date.now() / 1000) - timestamp);
+  if (ageSeconds > toleranceSeconds) return { ok: false };
 
   const signedPayload = `${timestamp}.${payload}`;
   const key = await crypto.subtle.importKey(
