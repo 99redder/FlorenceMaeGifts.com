@@ -73,8 +73,9 @@ export default {
       const isQuotePublic = ['/api/quote/accept','/api/quote/deny'].includes(url.pathname) && request.method === 'GET';
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
+      const isCheckoutSessionDetailsRead = url.pathname === '/api/checkout-session-details' && request.method === 'GET';
       const isPostRoute = ['/api/contact', '/api/checkout-session', '/api/create-checkout-session'].includes(url.pathname) && request.method === 'POST';
-      if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead) {
+      if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead) {
         return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
       }
 
@@ -102,6 +103,10 @@ export default {
 
     if (url.pathname === '/api/download' && request.method === 'GET') {
       return handleDownload(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/checkout-session-details' && request.method === 'GET') {
+      return handleCheckoutSessionDetails(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/bookings') {
@@ -1068,6 +1073,11 @@ async function createDownloadTokenForPurchase(env, { itemName, priceId, customer
     return null;
   }
 
+  if (sessionId) {
+    const existingUrl = await getDownloadUrlForSession(env, sessionId);
+    if (existingUrl) return existingUrl;
+  }
+
   let fileMap = {};
   try {
     fileMap = JSON.parse(env.DOWNLOAD_FILE_MAP || '{}') || {};
@@ -1096,9 +1106,99 @@ async function createDownloadTokenForPurchase(env, { itemName, priceId, customer
     expiresAt
   }), { expirationTtl: ttlSeconds });
 
+  if (sessionId) {
+    await env.DOWNLOAD_TOKENS.put(`checkout-session:${sessionId}`, JSON.stringify({ token, expiresAt }), {
+      expirationTtl: ttlSeconds
+    });
+  }
+
+  return buildDownloadUrl(env, token);
+}
+
+function buildDownloadUrl(env, token) {
+  if (!env.DOWNLOAD_BASE_URL || !token) return null;
   const url = new URL(env.DOWNLOAD_BASE_URL);
   url.searchParams.set('token', token);
   return url.toString();
+}
+
+async function getDownloadUrlForSession(env, sessionId) {
+  if (!env.DOWNLOAD_TOKENS || !sessionId) return null;
+
+  const raw = await env.DOWNLOAD_TOKENS.get(`checkout-session:${sessionId}`);
+  if (!raw) return null;
+
+  try {
+    const mapped = JSON.parse(raw);
+    const token = (mapped?.token || '').toString().trim();
+    if (!token) return null;
+
+    const tokenRaw = await env.DOWNLOAD_TOKENS.get(token);
+    if (!tokenRaw) return null;
+
+    const stored = JSON.parse(tokenRaw);
+    const expiresAt = Number(stored?.expiresAt || 0);
+    const usesRemaining = Number(stored?.usesRemaining || 0);
+    if ((expiresAt && expiresAt <= Date.now()) || usesRemaining <= 0) return null;
+
+    return buildDownloadUrl(env, token);
+  } catch {
+    return null;
+  }
+}
+
+async function handleCheckoutSessionDetails(request, env, corsHeaders, url) {
+  if (request.method !== 'GET') {
+    return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
+  }
+
+  if (!env.STRIPE_SECRET_KEY) {
+    return json({ ok: false, error: 'Stripe not configured' }, 500, corsHeaders);
+  }
+
+  const sessionId = (url.searchParams.get('session_id') || '').trim();
+  if (!sessionId || !sessionId.startsWith('cs_')) {
+    return json({ ok: false, error: 'Missing or invalid session_id' }, 400, corsHeaders);
+  }
+
+  const stripeRes = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
+    headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` }
+  });
+  const session = await stripeRes.json().catch(() => ({}));
+
+  if (!stripeRes.ok || !session?.id) {
+    return json({ ok: false, error: 'Stripe session not found' }, stripeRes.status === 404 ? 404 : 502, corsHeaders);
+  }
+
+  const checkoutType = (session.metadata?.checkout_type || '').toString().trim().toLowerCase();
+  const itemName = (session.metadata?.item_name || session.metadata?.selectedItemName || '').toString().trim();
+  const priceId = (session.metadata?.price_id || '').toString().trim();
+  const isDigital = checkoutType === 'fmg_shop_item' || !!itemName || !!priceId;
+  const isPaid = session.payment_status === 'paid' || session.status === 'complete';
+  let downloadUrl = null;
+
+  if (isDigital && isPaid) {
+    downloadUrl = await getDownloadUrlForSession(env, sessionId);
+    if (!downloadUrl) {
+      try {
+        downloadUrl = await createDownloadTokenForPurchase(env, {
+          itemName,
+          priceId,
+          customerEmail: session.customer_details?.email || session.customer_email || null,
+          sessionId
+        });
+      } catch (e) {
+        console.error('Checkout session details download token lookup failed', e);
+      }
+    }
+  }
+
+  return json({
+    ok: true,
+    isDigital,
+    paymentStatus: session.payment_status || session.status || null,
+    downloadUrl
+  }, 200, corsHeaders);
 }
 
 async function handleDownload(request, env, corsHeaders) {
