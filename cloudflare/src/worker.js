@@ -25,7 +25,7 @@
 // POST /api/accounts/journal    → handleAccountsJournalCreate() — Admin: manual journal entry
 //
 // ===== UTILITY FUNCTIONS =====
-// requireAdmin(request, env)           — Validate X-Admin-Password header
+// requireAdmin(request, env)           — Validate X-Admin-Password header with per-IP failed-attempt throttling
 // toCents(v)                           — Convert dollar string to integer cents
 // csvEscape(s)                         — Escape string for CSV output
 // verifyStripeSignature(payload, sig, secret) — HMAC-SHA256 Stripe webhook verification
@@ -33,6 +33,7 @@
 
 // Module-level caches — safe because account IDs and setup state are stable within a Worker isolate.
 const _acctIdCache = new Map();
+const _adminAuthFailures = new Map();
 let _accountingSetupDone = false;
 
 export default {
@@ -738,7 +739,8 @@ async function handleStripeWebhook(request, env, corsHeaders) {
 
   const verified = await verifyStripeSignature(payload, sig, env.STRIPE_WEBHOOK_SECRET);
   if (!verified.ok) {
-    return json({ ok: false, error: 'Invalid Stripe signature' }, 400, corsHeaders);
+    console.error('Stripe webhook signature verification failed', verified.reason || 'invalid signature');
+    return new Response('Invalid signature', { status: 400, headers: corsHeaders });
   }
 
   let event;
@@ -1191,13 +1193,38 @@ ${safeDownloadUrl ? `<p>Download your file here (link valid for ${validHours} ho
 
 // ===== Utility Functions =====
 
-/** Validate admin password from X-Admin-Password header or ?key query param */
+/** Validate admin password from X-Admin-Password header with per-IP failed-attempt throttling */
 function requireAdmin(request, env, corsHeaders, url) {
-  const provided = (request.headers.get('X-Admin-Password') || url.searchParams.get('key') || '').trim();
+  const provided = (request.headers.get('X-Admin-Password') || '').trim();
   const expected = (env.ADMIN_PASSWORD || '').trim();
   if (!expected) return { ok: false, res: json({ ok: false, error: 'Admin password not configured' }, 500, corsHeaders) };
-  if (!provided || provided !== expected) return { ok: false, res: json({ ok: false, error: 'Unauthorized' }, 401, corsHeaders) };
-  return { ok: true };
+
+  const ip = (request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown')
+    .split(',')[0]
+    .trim() || 'unknown';
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const existing = _adminAuthFailures.get(ip);
+  const current = existing && existing.expiresAt > now ? existing : { count: 0, expiresAt: now + windowMs };
+
+  if (provided && provided === expected) {
+    _adminAuthFailures.delete(ip);
+    return { ok: true };
+  }
+
+  const timestamp = new Date(now).toISOString();
+  console.log(`Failed admin authentication attempt at ${timestamp} from ${ip}`);
+
+  current.count += 1;
+  current.expiresAt = current.expiresAt || (now + windowMs);
+
+  if (current.count >= 5) {
+    _adminAuthFailures.delete(ip);
+    return { ok: false, res: json({ ok: false, error: 'Too many admin authentication attempts' }, 429, corsHeaders) };
+  }
+
+  _adminAuthFailures.set(ip, current);
+  return { ok: false, res: json({ ok: false, error: 'Unauthorized' }, 401, corsHeaders) };
 }
 
 /** @param {string|number} amount - Dollar amount @returns {number|null} Integer cents */
@@ -3728,38 +3755,38 @@ async function fetchStripeFeeCents(stripeSecretKey, paymentIntentId) {
  */
 async function verifyStripeSignature(payload, stripeSignature, webhookSecret) {
   // Stripe-Signature header format: t=timestamp,v1=signature[,v1=signature2]
-  const parts = Object.fromEntries(
-    stripeSignature
-      .split(',')
-      .map(p => p.split('=').map(x => x.trim()))
-      .filter(pair => pair.length === 2)
-  );
+  if (!stripeSignature || !webhookSecret) return { ok: false, reason: 'missing signature or secret' };
 
-  const timestamp = Number(parts.t);
-  const expected = parts.v1;
-  if (!Number.isFinite(timestamp) || !expected) return { ok: false };
+  let timestamp = null;
+  const signatures = [];
+  for (const part of stripeSignature.split(',')) {
+    const [key, value] = part.split('=').map(x => x.trim());
+    if (key === 't') timestamp = Number(value);
+    if (key === 'v1' && /^[a-f0-9]+$/i.test(value || '') && value.length % 2 === 0) signatures.push(value);
+  }
+
+  if (!Number.isFinite(timestamp) || signatures.length === 0) return { ok: false, reason: 'malformed Stripe-Signature header' };
 
   const toleranceSeconds = 300;
   const ageSeconds = Math.abs(Math.floor(Date.now() / 1000) - timestamp);
-  if (ageSeconds > toleranceSeconds) return { ok: false };
+  if (ageSeconds > toleranceSeconds) return { ok: false, reason: 'signature timestamp outside tolerance' };
 
-  const signedPayload = `${timestamp}.${payload}`;
   const key = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(webhookSecret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign']
+    ['verify']
   );
 
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(signedPayload));
-  const computed = [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');
+  const signedPayload = new TextEncoder().encode(`${timestamp}.${payload}`);
+  for (const signature of signatures) {
+    const signatureBytes = new Uint8Array(signature.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+    const ok = await crypto.subtle.verify('HMAC', key, signatureBytes, signedPayload);
+    if (ok) return { ok: true };
+  }
 
-  // timing-safe enough for this context with fixed length compare
-  if (computed.length !== expected.length) return { ok: false };
-  let mismatch = 0;
-  for (let i = 0; i < computed.length; i++) mismatch |= computed.charCodeAt(i) ^ expected.charCodeAt(i);
-  return { ok: mismatch === 0 };
+  return { ok: false, reason: 'signature mismatch' };
 }
 
 /** @param {Object} payload @param {number} [status=200] @param {Object} [headers] @returns {Response} */
