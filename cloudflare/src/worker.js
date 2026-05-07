@@ -574,7 +574,7 @@ async function handleCheckoutSession(request, env, corsHeaders, originAllowed, a
   const body = new URLSearchParams({
     mode: 'payment',
     allow_promotion_codes: 'true',
-    success_url: `${siteOrigin}${serviceConfig.successPath}?paid=1`,
+    success_url: `${siteOrigin}${serviceConfig.successPath}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${siteOrigin}${serviceConfig.successPath}?canceled=1`,
     'line_items[0][price_data][currency]': 'usd',
     'line_items[0][price_data][unit_amount]': String(serviceConfig.amountCents),
@@ -808,12 +808,22 @@ async function handleStripeWebhook(request, env, corsHeaders) {
 
         // Auto-insert Stripe processing fee for invoice checkout (deduped by session id)
         const paymentIntentId = (session.payment_intent || '').toString().trim();
-        const feeCents = await fetchStripeFeeCents(env.STRIPE_SECRET_KEY, paymentIntentId);
+        let feeCents = await fetchStripeFeeCents(env.STRIPE_SECRET_KEY, paymentIntentId);
+        let feeWasEstimated = false;
+        if (feeCents <= 0) {
+          feeCents = estimateStripeFeeCents(amount);
+          feeWasEstimated = feeCents > 0;
+        }
         if (feeCents > 0 && sessionId) {
-          const feeNote = `Auto Stripe fee for invoice session ${sessionId}`;
+          const feeNote = feeWasEstimated
+            ? `Estimated Stripe fee for invoice session ${sessionId}`
+            : `Auto Stripe fee for invoice session ${sessionId}`;
           const existingFee = await env.DB.prepare(
-            `SELECT id FROM tax_expenses WHERE notes = ?1 LIMIT 1`
-          ).bind(feeNote).first();
+            `SELECT id FROM tax_expenses WHERE notes IN (?1, ?2) LIMIT 1`
+          ).bind(
+            `Auto Stripe fee for invoice session ${sessionId}`,
+            `Estimated Stripe fee for invoice session ${sessionId}`
+          ).first();
 
           if (!existingFee?.id) {
             const feeDate = event.created ? new Date(event.created * 1000).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
@@ -1017,12 +1027,22 @@ async function handleStripeWebhook(request, env, corsHeaders) {
 
         // Auto-insert Stripe processing fee as expense for accurate net reporting
         const paymentIntentId = (session.payment_intent || '').toString().trim();
-        const feeCents = await fetchStripeFeeCents(env.STRIPE_SECRET_KEY, paymentIntentId);
+        let feeCents = await fetchStripeFeeCents(env.STRIPE_SECRET_KEY, paymentIntentId);
+        let feeWasEstimated = false;
+        if (feeCents <= 0) {
+          feeCents = estimateStripeFeeCents(amount);
+          feeWasEstimated = feeCents > 0;
+        }
         if (feeCents > 0) {
-          const feeNote = `Auto Stripe fee for session ${sessionId}`;
+          const feeNote = feeWasEstimated
+            ? `Estimated Stripe fee for session ${sessionId}`
+            : `Auto Stripe fee for session ${sessionId}`;
           const existingFee = await env.DB.prepare(
-            `SELECT id FROM tax_expenses WHERE notes = ?1 LIMIT 1`
-          ).bind(feeNote).first();
+            `SELECT id FROM tax_expenses WHERE notes IN (?1, ?2) LIMIT 1`
+          ).bind(
+            `Auto Stripe fee for session ${sessionId}`,
+            `Estimated Stripe fee for session ${sessionId}`
+          ).first();
 
           if (!existingFee?.id) {
             const insFee = await env.DB.prepare(
@@ -1255,10 +1275,16 @@ async function handleDownload(request, env, corsHeaders) {
 }
 
 async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl }) {
-  if (!env.RESEND_API_KEY || !customerEmail) return;
+  if (!env.RESEND_API_KEY || !customerEmail) {
+    console.error('Order confirmation email skipped: missing Resend API key or customer email');
+    return false;
+  }
 
   const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
-  if (!fromEmail) return;
+  if (!fromEmail) {
+    console.error('Order confirmation email skipped: missing sender email');
+    return false;
+  }
 
   const ttlSeconds = parseInt(env.DOWNLOAD_TOKEN_TTL_SECONDS || '86400', 10) || 86400;
   const maxUses = parseInt(env.DOWNLOAD_TOKEN_MAX_USES || '3', 10) || 3;
@@ -1284,11 +1310,35 @@ ${safeDownloadUrl ? `<p>Download your file here (link valid for ${validHours} ho
       body: JSON.stringify(emailBody)
     });
     if (!resendRes.ok) {
-      console.error('Order confirmation email failed', await resendRes.text());
+      const detail = await resendRes.text();
+      console.error('Order confirmation email failed', detail);
+      await alertOrderEmailFailure(env, { customerEmail, detail });
+      return false;
     }
+    return true;
   } catch (e) {
+    const detail = e?.message || String(e);
     console.error('Order confirmation email failed', e);
+    await alertOrderEmailFailure(env, { customerEmail, detail });
+    return false;
   }
+}
+
+async function alertOrderEmailFailure(env, { customerEmail, detail }) {
+  const alertTo = (env.ORDER_EMAIL_ALERT_TO || env.CONTACT_TO_EMAIL || env.TO_EMAIL || '').toString().trim();
+  const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
+  if (!env.RESEND_API_KEY || !alertTo || !fromEmail) return;
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: [alertTo],
+      subject: 'FMG order confirmation email failed',
+      html: `<p>An order confirmation email failed.</p><p><strong>Customer:</strong> ${escapeHtml(customerEmail || '(missing)')}</p><p><strong>Error:</strong> ${escapeHtml(detail || 'Unknown error')}</p>`
+    })
+  }).catch((e) => console.error('Order confirmation failure alert failed', e));
 }
 
 // ===== Utility Functions =====
@@ -3794,6 +3844,13 @@ async function upsertTaxIncomeJournal(db, row, skipDelete = false) {
   const ins = await db.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, source_id, notes) VALUES (?1, ?2, 'tax_income', ?3, ?4)`).bind(row.income_date, memo, row.id, notes).run();
   const entryId = Number(ins.meta?.last_row_id || 0);
   await db.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, debitAccountId, amount, creditAccountId).run();
+}
+
+/** Estimate Stripe fee for fallback bookkeeping when Stripe balance transaction is delayed. */
+function estimateStripeFeeCents(amountCents) {
+  const amount = Number(amountCents || 0);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.max(1, Math.round(amount * 0.029) + 30);
 }
 
 /**
