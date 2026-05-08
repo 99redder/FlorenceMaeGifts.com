@@ -1025,50 +1025,55 @@ async function handleStripeWebhook(request, env, corsHeaders) {
           ).bind(slotAt, sessionId).run();
         }
 
-        // Auto-insert Stripe processing fee as expense for accurate net reporting
-        const paymentIntentId = (session.payment_intent || '').toString().trim();
-        let feeCents = await fetchStripeFeeCents(env.STRIPE_SECRET_KEY, paymentIntentId);
-        let feeWasEstimated = false;
-        if (feeCents <= 0) {
-          feeCents = estimateStripeFeeCents(amount);
-          feeWasEstimated = feeCents > 0;
-        }
-        if (feeCents > 0) {
-          const feeNote = feeWasEstimated
-            ? `Estimated Stripe fee for session ${sessionId}`
-            : `Auto Stripe fee for session ${sessionId}`;
-          const existingFee = await env.DB.prepare(
-            `SELECT id FROM tax_expenses WHERE notes IN (?1, ?2) LIMIT 1`
-          ).bind(
-            `Auto Stripe fee for session ${sessionId}`,
-            `Estimated Stripe fee for session ${sessionId}`
-          ).first();
-
-          if (!existingFee?.id) {
-            const insFee = await env.DB.prepare(
-              `INSERT INTO tax_expenses (expense_date, vendor, category, amount_cents, paid_via, notes)
-               VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+        // Auto-insert Stripe processing fee as expense for accurate net reporting.
+        // Keep this isolated so a fee lookup/insert failure cannot block buyer email + download delivery.
+        try {
+          const paymentIntentId = (session.payment_intent || '').toString().trim();
+          let feeCents = await fetchStripeFeeCents(env.STRIPE_SECRET_KEY, paymentIntentId);
+          let feeWasEstimated = false;
+          if (feeCents <= 0) {
+            feeCents = estimateStripeFeeCents(amount);
+            feeWasEstimated = feeCents > 0;
+          }
+          if (feeCents > 0) {
+            const feeNote = feeWasEstimated
+              ? `Estimated Stripe fee for session ${sessionId}`
+              : `Auto Stripe fee for session ${sessionId}`;
+            const existingFee = await env.DB.prepare(
+              `SELECT id FROM tax_expenses WHERE notes IN (?1, ?2) LIMIT 1`
             ).bind(
-              incomeDate,
-              'Stripe',
-              'Payment Processing Fees',
-              feeCents,
-              'stripe',
-              feeNote
-            ).run();
-            const feeId = Number(insFee.meta?.last_row_id || 0) || null;
-            if (feeId) {
-              await upsertTaxExpenseJournal(env.DB, {
-                id: feeId,
-                expense_date: incomeDate,
-                vendor: 'Stripe',
-                category: 'Payment Processing Fees',
-                amount_cents: feeCents,
-                paid_via: 'stripe',
-                notes: feeNote
-              });
+              `Auto Stripe fee for session ${sessionId}`,
+              `Estimated Stripe fee for session ${sessionId}`
+            ).first();
+
+            if (!existingFee?.id) {
+              const insFee = await env.DB.prepare(
+                `INSERT INTO tax_expenses (expense_date, vendor, category, amount_cents, paid_via, notes)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+              ).bind(
+                incomeDate,
+                'Stripe',
+                'Payment Processing Fees',
+                feeCents,
+                'stripe',
+                feeNote
+              ).run();
+              const feeId = Number(insFee.meta?.last_row_id || 0) || null;
+              if (feeId) {
+                await upsertTaxExpenseJournal(env.DB, {
+                  id: feeId,
+                  expense_date: incomeDate,
+                  vendor: 'Stripe',
+                  category: 'Payment Processing Fees',
+                  amount_cents: feeCents,
+                  paid_via: 'stripe',
+                  notes: feeNote
+                });
+              }
             }
           }
+        } catch (e) {
+          console.error('Stripe fee expense insert failed; continuing webhook delivery flow', e);
         }
 
         if (shouldSendOrderConfirmation) {
@@ -3157,12 +3162,7 @@ async function handleQuoteConvert(request, env, corsHeaders, url) {
 // ===== Quotes Handlers =====
 
 function generateToken() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let token = '';
-  for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
+  return crypto.randomUUID().replace(/-/g, '');
 }
 
 async function handleQuoteCreate(request, env, corsHeaders, url) {
@@ -3596,13 +3596,14 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
           body: form.toString()
         });
         const stripeData = await stripeRes.json().catch(() => ({}));
-        if (stripeRes.ok && stripeData?.url && stripeData?.id) {
-          paymentUrl = stripeData.url;
-          sessionId = stripeData.id;
-          await env.DB.prepare(
-            `UPDATE invoices SET stripe_checkout_session_id = ?1, stripe_checkout_url = ?2, stripe_payment_status = 'pending', stripe_payment_link_generated_at = datetime('now'), status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE id = ?3`
-          ).bind(sessionId, paymentUrl, invoiceId).run();
+        if (!stripeRes.ok || !stripeData?.url || !stripeData?.id) {
+          throw new Error(`Stripe payment link failed: ${stripeData?.error?.message || stripeRes.status}`);
         }
+        paymentUrl = stripeData.url;
+        sessionId = stripeData.id;
+        await env.DB.prepare(
+          `UPDATE invoices SET stripe_checkout_session_id = ?1, stripe_checkout_url = ?2, stripe_payment_status = 'pending', stripe_payment_link_generated_at = datetime('now'), status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE id = ?3`
+        ).bind(sessionId, paymentUrl, invoiceId).run();
       }
 
       const rows = items.map((it) => `<tr><td style="padding:8px;border-bottom:1px solid #f0f0f0;">${escapeHtml(it.item_description || 'Service')}</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:center;">${Number(it.quantity || 1)}</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right;">${formatUsd(Number(it.line_total_cents || 0))}</td></tr>`).join('');
@@ -3643,13 +3644,19 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
         text: invoiceText
       };
       if (env.CC_EMAIL) sendPayload.cc = [env.CC_EMAIL];
-      await fetch('https://api.resend.com/emails', {
+      const resendRes = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(sendPayload)
-      }).catch(() => {});
+      });
+      if (!resendRes.ok) {
+        const resendText = await resendRes.text().catch(() => '');
+        throw new Error(`Invoice email failed: ${resendRes.status} ${resendText}`.trim());
+      }
     }
-  } catch (_) {}
+  } catch (e) {
+    console.error('Quote accept invoice/payment email failed', e);
+  }
 
   // Send notification email to Chris
   const notifyTo = (env.TO_EMAIL || env.CONTACT_TO_EMAIL || '').toString().trim();
