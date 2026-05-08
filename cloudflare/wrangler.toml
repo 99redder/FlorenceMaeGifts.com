@@ -9,8 +9,6 @@ database_id = "381735a9-b25c-4f5d-9e21-24db3b997d10"
 
 [vars]
 ALLOWED_ORIGIN = "https://www.florencemaegifts.com"
-SUCCESS_URL = "https://www.florencemaegifts.com/index.html?checkout=success"
-CANCEL_URL = "https://www.florencemaegifts.com/index.html"
 
 # Required secrets (set via `wrangler secret put`): RESEND_API_KEY, ADMIN_PASSWORD, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 # Optional: map item names to fallback price ids if client doesn't send one.

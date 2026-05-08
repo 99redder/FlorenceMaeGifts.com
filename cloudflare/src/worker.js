@@ -68,8 +68,8 @@ export default {
       const isAdminBlockWrite = ['/api/admin/block-slot','/api/admin/block-day','/api/admin/bookings/cleanup-pending','/api/admin/ask-k','/api/admin/ask-k/escalate'].includes(url.pathname) && request.method === 'POST';
       const isTaxRead = ['/api/tax/transactions','/api/tax/export.csv','/api/tax/receipt'].includes(url.pathname) && request.method === 'GET';
       const isTaxWrite = ['/api/tax/expense','/api/tax/income','/api/tax/owner-transfer','/api/tax/expense/update','/api/tax/income/update','/api/tax/expense/delete','/api/tax/income/delete','/api/tax/receipt/upload'].includes(url.pathname) && request.method === 'POST';
-      const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail','/api/accounts/notes'].includes(url.pathname) && request.method === 'GET';
-      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes'].includes(url.pathname) && request.method === 'POST';
+      const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail','/api/accounts/notes','/api/admin/notes'].includes(url.pathname) && request.method === 'GET';
+      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes'].includes(url.pathname) && request.method === 'POST';
       const isQuotePublic = ['/api/quote/accept','/api/quote/deny'].includes(url.pathname) && request.method === 'GET';
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
@@ -464,14 +464,16 @@ async function handleCheckoutSession(request, env, corsHeaders, originAllowed, a
         label: 'Tech Tutoring (2 hour session)',
         amountCents: 10000,
         quantity: uniqueSlots.length || 1,
-        successPath: '/book-lessons.html'
+        successPath: '/book-lessons.html',
+        cancelPath: '/book-lessons.html'
       }
     : {
         key: 'openclaw_setup',
         label: 'OpenClaw Setup',
         amountCents: 10000,
         quantity: 1,
-        successPath: '/openclaw-setup.html'
+        successPath: '/openclaw-setup.html',
+        cancelPath: '/openclaw-setup.html'
       };
 
   // Reject past dates/blocks using America/New_York.
@@ -575,7 +577,7 @@ async function handleCheckoutSession(request, env, corsHeaders, originAllowed, a
     mode: 'payment',
     allow_promotion_codes: 'true',
     success_url: `${siteOrigin}${serviceConfig.successPath}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${siteOrigin}${serviceConfig.successPath}?canceled=1`,
+    cancel_url: `${siteOrigin}${serviceConfig.cancelPath}?canceled=1`,
     'line_items[0][price_data][currency]': 'usd',
     'line_items[0][price_data][unit_amount]': String(serviceConfig.amountCents),
     'line_items[0][price_data][product_data][name]': serviceConfig.label,
