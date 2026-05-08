@@ -570,7 +570,7 @@ async function handleCheckoutSession(request, env, corsHeaders, originAllowed, a
     }
   }
 
-  const siteOrigin = originAllowed ? (request.headers.get('Origin') || '') : (allowedOrigins[0] || 'https://www.florencemaegifts.com');
+  const siteOrigin = (originAllowed && request.headers.get('Origin')) || allowedOrigins[0] || 'https://www.florencemaegifts.com';
   const body = new URLSearchParams({
     mode: 'payment',
     allow_promotion_codes: 'true',
