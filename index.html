@@ -274,6 +274,43 @@
       display: none;
     }
 
+    .shop-us-shipping-notice {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border: 1px solid #ffd3d3;
+      border-left: 5px solid #FE6666;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #fff8f8 0%, #fff0f0 100%);
+      color: #5f2b2b;
+      font-size: 0.98rem;
+      line-height: 1.35;
+      box-shadow: 0 4px 14px rgba(254, 102, 102, 0.10);
+    }
+
+    .shop-us-shipping-notice i {
+      color: #FE6666;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .shop-us-shipping-notice strong {
+      color: #c94343;
+    }
+
+    .dark-theme .shop-us-shipping-notice {
+      background: #2a1f1f;
+      border-color: #5a3333;
+      color: #ffe8e8;
+    }
+
+    .dark-theme .shop-us-shipping-notice strong,
+    .dark-theme .shop-us-shipping-notice i {
+      color: #ff9b9b;
+    }
+
     .checkout-modal {
       display: none;
       position: fixed;
@@ -507,6 +544,11 @@
 
 <main id="main-content" role="main">
 <div class="row" id="shop">
+
+  <div class="shop-us-shipping-notice" role="note" aria-label="Shipping availability">
+    <i class="fa fa-truck" aria-hidden="true"></i>
+    <span><strong>U.S. shipping only:</strong> physical items ship to all 50 U.S. states. International checkout is not available.</span>
+  </div>
 
   <div w3-include-html="shopleftcolumn.html" class="leftcolumn"></div>
                   

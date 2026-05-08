@@ -714,8 +714,13 @@ a.disclaimer-links:hover {color: #fe666f;}
 
 .listing-us-only-note {
   display: block;
-  margin-top: 0.35rem;
-  color: var(--muted);
-  font-size: 0.73rem;
-  line-height: 1.2;
+  margin-top: 0.5rem;
+  padding: 0.42rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 75%, #FE6666 25%);
+  background: color-mix(in srgb, var(--card) 88%, #FE6666 12%);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.25;
 }
