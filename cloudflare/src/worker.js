@@ -768,7 +768,7 @@ async function handleStripeWebhook(request, env, corsHeaders) {
 
     if ((session.metadata?.checkout_type || '').toString() === 'invoice_payment') {
       const invoiceId = Number(session.metadata?.invoice_id || 0);
-      const amount = Math.round(Number(session.amount_total || 0));
+      const amount = Math.round(Number(session.amount_total ?? 0));
       const paymentEventId = (event.id || sessionId || '').toString().trim();
 
       if (!invoiceId || amount <= 0 || !paymentEventId) {
@@ -877,7 +877,7 @@ async function handleStripeWebhook(request, env, corsHeaders) {
     const isFmgShopItem = checkoutType === 'fmg_shop_item' || !!itemName;
     const incomeCategory = isFmgShopItem ? 'Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'AI Lessons' : 'OpenClaw Setup');
     const incomeSource = isFmgShopItem ? 'Stripe - Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'Stripe - Lessons' : 'Stripe');
-    const amount = Number(session.amount_total || 10000);
+    const amount = Number(session.amount_total ?? 0);
     let downloadUrl = null;
     let shouldSendOrderConfirmation = false;
 
@@ -1014,7 +1014,7 @@ async function handleStripeWebhook(request, env, corsHeaders) {
             console.error('Download token generation failed', e);
           }
         }
-        shouldSendOrderConfirmation = isNewIncome;
+        shouldSendOrderConfirmation = isNewIncome && isFmgShopItem;
 
         // Clean up stale pending rows for same slot(s) after successful payment
         for (const slot of slots) {
@@ -1375,12 +1375,11 @@ function requireAdmin(request, env, corsHeaders, url) {
   current.count += 1;
   current.expiresAt = current.expiresAt || (now + windowMs);
 
+  _adminAuthFailures.set(ip, current);
+
   if (current.count >= 5) {
-    _adminAuthFailures.delete(ip);
     return { ok: false, res: json({ ok: false, error: 'Too many admin authentication attempts' }, 429, corsHeaders) };
   }
-
-  _adminAuthFailures.set(ip, current);
   return { ok: false, res: json({ ok: false, error: 'Unauthorized' }, 401, corsHeaders) };
 }
 
@@ -1969,7 +1968,6 @@ async function handleTaxReceiptUpload(request, env, corsHeaders, url) {
   const key = `receipts/${type}/${id}.${ext}`;
   await env.RECEIPTS.put(key, bytes, { httpMetadata: { contentType: file.type } });
 
-  const col = type === 'expense' ? 'receipt_key' : 'receipt_key';
   await env.DB.prepare(`UPDATE ${table} SET receipt_key = ?1 WHERE id = ?2`).bind(key, id).run();
 
   return json({ ok: true, key }, 200, corsHeaders);
@@ -2759,7 +2757,18 @@ async function applyInvoicePayment(db, {
 
   const remaining = Math.max(0, total - currentlyPaid);
   const appliedPaymentCents = Math.min(remaining, requestCents);
-  if (appliedPaymentCents <= 0) throw new Error('Invoice is already fully paid');
+  if (appliedPaymentCents <= 0) {
+    return {
+      ok: true,
+      id,
+      amountPaidCents: currentlyPaid,
+      balanceDueCents: 0,
+      status: 'paid',
+      paymentPostedCents: 0,
+      booksUpdated: false,
+      alreadyPaid: true
+    };
+  }
 
   const resolvedIncomeDate = (incomeDate || new Date().toISOString().slice(0, 10)).toString().slice(0, 10);
   let resolvedNotes = (incomeNotes || `Invoice payment posted to books | invoice_id=${id} | invoice_number=${inv.invoice_number || ''} | payment_event_id=${eventId}`).toString();
@@ -3797,7 +3806,9 @@ async function upsertTaxExpenseJournal(db, row, skipDelete = false) {
 
   const cat = row.category || '';
   let expenseAccountCode;
-  if (['Etsy Listing Fees', 'Etsy Transaction Fees', 'Etsy Offsite Ads', 'Etsy Processing Fees', 'Mercari Selling Fees', 'Mercari Processing Fees', 'Stripe Processing Fees', 'Payment Processing Fees'].includes(cat)) {
+  if (['Stripe Processing Fees', 'Payment Processing Fees'].includes(cat)) {
+    expenseAccountCode = '5300'; // Payment Processing Fees
+  } else if (['Etsy Listing Fees', 'Etsy Transaction Fees', 'Etsy Offsite Ads', 'Etsy Processing Fees', 'Mercari Selling Fees', 'Mercari Processing Fees'].includes(cat)) {
     expenseAccountCode = '5700'; // Marketplace Fees
   } else if (cat === 'Advertising/Marketing') {
     expenseAccountCode = '5100'; // Marketing Expense (voluntary spend only)
