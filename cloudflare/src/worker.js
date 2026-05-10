@@ -1079,6 +1079,12 @@ async function handleStripeWebhook(request, env, corsHeaders) {
         }
 
         if (shouldSendOrderConfirmation) {
+          if (!downloadUrl) {
+            await alertOrderEmailFailure(env, {
+              customerEmail,
+              detail: `Digital download token generation failed for paid order. session_id=${sessionId || 'n/a'}, item=${itemName || 'n/a'}, price_id=${priceId || 'n/a'}`
+            });
+          }
           await sendOrderConfirmationEmail(env, {
             customerEmail,
             customerName,
@@ -1352,7 +1358,11 @@ async function alertOrderEmailFailure(env, { customerEmail, detail }) {
 
 /** Validate admin password from X-Admin-Password header with per-IP failed-attempt throttling */
 function requireAdmin(request, env, corsHeaders, url) {
-  const provided = (request.headers.get('X-Admin-Password') || '').trim();
+  return requireAdminPassword(request, env, corsHeaders, request.headers.get('X-Admin-Password') || '');
+}
+
+function requireAdminPassword(request, env, corsHeaders, providedPassword = '') {
+  const provided = (providedPassword || '').trim();
   const expected = (env.ADMIN_PASSWORD || '').trim();
   if (!expected) return { ok: false, res: json({ ok: false, error: 'Admin password not configured' }, 500, corsHeaders) };
 
@@ -1981,10 +1991,8 @@ async function handleTaxReceiptGet(request, env, corsHeaders, url) {
   if (!env.RECEIPTS) return json({ ok: false, error: 'RECEIPTS binding missing' }, 500, corsHeaders);
 
   // Support ?key2=<password> as alternate auth param since ?key is used for the R2 key
-  const adminPw = request.headers.get('X-Admin-Password') || url.searchParams.get('key2') || '';
-  if (!adminPw || adminPw !== env.ADMIN_PASSWORD) {
-    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
+  const auth = requireAdminPassword(request, env, corsHeaders, request.headers.get('X-Admin-Password') || url.searchParams.get('key2') || '');
+  if (!auth.ok) return auth.res;
 
   const r2Key = url.searchParams.get('key') || '';
   if (!r2Key) return json({ ok: false, error: 'Missing key' }, 400, corsHeaders);
@@ -2889,10 +2897,9 @@ async function handleInvoicePaymentLink(request, env, corsHeaders, url) {
     balance_due_cents: String(balanceDueCents)
   };
 
-  const baseUrl = new URL(request.url).origin;
-  const siteBase = (env.PUBLIC_SITE_URL || 'https://www.florencemaegifts.com').replace(/\/$/, '');
-  const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${siteBase}/invoice-payment-success.html`).replace(/\/$/, '');
-  const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${siteBase}/invoice-payment-cancelled.html`).replace(/\/$/, '');
+  const requestBase = new URL(request.url).origin.replace(/\/$/, '');
+  const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${requestBase}/invoice/payment-success`).replace(/\/$/, '');
+  const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${requestBase}/invoice/payment-cancelled`).replace(/\/$/, '');
 
   const form = new URLSearchParams();
   form.append('mode', 'payment');
@@ -3007,6 +3014,12 @@ async function handleInvoiceDelete(request, env, corsHeaders, url) {
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
   const id = Number(data.id || 0);
   if (!id) return json({ ok: false, error: 'Invalid invoice id' }, 400, corsHeaders);
+  const invoice = await env.DB.prepare(`SELECT status, amount_paid_cents FROM invoices WHERE id = ?1`).bind(id).first();
+  if (!invoice) return json({ ok: false, error: 'Invoice not found' }, 404, corsHeaders);
+  const status = (invoice.status || '').toString().toLowerCase();
+  if (status === 'paid' || Number(invoice.amount_paid_cents || 0) > 0) {
+    return json({ ok: false, error: 'Paid invoices cannot be deleted' }, 400, corsHeaders);
+  }
   await env.DB.prepare(`DELETE FROM invoice_line_items WHERE invoice_id = ?1`).bind(id).run();
   await env.DB.prepare(`DELETE FROM invoices WHERE id = ?1`).bind(id).run();
   return json({ ok: true, id }, 200, corsHeaders);
@@ -3106,7 +3119,7 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
     return json({ ok: false, error: sendJson?.message || sendJson?.error || 'Failed to send invoice email' }, 502, corsHeaders);
   }
 
-  await env.DB.prepare(`UPDATE invoices SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE id = ?1`).bind(id).run();
+  await env.DB.prepare(`UPDATE invoices SET status = CASE WHEN status IN ('paid','void') THEN status ELSE 'sent' END, sent_at = COALESCE(sent_at, datetime('now')), updated_at = datetime('now') WHERE id = ?1`).bind(id).run();
   return json({ ok: true, id, emailId: sendJson?.id || null }, 200, corsHeaders);
 }
 
@@ -3406,7 +3419,7 @@ async function handleQuoteSend(request, env, corsHeaders, url) {
     return json({ ok: false, error: sendJson?.message || sendJson?.error || 'Failed to send quote email' }, 502, corsHeaders);
   }
 
-  await env.DB.prepare(`UPDATE quotes SET status = 'sent', sent_at = datetime('now'), updated_at = datetime('now') WHERE id = ?1`).bind(id).run();
+  await env.DB.prepare(`UPDATE quotes SET status = CASE WHEN status IN ('accepted','denied','void') THEN status ELSE 'sent' END, sent_at = COALESCE(sent_at, datetime('now')), updated_at = datetime('now') WHERE id = ?1`).bind(id).run();
   return json({ ok: true, id, emailId: sendJson?.id || null }, 200, corsHeaders);
 }
 
@@ -3570,10 +3583,9 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
     const customerEmail = (quote.customer_email || '').toString().trim();
     const fromEmail = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
     if (env.STRIPE_SECRET_KEY && env.RESEND_API_KEY && fromEmail && customerEmail) {
-      const requestBase = new URL(request.url).origin;
-      const siteBase = (env.PUBLIC_SITE_URL || 'https://www.florencemaegifts.com').replace(/\/$/, '');
-      const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${siteBase}/invoice-payment-success.html`).replace(/\/$/, '');
-      const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${siteBase}/invoice-payment-cancelled.html`).replace(/\/$/, '');
+      const requestBase = new URL(request.url).origin.replace(/\/$/, '');
+      const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${requestBase}/invoice/payment-success`).replace(/\/$/, '');
+      const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${requestBase}/invoice/payment-cancelled`).replace(/\/$/, '');
       const balanceDueCents = Math.max(0, Number(total || 0));
       let paymentUrl = '';
       let sessionId = '';
@@ -3673,14 +3685,14 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
   const notifyTo = (env.TO_EMAIL || env.CONTACT_TO_EMAIL || '').toString().trim();
   const notifyFrom = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
   if (env.RESEND_API_KEY && notifyTo && notifyFrom) {
-    const notifyHtml = `<div style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#059669;">Quote Accepted!</h2><p><strong>Quote:</strong> ${escapeHtml(quote.quote_number || `Q-${quote.id}`)}</p><p><strong>Customer:</strong> ${escapeHtml(quote.customer_name)} (${escapeHtml(quote.customer_email)})</p><p><strong>Total:</strong> ${formatUsd(total)}</p><p><strong>Invoice Created:</strong> ${invoiceNumber} (status: draft - not sent to customer yet)</p><p>Log in to the admin panel to review and send the invoice.</p></div>`;
+    const notifyHtml = `<div style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#059669;">Quote Accepted!</h2><p><strong>Quote:</strong> ${escapeHtml(quote.quote_number || `Q-${quote.id}`)}</p><p><strong>Customer:</strong> ${escapeHtml(quote.customer_name)} (${escapeHtml(quote.customer_email)})</p><p><strong>Total:</strong> ${formatUsd(total)}</p><p><strong>Invoice Created:</strong> ${invoiceNumber} (invoice email/payment link sent when configured)</p><p>Log in to the admin panel to review the invoice.</p></div>`;
 
     const notifyPayload = {
       from: notifyFrom,
       to: [notifyTo],
       subject: `Quote ${quote.quote_number || `Q-${quote.id}`} Accepted by ${quote.customer_name}`,
       html: notifyHtml,
-      text: `Quote Accepted!\n\nQuote: ${quote.quote_number || `Q-${quote.id}`}\nCustomer: ${quote.customer_name} (${quote.customer_email})\nTotal: ${formatUsd(total)}\nInvoice Created: ${invoiceNumber}\n\nLog in to the admin panel to review and send the invoice.`
+      text: `Quote Accepted!\n\nQuote: ${quote.quote_number || `Q-${quote.id}`}\nCustomer: ${quote.customer_name} (${quote.customer_email})\nTotal: ${formatUsd(total)}\nInvoice Created: ${invoiceNumber} (invoice email/payment link sent when configured)\n\nLog in to the admin panel to review the invoice.`
     };
     if (env.CC_EMAIL) notifyPayload.cc = [env.CC_EMAIL];
 
