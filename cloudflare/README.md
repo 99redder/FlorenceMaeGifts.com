@@ -10,6 +10,10 @@
 - `wrangler secret put STRIPE_SECRET_KEY`
 - `wrangler secret put STRIPE_WEBHOOK_SECRET`
 - `wrangler secret put RESEND_API_KEY`
+- `wrangler secret put ADMIN_USER` (optional; defaults to `admin`)
+- `wrangler secret put ADMIN_PASS`
+- `wrangler secret put ADMIN_SESSION_SECRET`
+- `wrangler secret put STORE_ALLOWED_PRICE_IDS` (comma-separated live Stripe price IDs for checkout allowlist)
 
 ## 3) Create KV namespace for one-time download tokens
 

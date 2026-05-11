@@ -4,6 +4,9 @@
 // POST /api/create-checkout-session → handleStoreCheckoutSession() — Create Stripe checkout session for shop items (priceId)
 // POST /api/stripe-webhook      → handleStripeWebhook()   — Stripe payment confirmation, records booking in D1, auto-inserts tax income
 // GET  /api/availability        → handleAvailability()    — Public unavailable slots + blocked dates
+// POST /api/admin/login         → handleAdminLogin()      — Admin: create signed HttpOnly session cookie
+// GET  /api/admin/verify-session → requireAdmin()         — Admin: validate session cookie
+// POST /api/admin/logout        → handleAdminLogout()     — Admin: clear session cookie
 // GET  /api/bookings            → handleBookings()        — Admin: read bookings + blocked slots + blocked days
 // POST /api/admin/block-slot    → handleAdminBlockSlot()  — Admin: block/unblock a specific 2-hour slot
 // POST /api/admin/block-day     → handleAdminBlockDay()   — Admin: block/unblock an entire day
@@ -25,7 +28,7 @@
 // POST /api/accounts/journal    → handleAccountsJournalCreate() — Admin: manual journal entry
 //
 // ===== UTILITY FUNCTIONS =====
-// requireAdmin(request, env)           — Validate X-Admin-Password header with per-IP failed-attempt throttling
+// requireAdmin(request, env)           — Validate signed HttpOnly admin session cookie (legacy X-Admin-Password fallback)
 // toCents(v)                           — Convert dollar string to integer cents
 // csvEscape(s)                         — Escape string for CSV output
 // verifyStripeSignature(payload, sig, secret) — HMAC-SHA256 Stripe webhook verification
@@ -52,6 +55,7 @@ export default {
       'Access-Control-Allow-Origin': allowAll ? '*' : (originAllowed ? origin : allowedOrigins[0] || ''),
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
+      'Access-Control-Allow-Credentials': 'true',
       'Vary': 'Origin'
     };
 
@@ -75,7 +79,10 @@ export default {
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
       const isCheckoutSessionDetailsRead = url.pathname === '/api/checkout-session-details' && request.method === 'GET';
       const isPostRoute = ['/api/contact', '/api/checkout-session', '/api/create-checkout-session'].includes(url.pathname) && request.method === 'POST';
-      if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead) {
+      const isAdminSessionRoute = (url.pathname === '/api/admin/verify-session' && request.method === 'GET')
+        || (url.pathname === '/api/admin/login' && request.method === 'POST')
+        || (url.pathname === '/api/admin/logout' && request.method === 'POST');
+      if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead && !isAdminSessionRoute) {
         return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
       }
 
@@ -87,6 +94,20 @@ export default {
 
     if (url.pathname === '/api/contact') {
       return handleContact(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/admin/verify-session' && request.method === 'GET') {
+      const auth = await requireAdmin(request, env, corsHeaders, url);
+      if (!auth.ok) return auth.res;
+      return json({ ok: true }, 200, corsHeaders);
+    }
+
+    if (url.pathname === '/api/admin/login' && request.method === 'POST') {
+      return handleAdminLogin(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/admin/logout' && request.method === 'POST') {
+      return handleAdminLogout(corsHeaders);
     }
 
     if (url.pathname === '/api/checkout-session') {
@@ -321,6 +342,7 @@ export default {
         'Access-Control-Allow-Origin': allowAll ? '*' : (originAllowed ? origin : allowedOrigins[0] || ''),
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
+        'Access-Control-Allow-Credentials': 'true',
         'Vary': 'Origin'
       };
       return json({ ok: false, error: String(err?.message || err) }, 500, corsHeaders);
@@ -1356,41 +1378,154 @@ async function alertOrderEmailFailure(env, { customerEmail, detail }) {
 
 // ===== Utility Functions =====
 
-/** Validate admin password from X-Admin-Password header with per-IP failed-attempt throttling */
-function requireAdmin(request, env, corsHeaders, url) {
-  return requireAdminPassword(request, env, corsHeaders, request.headers.get('X-Admin-Password') || '');
+const ADMIN_SESSION_COOKIE = 'fmg_admin_session';
+const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 12;
+
+async function handleAdminLogin(request, env, corsHeaders) {
+  let data;
+  try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
+
+  const username = (data.username || '').toString().trim();
+  const password = (data.password || '').toString();
+  const expectedUser = (env.ADMIN_USER || 'admin').trim();
+  const expectedPass = (env.ADMIN_PASS || env.ADMIN_PASSWORD || '').trim();
+
+  if (!expectedPass) {
+    return json({ ok: false, error: 'Admin credentials not configured' }, 500, corsHeaders);
+  }
+
+  const ip = getClientIp(request);
+  const limited = recordFailedAdminAttempt(ip, false);
+  if (limited.blocked) return json({ ok: false, error: 'Too many admin authentication attempts' }, 429, corsHeaders);
+
+  if (username !== expectedUser || password !== expectedPass) {
+    const current = recordFailedAdminAttempt(ip, true);
+    console.log(`Failed admin login at ${new Date().toISOString()} from ${ip} for username=${username || '(blank)'}`);
+    return json({ ok: false, error: current.blocked ? 'Too many admin authentication attempts' : 'Invalid username or password' }, current.blocked ? 429 : 401, corsHeaders);
+  }
+
+  _adminAuthFailures.delete(ip);
+  const session = await createAdminSessionCookie(env);
+  return json({ ok: true }, 200, {
+    ...corsHeaders,
+    'Set-Cookie': `${ADMIN_SESSION_COOKIE}=${session}; Path=/; Max-Age=${ADMIN_SESSION_TTL_SECONDS}; HttpOnly; Secure; SameSite=Strict`
+  });
+}
+
+function handleAdminLogout(corsHeaders) {
+  return json({ ok: true }, 200, {
+    ...corsHeaders,
+    'Set-Cookie': `${ADMIN_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`
+  });
+}
+
+async function requireAdmin(request, env, corsHeaders, url) {
+  if (await hasValidAdminSession(request, env)) return { ok: true };
+
+  // Legacy fallback for scripts or cached old admin pages. New UI uses the HttpOnly session cookie only.
+  const legacy = (request.headers.get('X-Admin-Password') || url?.searchParams?.get('key2') || '').trim();
+  if (legacy) return requireAdminPassword(request, env, corsHeaders, legacy);
+
+  return { ok: false, res: json({ ok: false, error: 'Unauthorized' }, 401, corsHeaders) };
 }
 
 function requireAdminPassword(request, env, corsHeaders, providedPassword = '') {
   const provided = (providedPassword || '').trim();
-  const expected = (env.ADMIN_PASSWORD || '').trim();
+  const expected = (env.ADMIN_PASS || env.ADMIN_PASSWORD || '').trim();
   if (!expected) return { ok: false, res: json({ ok: false, error: 'Admin password not configured' }, 500, corsHeaders) };
 
-  const ip = (request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown')
-    .split(',')[0]
-    .trim() || 'unknown';
-  const now = Date.now();
-  const windowMs = 15 * 60 * 1000;
-  const existing = _adminAuthFailures.get(ip);
-  const current = existing && existing.expiresAt > now ? existing : { count: 0, expiresAt: now + windowMs };
+  const ip = getClientIp(request);
+  const limited = recordFailedAdminAttempt(ip, false);
+  if (limited.blocked) {
+    return { ok: false, res: json({ ok: false, error: 'Too many admin authentication attempts' }, 429, corsHeaders) };
+  }
 
   if (provided && provided === expected) {
     _adminAuthFailures.delete(ip);
     return { ok: true };
   }
 
-  const timestamp = new Date(now).toISOString();
-  console.log(`Failed admin authentication attempt at ${timestamp} from ${ip}`);
+  const current = recordFailedAdminAttempt(ip, true);
+  console.log(`Failed legacy admin authentication attempt at ${new Date().toISOString()} from ${ip}`);
+  return { ok: false, res: json({ ok: false, error: current.blocked ? 'Too many admin authentication attempts' : 'Unauthorized' }, current.blocked ? 429 : 401, corsHeaders) };
+}
 
-  current.count += 1;
+function getClientIp(request) {
+  return (request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown')
+    .split(',')[0]
+    .trim() || 'unknown';
+}
+
+function recordFailedAdminAttempt(ip, increment) {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const existing = _adminAuthFailures.get(ip);
+  const current = existing && existing.expiresAt > now ? existing : { count: 0, expiresAt: now + windowMs };
+  if (increment) current.count += 1;
   current.expiresAt = current.expiresAt || (now + windowMs);
-
   _adminAuthFailures.set(ip, current);
+  return { ...current, blocked: current.count >= 5 };
+}
 
-  if (current.count >= 5) {
-    return { ok: false, res: json({ ok: false, error: 'Too many admin authentication attempts' }, 429, corsHeaders) };
+async function hasValidAdminSession(request, env) {
+  const token = getCookie(request, ADMIN_SESSION_COOKIE);
+  if (!token) return false;
+  const [payloadB64, sig] = token.split('.');
+  if (!payloadB64 || !sig) return false;
+  const expectedSig = await signAdminSession(env, payloadB64);
+  if (!timingSafeEqual(sig, expectedSig)) return false;
+  try {
+    const payload = JSON.parse(base64UrlDecode(payloadB64));
+    return payload?.exp && Number(payload.exp) > Math.floor(Date.now() / 1000);
+  } catch {
+    return false;
   }
-  return { ok: false, res: json({ ok: false, error: 'Unauthorized' }, 401, corsHeaders) };
+}
+
+async function createAdminSessionCookie(env) {
+  const payload = {
+    v: 1,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + ADMIN_SESSION_TTL_SECONDS,
+    nonce: crypto.randomUUID()
+  };
+  const payloadB64 = b64url(JSON.stringify(payload));
+  return `${payloadB64}.${await signAdminSession(env, payloadB64)}`;
+}
+
+async function signAdminSession(env, payloadB64) {
+  const secret = (env.ADMIN_SESSION_SECRET || env.ADMIN_PASS || env.ADMIN_PASSWORD || '').trim();
+  if (!secret) return '';
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payloadB64));
+  return b64urlBytes(new Uint8Array(sig));
+}
+
+function getCookie(request, name) {
+  const cookie = request.headers.get('Cookie') || '';
+  return cookie.split(';').map(v => v.trim()).find(v => v.startsWith(`${name}=`))?.slice(name.length + 1) || '';
+}
+
+function b64url(s) {
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function b64urlBytes(bytes) {
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64UrlDecode(s) {
+  const padded = s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4);
+  return atob(padded);
+}
+
+function timingSafeEqual(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
 }
 
 /** @param {string|number} amount - Dollar amount @returns {number|null} Integer cents */
@@ -1416,7 +1551,7 @@ async function handleBookings(request, env, corsHeaders, url) {
     return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   }
 
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit') || 20)));
@@ -1498,7 +1633,7 @@ async function handleAdminBlockSlot(request, env, corsHeaders, url) {
     return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   }
 
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -1541,7 +1676,7 @@ async function handleAdminBlockDay(request, env, corsHeaders, url) {
     return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   }
 
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -1581,7 +1716,7 @@ async function handleAdminCleanupPendingBookings(request, env, corsHeaders, url)
     return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   }
 
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data = {};
@@ -1609,7 +1744,7 @@ async function handleAdminCleanupPendingBookings(request, env, corsHeaders, url)
  */
 async function handleTaxTransactions(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const year = (url.searchParams.get('year') || '').trim();
@@ -1655,7 +1790,7 @@ async function handleTaxTransactions(request, env, corsHeaders, url) {
  */
 async function handleTaxExpense(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -1700,7 +1835,7 @@ async function handleTaxExpense(request, env, corsHeaders, url) {
  */
 async function handleTaxIncome(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -1745,7 +1880,7 @@ async function handleTaxIncome(request, env, corsHeaders, url) {
  */
 async function handleTaxExpenseUpdate(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -1793,7 +1928,7 @@ async function handleTaxExpenseUpdate(request, env, corsHeaders, url) {
 
 async function handleTaxOwnerTransfer(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const accountingReady = await ensureAccountingSetup(env.DB);
@@ -1838,7 +1973,7 @@ async function handleTaxOwnerTransfer(request, env, corsHeaders, url) {
  */
 async function handleTaxIncomeUpdate(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -1892,7 +2027,7 @@ async function handleTaxIncomeUpdate(request, env, corsHeaders, url) {
  */
 async function handleTaxExpenseDelete(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -1917,7 +2052,7 @@ async function handleTaxExpenseDelete(request, env, corsHeaders, url) {
  */
 async function handleTaxIncomeDelete(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -1944,7 +2079,7 @@ async function handleTaxIncomeDelete(request, env, corsHeaders, url) {
 async function handleTaxReceiptUpload(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   if (!env.RECEIPTS) return json({ ok: false, error: 'RECEIPTS binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let formData;
@@ -1985,13 +2120,12 @@ async function handleTaxReceiptUpload(request, env, corsHeaders, url) {
 
 /**
  * GET /api/tax/receipt — Admin: retrieve a receipt from R2
- * Query params: key (R2 object key), key2 (admin password — alternative auth since ?key is taken)
+ * Query params: key (R2 object key)
  */
 async function handleTaxReceiptGet(request, env, corsHeaders, url) {
   if (!env.RECEIPTS) return json({ ok: false, error: 'RECEIPTS binding missing' }, 500, corsHeaders);
 
-  // Support ?key2=<password> as alternate auth param since ?key is used for the R2 key
-  const auth = requireAdminPassword(request, env, corsHeaders, request.headers.get('X-Admin-Password') || url.searchParams.get('key2') || '');
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const r2Key = url.searchParams.get('key') || '';
@@ -2018,7 +2152,7 @@ async function handleTaxReceiptGet(request, env, corsHeaders, url) {
  */
 async function handleTaxExportCsv(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const year = (url.searchParams.get('year') || '').trim();
@@ -2089,7 +2223,7 @@ async function handleTaxExportCsv(request, env, corsHeaders, url) {
 
 async function handleAdminNotesList(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const scope = (url.searchParams.get('scope') || 'general').toString().trim().toLowerCase();
   const noteYear = Number(url.searchParams.get('year') || 0);
@@ -2108,7 +2242,7 @@ async function handleAdminNotesList(request, env, corsHeaders, url) {
 
 async function handleAdminNotesCreate(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -2127,7 +2261,7 @@ async function handleAdminNotesCreate(request, env, corsHeaders, url) {
 
 async function handleAccountsList(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const accountingReady = await ensureAccountingSetup(env.DB);
@@ -2144,7 +2278,7 @@ async function handleAccountsList(request, env, corsHeaders, url) {
 
 async function handleAccountsSummary(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const accountingReady = await ensureAccountingSetup(env.DB);
@@ -2200,7 +2334,7 @@ async function handleAccountsSummary(request, env, corsHeaders, url) {
 
 async function handleAccountsJournal(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const accountingReady = await ensureAccountingSetup(env.DB);
@@ -2269,7 +2403,7 @@ async function handleAccountsJournal(request, env, corsHeaders, url) {
 
 async function handleAccountsStatements(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const accountingReady = await ensureAccountingSetup(env.DB);
@@ -2343,7 +2477,7 @@ async function handleAccountsStatements(request, env, corsHeaders, url) {
 
 async function handleAccountsJournalCreate(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const accountingReady = await ensureAccountingSetup(env.DB);
   if (!accountingReady) return json({ ok: false, error: 'Accounting tables are not migrated yet. Run D1 migrations with --remote.' }, 503, corsHeaders);
@@ -2403,7 +2537,7 @@ async function handleAccountsJournalCreate(request, env, corsHeaders, url) {
 
 async function handleAccountsRebuildAutoJournal(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const accountingReady = await ensureAccountingSetup(env.DB);
   if (!accountingReady) return json({ ok: false, error: 'Accounting tables are not migrated yet. Run D1 migrations with --remote.' }, 503, corsHeaders);
@@ -2446,7 +2580,7 @@ async function handleAccountsRebuildAutoJournal(request, env, corsHeaders, url) 
 
 async function handleAccountsYearClose(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const accountingReady = await ensureAccountingSetup(env.DB);
   if (!accountingReady) return json({ ok: false, error: 'Accounting tables are not migrated yet. Run D1 migrations with --remote.' }, 503, corsHeaders);
@@ -2537,7 +2671,7 @@ async function handleAccountsYearClose(request, env, corsHeaders, url) {
 
 async function handleInvoiceCreate(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -2589,7 +2723,7 @@ async function handleInvoiceCreate(request, env, corsHeaders, url) {
 
 async function handleInvoicesList(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const status = (url.searchParams.get('status') || '').trim();
   const useStatus = status && status !== 'all';
@@ -2601,7 +2735,7 @@ async function handleInvoicesList(request, env, corsHeaders, url) {
 
 async function handleInvoiceDetail(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const id = Number(url.searchParams.get('id') || 0);
@@ -2616,7 +2750,7 @@ async function handleInvoiceDetail(request, env, corsHeaders, url) {
 
 async function handleInvoiceUpdate(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -2674,7 +2808,7 @@ async function handleInvoiceUpdate(request, env, corsHeaders, url) {
 
 async function handleInvoiceStatus(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -2862,7 +2996,7 @@ async function applyInvoicePayment(db, {
 async function handleInvoicePaymentLink(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   if (!env.STRIPE_SECRET_KEY) return json({ ok: false, error: 'Stripe secret not configured' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -2973,7 +3107,7 @@ async function handleInvoicePaymentLink(request, env, corsHeaders, url) {
 
 async function handleInvoicePayment(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -3008,7 +3142,7 @@ async function handleInvoicePayment(request, env, corsHeaders, url) {
 
 async function handleInvoiceDelete(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -3027,7 +3161,7 @@ async function handleInvoiceDelete(request, env, corsHeaders, url) {
 
 async function handleInvoiceSend(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const fromEmailEnv = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
   if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
@@ -3152,7 +3286,7 @@ async function convertQuoteToInvoice(db, quote) {
 
 async function handleQuoteConvert(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -3191,7 +3325,7 @@ function generateToken() {
 
 async function handleQuoteCreate(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -3245,7 +3379,7 @@ async function handleQuoteCreate(request, env, corsHeaders, url) {
 
 async function handleQuotesList(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const status = url.searchParams.get('status') || '';
@@ -3257,7 +3391,7 @@ async function handleQuotesList(request, env, corsHeaders, url) {
 
 async function handleQuoteDetail(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   const id = Number(url.searchParams.get('id') || 0);
@@ -3272,7 +3406,7 @@ async function handleQuoteDetail(request, env, corsHeaders, url) {
 
 async function handleQuoteUpdate(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -3318,7 +3452,7 @@ async function handleQuoteUpdate(request, env, corsHeaders, url) {
 
 async function handleQuoteDelete(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let data;
@@ -3335,7 +3469,7 @@ async function handleQuoteDelete(request, env, corsHeaders, url) {
 
 async function handleQuoteSend(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const fromEmailEnv = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
   if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
@@ -3982,7 +4116,7 @@ async function verifyStripeSignature(payload, stripeSignature, webhookSecret) {
 
 
 async function handleAdminAskKEscalate(request, env, corsHeaders, url) {
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   if (!env.ASKK_STAFF_WEBHOOK_URL) {
@@ -4050,7 +4184,7 @@ async function handleAdminAskKEscalate(request, env, corsHeaders, url) {
 }
 
 async function handleAdminAskK(request, env, corsHeaders, url) {
-  const auth = requireAdmin(request, env, corsHeaders, url);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
   let body = {};

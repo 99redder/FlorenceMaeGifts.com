@@ -169,9 +169,11 @@ Key behavior:
 
 - This project remains static-site frontend on GitHub Pages, with runtime API handled by Cloudflare Worker.
 - Stripe built-in email notifications are recommended for production alerts; test mode primarily uses events/logs/webhook delivery testing.
-- Local helper files used for mapping were intentionally kept uncommitted:
+- Local helper files used for mapping are intentionally uncommitted/ignored:
+  - `.stripe-live-created-map.json`
   - `.stripe-price-map.json`
   - `.stripe-size-price-map.json`
+- Keep `STORE_ALLOWED_PRICE_IDS` as a Cloudflare Worker secret, not in committed config.
 
 ### Key commits during this session
 
