@@ -55,7 +55,7 @@ export default {
       'Access-Control-Allow-Origin': allowAll ? '*' : (originAllowed ? origin : allowedOrigins[0] || ''),
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
-      'Access-Control-Allow-Credentials': 'true',
+      ...(allowAll ? {} : { 'Access-Control-Allow-Credentials': 'true' }),
       'Vary': 'Origin'
     };
 
@@ -86,8 +86,8 @@ export default {
         return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
       }
 
-      // Public quote accept/deny endpoints don't require CORS origin check
-      if (!originAllowed && !isQuotePublic && !isInvoicePublic && !isDownloadRead) {
+      // Public quote accept/deny, invoice landing, download, and checkout-session-details reads don't require strict origin check.
+      if (!originAllowed && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead) {
         return json({ ok: false, error: 'Origin not allowed' }, 403, corsHeaders);
       }
     }
@@ -906,23 +906,26 @@ async function handleStripeWebhook(request, env, corsHeaders) {
     if (sessionId) {
       try {
         let slots = [];
-        try {
-          const parsed = JSON.parse(session.metadata?.slots_json || '[]');
-          if (Array.isArray(parsed)) {
-            slots = parsed
-              .map((s) => ({
-                setupDate: (s?.setupDate || '').toString().trim(),
-                setupTime: (s?.setupTime || '').toString().trim()
-              }))
-              .filter((s) => s.setupDate && s.setupTime);
+        if (!isFmgShopItem) {
+          try {
+            const parsed = JSON.parse(session.metadata?.slots_json || '[]');
+            if (Array.isArray(parsed)) {
+              slots = parsed
+                .map((s) => ({
+                  setupDate: (s?.setupDate || '').toString().trim(),
+                  setupTime: (s?.setupTime || '').toString().trim()
+                }))
+                .filter((s) => s.setupDate && s.setupTime);
+            }
+          } catch {}
+          if (!slots.length && setupDate && setupTime) {
+            slots = [{ setupDate, setupTime }];
           }
-        } catch {}
-        if (!slots.length && setupDate && setupTime) {
-          slots = [{ setupDate, setupTime }];
         }
 
-        const splitAmount = Math.round(amount / Math.max(slots.length, 1));
-        for (let i = 0; i < slots.length; i++) {
+        if (!isFmgShopItem) {
+          const splitAmount = Math.round(amount / Math.max(slots.length, 1));
+          for (let i = 0; i < slots.length; i++) {
           const slot = slots[i];
           const slotAt = `${slot.setupDate}T${slot.setupTime}`;
           const slotAmount = i === 0 ? (amount - (splitAmount * (slots.length - 1))) : splitAmount;
@@ -981,6 +984,7 @@ async function handleStripeWebhook(request, env, corsHeaders) {
               slotAmount,
               serviceType
             ).run();
+            }
           }
         }
 
@@ -1039,14 +1043,16 @@ async function handleStripeWebhook(request, env, corsHeaders) {
         shouldSendOrderConfirmation = isNewIncome && isFmgShopItem;
 
         // Clean up stale pending rows for same slot(s) after successful payment
-        for (const slot of slots) {
-          const slotAt = `${slot.setupDate}T${slot.setupTime}`;
-          await env.DB.prepare(
-            `DELETE FROM bookings
-             WHERE status = 'pending'
-               AND setup_at = ?1
-               AND stripe_session_id != ?2`
-          ).bind(slotAt, sessionId).run();
+        if (!isFmgShopItem) {
+          for (const slot of slots) {
+            const slotAt = `${slot.setupDate}T${slot.setupTime}`;
+            await env.DB.prepare(
+              `DELETE FROM bookings
+               WHERE status = 'pending'
+                 AND setup_at = ?1
+                 AND stripe_session_id != ?2`
+            ).bind(slotAt, sessionId).run();
+          }
         }
 
         // Auto-insert Stripe processing fee as expense for accurate net reporting.
@@ -1276,6 +1282,12 @@ async function handleDownload(request, env, corsHeaders) {
     return json({ ok: false, error: 'Invalid download token' }, 410, corsHeaders);
   }
 
+  const expiresAt = Number(stored.expiresAt || 0);
+  if (expiresAt && expiresAt <= Date.now()) {
+    await env.DOWNLOAD_TOKENS.delete(token).catch(() => {});
+    return json({ ok: false, error: 'Download token expired' }, 410, corsHeaders);
+  }
+
   const usesRemaining = Number(stored.usesRemaining || 0);
   if (!stored.r2Key || usesRemaining <= 0) {
     await env.DOWNLOAD_TOKENS.delete(token).catch(() => {});
@@ -1289,9 +1301,13 @@ async function handleDownload(request, env, corsHeaders) {
   if (nextUsesRemaining <= 0) {
     await env.DOWNLOAD_TOKENS.delete(token);
   } else {
-    const remainingTtlSeconds = stored.expiresAt
-      ? Math.max(60, Math.ceil((Number(stored.expiresAt) - Date.now()) / 1000))
+    const remainingTtlSeconds = expiresAt
+      ? Math.ceil((expiresAt - Date.now()) / 1000)
       : Math.max(60, parseInt(env.DOWNLOAD_TOKEN_TTL_SECONDS || '86400', 10) || 86400);
+    if (remainingTtlSeconds <= 0) {
+      await env.DOWNLOAD_TOKENS.delete(token).catch(() => {});
+      return json({ ok: false, error: 'Download token expired' }, 410, corsHeaders);
+    }
     await env.DOWNLOAD_TOKENS.put(token, JSON.stringify({ ...stored, usesRemaining: nextUsesRemaining }), {
       expirationTtl: remainingTtlSeconds
     });
@@ -1993,7 +2009,7 @@ async function handleTaxIncomeUpdate(request, env, corsHeaders, url) {
   if (!category) return json({ ok: false, error: 'Missing category' }, 400, corsHeaders);
   if (cents === null) return json({ ok: false, error: 'Invalid amount' }, 400, corsHeaders);
 
-  const existing = await env.DB.prepare('SELECT id FROM tax_income WHERE id = ?1').bind(id).first();
+  const existing = await env.DB.prepare('SELECT id, stripe_session_id, notes FROM tax_income WHERE id = ?1').bind(id).first();
   if (!existing) return json({ ok: false, error: 'Income not found' }, 404, corsHeaders);
 
   await env.DB.prepare(
@@ -2017,6 +2033,14 @@ async function handleTaxIncomeUpdate(request, env, corsHeaders, url) {
     notes: notes || null,
     is_owner_funded: isOwnerFunded
   });
+
+  const invoiceIds = new Set([
+    extractInvoiceIdFromIncome(existing),
+    extractInvoiceIdFromIncome({ stripe_session_id: stripeSessionId, notes })
+  ].filter(Boolean));
+  for (const invoiceId of invoiceIds) {
+    await syncInvoicePaidFromIncome(env.DB, invoiceId);
+  }
 
   return json({ ok: true, id }, 200, corsHeaders);
 }
@@ -2060,7 +2084,7 @@ async function handleTaxIncomeDelete(request, env, corsHeaders, url) {
   const id = Number(data.id || 0);
   if (!Number.isInteger(id) || id <= 0) return json({ ok: false, error: 'Invalid id' }, 400, corsHeaders);
 
-  const existing = await env.DB.prepare('SELECT id, receipt_key FROM tax_income WHERE id = ?1').bind(id).first();
+  const existing = await env.DB.prepare('SELECT id, receipt_key, stripe_session_id, notes FROM tax_income WHERE id = ?1').bind(id).first();
   if (!existing) return json({ ok: false, error: 'Income not found' }, 404, corsHeaders);
 
   if (existing.receipt_key && env.RECEIPTS) {
@@ -2069,6 +2093,8 @@ async function handleTaxIncomeDelete(request, env, corsHeaders, url) {
 
   await env.DB.prepare('DELETE FROM tax_income WHERE id = ?1').bind(id).run();
   await deleteAutoJournalBySource(env.DB, 'tax_income', id);
+  const invoiceId = extractInvoiceIdFromIncome(existing);
+  if (invoiceId) await syncInvoicePaidFromIncome(env.DB, invoiceId);
   return json({ ok: true, id }, 200, corsHeaders);
 }
 
@@ -2818,6 +2844,15 @@ async function handleInvoiceStatus(request, env, corsHeaders, url) {
   const paidDate = status === 'paid' ? (data.paidDate || new Date().toISOString().slice(0,10)) : null;
   await env.DB.prepare(`UPDATE invoices SET status = ?1, paid_date = COALESCE(?2, paid_date), sent_at = CASE WHEN ?1 = 'sent' AND sent_at IS NULL THEN datetime('now') ELSE sent_at END, updated_at = datetime('now') WHERE id = ?3`).bind(status, paidDate, id).run();
   return json({ ok: true, id, status }, 200, corsHeaders);
+}
+
+function extractInvoiceIdFromIncome(row) {
+  const stripeSessionId = (row?.stripe_session_id || row?.stripeSessionId || '').toString();
+  const notes = (row?.notes || '').toString();
+  const fromSession = stripeSessionId.match(/^invoice-payment:(\d+):/);
+  if (fromSession) return Number(fromSession[1]);
+  const fromNotes = notes.match(/invoice_id=(\d+)/);
+  return fromNotes ? Number(fromNotes[1]) : null;
 }
 
 async function syncInvoicePaidFromIncome(db, invoiceId) {
@@ -3651,6 +3686,13 @@ function htmlPage(title, heading, message, success = true) {
 </html>`;
 }
 
+function quoteValidUntilEndOfDay(validUntil) {
+  const raw = (validUntil || '').toString().trim();
+  if (!raw) return new Date(0);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return new Date(`${raw}T23:59:59.999Z`);
+  return new Date(raw);
+}
+
 async function handleQuoteAccept(request, env, corsHeaders, url) {
   if (!env.DB) return new Response(htmlPage('Error', 'System Error', 'Database not configured.', false), { status: 500, headers: { 'Content-Type': 'text/html' } });
 
@@ -3670,8 +3712,8 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
     return new Response(htmlPage('Quote Declined', 'Quote Was Declined', 'This quote was previously declined.', false), { status: 400, headers: { 'Content-Type': 'text/html' } });
   }
 
-  // Check if expired
-  const validUntil = new Date(quote.valid_until);
+  // Check if expired at the end of the valid-until day, not midnight UTC.
+  const validUntil = quoteValidUntilEndOfDay(quote.valid_until);
   const now = new Date();
   if (validUntil < now) {
     return new Response(htmlPage('Quote Expired', 'Quote Expired', `This quote expired on ${quote.valid_until}. Please contact us for a new quote.`, false), { status: 400, headers: { 'Content-Type': 'text/html' } });
@@ -3859,8 +3901,8 @@ async function handleQuoteDeny(request, env, corsHeaders, url) {
     return new Response(htmlPage('Already Declined', 'Quote Already Declined', 'This quote has already been declined.', true), { status: 200, headers: { 'Content-Type': 'text/html' } });
   }
 
-  // Check if expired
-  const validUntil = new Date(quote.valid_until);
+  // Check if expired at the end of the valid-until day, not midnight UTC.
+  const validUntil = quoteValidUntilEndOfDay(quote.valid_until);
   const now = new Date();
   if (validUntil < now) {
     return new Response(htmlPage('Quote Expired', 'Quote Expired', `This quote expired on ${quote.valid_until}.`, false), { status: 400, headers: { 'Content-Type': 'text/html' } });
@@ -4026,47 +4068,36 @@ function estimateStripeFeeCents(amountCents) {
 async function fetchStripeFeeCents(stripeSecretKey, paymentIntentId) {
   if (!stripeSecretKey || !paymentIntentId) return 0;
 
-  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const url = `https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}?expand[]=latest_charge.balance_transaction`;
+  const piRes = await fetch(url, {
+    headers: { Authorization: `Bearer ${stripeSecretKey}` }
+  });
+  const pi = await piRes.json().catch(() => ({}));
+  if (!piRes.ok) return 0;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const url = `https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}?expand[]=latest_charge.balance_transaction`;
-    const piRes = await fetch(url, {
-      headers: { Authorization: `Bearer ${stripeSecretKey}` }
-    });
-    const pi = await piRes.json().catch(() => ({}));
-    if (!piRes.ok) {
-      if (attempt < 2) await wait(1200);
-      continue;
-    }
+  const latestCharge = pi?.latest_charge;
+  const bt = (latestCharge && typeof latestCharge === 'object') ? latestCharge.balance_transaction : null;
+  const feeExpanded = Number(bt?.fee || 0);
+  if (Number.isFinite(feeExpanded) && feeExpanded > 0) return feeExpanded;
 
-    const latestCharge = pi?.latest_charge;
-    const bt = (latestCharge && typeof latestCharge === 'object') ? latestCharge.balance_transaction : null;
-    const feeExpanded = Number(bt?.fee || 0);
-    if (Number.isFinite(feeExpanded) && feeExpanded > 0) return feeExpanded;
+  const chargeId = typeof latestCharge === 'string' ? latestCharge : latestCharge?.id;
+  if (!chargeId) return 0;
 
-    const chargeId = typeof latestCharge === 'string' ? latestCharge : latestCharge?.id;
-    if (chargeId) {
-      const chRes = await fetch(`https://api.stripe.com/v1/charges/${encodeURIComponent(chargeId)}`, {
-        headers: { Authorization: `Bearer ${stripeSecretKey}` }
-      });
-      const ch = await chRes.json().catch(() => ({}));
-      if (chRes.ok) {
-        const btId = ch?.balance_transaction;
-        if (btId) {
-          const btRes = await fetch(`https://api.stripe.com/v1/balance_transactions/${encodeURIComponent(btId)}`, {
-            headers: { Authorization: `Bearer ${stripeSecretKey}` }
-          });
-          const btObj = await btRes.json().catch(() => ({}));
-          const fee = Number(btObj?.fee || 0);
-          if (btRes.ok && Number.isFinite(fee) && fee > 0) return fee;
-        }
-      }
-    }
+  const chRes = await fetch(`https://api.stripe.com/v1/charges/${encodeURIComponent(chargeId)}`, {
+    headers: { Authorization: `Bearer ${stripeSecretKey}` }
+  });
+  const ch = await chRes.json().catch(() => ({}));
+  if (!chRes.ok) return 0;
 
-    if (attempt < 2) await wait(1200);
-  }
+  const btId = ch?.balance_transaction;
+  if (!btId) return 0;
 
-  return 0;
+  const btRes = await fetch(`https://api.stripe.com/v1/balance_transactions/${encodeURIComponent(btId)}`, {
+    headers: { Authorization: `Bearer ${stripeSecretKey}` }
+  });
+  const btObj = await btRes.json().catch(() => ({}));
+  const fee = Number(btObj?.fee || 0);
+  return btRes.ok && Number.isFinite(fee) && fee > 0 ? fee : 0;
 }
 
 /**
