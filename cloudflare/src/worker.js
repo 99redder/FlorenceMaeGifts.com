@@ -39,6 +39,18 @@ const _acctIdCache = new Map();
 const _adminAuthFailures = new Map();
 let _accountingSetupDone = false;
 
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.stripe.com; frame-ancestors 'none'"
+};
+
+function withSecurityHeaders(headers = {}) {
+  return { ...SECURITY_HEADERS, ...headers };
+}
+
 export default {
   async fetch(request, env) {
     try {
@@ -769,7 +781,7 @@ async function handleStripeWebhook(request, env, corsHeaders) {
   const verified = await verifyStripeSignature(payload, sig, env.STRIPE_WEBHOOK_SECRET);
   if (!verified.ok) {
     console.error('Stripe webhook signature verification failed', verified.reason || 'invalid signature');
-    return new Response('Invalid signature', { status: 400, headers: corsHeaders });
+    return new Response('Invalid signature', { status: 400, headers: withSecurityHeaders(corsHeaders) });
   }
 
   let event;
@@ -1316,12 +1328,12 @@ async function handleDownload(request, env, corsHeaders) {
   const filename = stored.r2Key.split('/').pop() || 'download.pdf';
   return new Response(r2Object.body, {
     status: 200,
-    headers: {
+    headers: withSecurityHeaders({
       ...corsHeaders,
       'Content-Type': r2Object.httpMetadata?.contentType || 'application/pdf',
       'Content-Disposition': `attachment; filename="${filename.replace(/"/g, '')}"`,
       'Cache-Control': 'private, no-store'
-    }
+    })
   });
 }
 
@@ -1414,7 +1426,11 @@ async function handleAdminLogin(request, env, corsHeaders) {
   const limited = recordFailedAdminAttempt(ip, false);
   if (limited.blocked) return json({ ok: false, error: 'Too many admin authentication attempts' }, 429, corsHeaders);
 
-  if (username !== expectedUser || password !== expectedPass) {
+  const [userOk, passOk] = await Promise.all([
+    timingSafeEqual(username, expectedUser),
+    timingSafeEqual(password, expectedPass)
+  ]);
+  if (!userOk || !passOk) {
     const current = recordFailedAdminAttempt(ip, true);
     console.log(`Failed admin login at ${new Date().toISOString()} from ${ip} for username=${username || '(blank)'}`);
     return json({ ok: false, error: current.blocked ? 'Too many admin authentication attempts' : 'Invalid username or password' }, current.blocked ? 429 : 401, corsHeaders);
@@ -1445,7 +1461,7 @@ async function requireAdmin(request, env, corsHeaders, url) {
   return { ok: false, res: json({ ok: false, error: 'Unauthorized' }, 401, corsHeaders) };
 }
 
-function requireAdminPassword(request, env, corsHeaders, providedPassword = '') {
+async function requireAdminPassword(request, env, corsHeaders, providedPassword = '') {
   const provided = (providedPassword || '').trim();
   const expected = (env.ADMIN_PASS || env.ADMIN_PASSWORD || '').trim();
   if (!expected) return { ok: false, res: json({ ok: false, error: 'Admin password not configured' }, 500, corsHeaders) };
@@ -1456,7 +1472,7 @@ function requireAdminPassword(request, env, corsHeaders, providedPassword = '') 
     return { ok: false, res: json({ ok: false, error: 'Too many admin authentication attempts' }, 429, corsHeaders) };
   }
 
-  if (provided && provided === expected) {
+  if (provided && await timingSafeEqual(provided, expected)) {
     _adminAuthFailures.delete(ip);
     return { ok: true };
   }
@@ -1537,10 +1553,16 @@ function base64UrlDecode(s) {
   return atob(padded);
 }
 
-function timingSafeEqual(a, b) {
-  if (!a || !b || a.length !== b.length) return false;
+async function timingSafeEqual(a, b) {
+  const encoder = new TextEncoder();
+  const [aHash, bHash] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(String(a ?? ''))),
+    crypto.subtle.digest('SHA-256', encoder.encode(String(b ?? '')))
+  ]);
+  const aBytes = new Uint8Array(aHash);
+  const bBytes = new Uint8Array(bHash);
   let out = 0;
-  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < aBytes.length; i++) out |= aBytes[i] ^ bBytes[i];
   return out === 0;
 }
 
@@ -2163,12 +2185,12 @@ async function handleTaxReceiptGet(request, env, corsHeaders, url) {
   const contentType = obj.httpMetadata?.contentType || 'application/octet-stream';
   return new Response(obj.body, {
     status: 200,
-    headers: {
+    headers: withSecurityHeaders({
       ...corsHeaders,
       'Content-Type': contentType,
       'Content-Disposition': `inline; filename="receipt.${r2Key.split('.').pop()}"`,
       'Cache-Control': 'private, max-age=3600'
-    }
+    })
   });
 }
 
@@ -2239,11 +2261,11 @@ async function handleTaxExportCsv(request, env, corsHeaders, url) {
 
   return new Response(csv, {
     status: 200,
-    headers: {
+    headers: withSecurityHeaders({
       ...corsHeaders,
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': `attachment; filename="${filename}"`
-    }
+    })
   });
 }
 
@@ -3634,12 +3656,12 @@ function invoicePaymentPage(title, heading, message, success = true, invoiceId =
 
 async function handleInvoicePaymentSuccessPage(request, env, corsHeaders, url) {
   const invoiceId = url.searchParams.get('invoice_id') || '';
-  return new Response(invoicePaymentPage('Payment Successful', 'Payment Successful', 'Thank you — your invoice payment was successful.', true, invoiceId), { status: 200, headers: { 'Content-Type': 'text/html' } });
+  return new Response(invoicePaymentPage('Payment Successful', 'Payment Successful', 'Thank you — your invoice payment was successful.', true, invoiceId), { status: 200, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 }
 
 async function handleInvoicePaymentCancelledPage(request, env, corsHeaders, url) {
   const invoiceId = url.searchParams.get('invoice_id') || '';
-  return new Response(invoicePaymentPage('Payment Cancelled', 'Payment Cancelled', 'Your payment was cancelled. You can return to the invoice and complete payment anytime.', false, invoiceId), { status: 200, headers: { 'Content-Type': 'text/html' } });
+  return new Response(invoicePaymentPage('Payment Cancelled', 'Payment Cancelled', 'Your payment was cancelled. You can return to the invoice and complete payment anytime.', false, invoiceId), { status: 200, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 }
 
 function htmlPage(title, heading, message, success = true) {
@@ -3694,29 +3716,29 @@ function quoteValidUntilEndOfDay(validUntil) {
 }
 
 async function handleQuoteAccept(request, env, corsHeaders, url) {
-  if (!env.DB) return new Response(htmlPage('Error', 'System Error', 'Database not configured.', false), { status: 500, headers: { 'Content-Type': 'text/html' } });
+  if (!env.DB) return new Response(htmlPage('Error', 'System Error', 'Database not configured.', false), { status: 500, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 
   const token = url.searchParams.get('token') || '';
-  if (!token) return new Response(htmlPage('Invalid Link', 'Invalid Link', 'This quote link is invalid or missing a token.', false), { status: 400, headers: { 'Content-Type': 'text/html' } });
+  if (!token) return new Response(htmlPage('Invalid Link', 'Invalid Link', 'This quote link is invalid or missing a token.', false), { status: 400, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 
   const quote = await env.DB.prepare(`SELECT * FROM quotes WHERE accept_token = ?1`).bind(token).first();
-  if (!quote) return new Response(htmlPage('Quote Not Found', 'Quote Not Found', 'This quote was not found or has already been processed.', false), { status: 404, headers: { 'Content-Type': 'text/html' } });
+  if (!quote) return new Response(htmlPage('Quote Not Found', 'Quote Not Found', 'This quote was not found or has already been processed.', false), { status: 404, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 
   // Check if already accepted
   if (quote.status === 'accepted' || quote.accepted_at) {
-    return new Response(htmlPage('Already Accepted', 'Quote Already Accepted', 'This quote has already been accepted. Thank you!', true), { status: 200, headers: { 'Content-Type': 'text/html' } });
+    return new Response(htmlPage('Already Accepted', 'Quote Already Accepted', 'This quote has already been accepted. Thank you!', true), { status: 200, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
   }
 
   // Check if denied
   if (quote.status === 'denied' || quote.denied_at) {
-    return new Response(htmlPage('Quote Declined', 'Quote Was Declined', 'This quote was previously declined.', false), { status: 400, headers: { 'Content-Type': 'text/html' } });
+    return new Response(htmlPage('Quote Declined', 'Quote Was Declined', 'This quote was previously declined.', false), { status: 400, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
   }
 
   // Check if expired at the end of the valid-until day, not midnight UTC.
   const validUntil = quoteValidUntilEndOfDay(quote.valid_until);
   const now = new Date();
   if (validUntil < now) {
-    return new Response(htmlPage('Quote Expired', 'Quote Expired', `This quote expired on ${quote.valid_until}. Please contact us for a new quote.`, false), { status: 400, headers: { 'Content-Type': 'text/html' } });
+    return new Response(htmlPage('Quote Expired', 'Quote Expired', `This quote expired on ${quote.valid_until}. Please contact us for a new quote.`, false), { status: 400, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
   }
 
   // Get line items to convert to invoice
@@ -3879,39 +3901,39 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
     }).catch(() => {});
   }
 
-  return new Response(htmlPage('Quote Accepted', 'Thank You!', "Your quote has been accepted. Please check your email inbox for your invoice and payment details.", true), { status: 200, headers: { 'Content-Type': 'text/html' } });
+  return new Response(htmlPage('Quote Accepted', 'Thank You!', "Your quote has been accepted. Please check your email inbox for your invoice and payment details.", true), { status: 200, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 }
 
 async function handleQuoteDeny(request, env, corsHeaders, url) {
-  if (!env.DB) return new Response(htmlPage('Error', 'System Error', 'Database not configured.', false), { status: 500, headers: { 'Content-Type': 'text/html' } });
+  if (!env.DB) return new Response(htmlPage('Error', 'System Error', 'Database not configured.', false), { status: 500, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 
   const token = url.searchParams.get('token') || '';
-  if (!token) return new Response(htmlPage('Invalid Link', 'Invalid Link', 'This quote link is invalid or missing a token.', false), { status: 400, headers: { 'Content-Type': 'text/html' } });
+  if (!token) return new Response(htmlPage('Invalid Link', 'Invalid Link', 'This quote link is invalid or missing a token.', false), { status: 400, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 
   const quote = await env.DB.prepare(`SELECT * FROM quotes WHERE deny_token = ?1`).bind(token).first();
-  if (!quote) return new Response(htmlPage('Quote Not Found', 'Quote Not Found', 'This quote was not found or has already been processed.', false), { status: 404, headers: { 'Content-Type': 'text/html' } });
+  if (!quote) return new Response(htmlPage('Quote Not Found', 'Quote Not Found', 'This quote was not found or has already been processed.', false), { status: 404, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 
   // Check if already accepted
   if (quote.status === 'accepted' || quote.accepted_at) {
-    return new Response(htmlPage('Quote Accepted', 'Quote Was Accepted', 'This quote has already been accepted and cannot be declined.', false), { status: 400, headers: { 'Content-Type': 'text/html' } });
+    return new Response(htmlPage('Quote Accepted', 'Quote Was Accepted', 'This quote has already been accepted and cannot be declined.', false), { status: 400, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
   }
 
   // Check if already denied
   if (quote.status === 'denied' || quote.denied_at) {
-    return new Response(htmlPage('Already Declined', 'Quote Already Declined', 'This quote has already been declined.', true), { status: 200, headers: { 'Content-Type': 'text/html' } });
+    return new Response(htmlPage('Already Declined', 'Quote Already Declined', 'This quote has already been declined.', true), { status: 200, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
   }
 
   // Check if expired at the end of the valid-until day, not midnight UTC.
   const validUntil = quoteValidUntilEndOfDay(quote.valid_until);
   const now = new Date();
   if (validUntil < now) {
-    return new Response(htmlPage('Quote Expired', 'Quote Expired', `This quote expired on ${quote.valid_until}.`, false), { status: 400, headers: { 'Content-Type': 'text/html' } });
+    return new Response(htmlPage('Quote Expired', 'Quote Expired', `This quote expired on ${quote.valid_until}.`, false), { status: 400, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
   }
 
   // Mark declined and retain record for manual admin cleanup
   await env.DB.prepare(`UPDATE quotes SET status = 'denied', denied_at = datetime('now'), updated_at = datetime('now') WHERE id = ?1`).bind(quote.id).run();
 
-  return new Response(htmlPage('Quote Declined', 'Quote Declined', 'The quote has been declined. Thank you for letting us know. Feel free to reach out if you have any questions.', true), { status: 200, headers: { 'Content-Type': 'text/html' } });
+  return new Response(htmlPage('Quote Declined', 'Quote Declined', 'The quote has been declined. Thank you for letting us know. Feel free to reach out if you have any questions.', true), { status: 200, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
 }
 
 async function accountingTablesReady(db) {
@@ -4544,7 +4566,7 @@ const ASKK_KNOWLEDGE_BASE = '# Ask K Knowledge Base — FlorenceMaeGifts.com\n\n
 function json(payload, status = 200, headers = {}) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { 'Content-Type': 'application/json', ...headers }
+    headers: withSecurityHeaders({ 'Content-Type': 'application/json', ...headers })
   });
 }
 
