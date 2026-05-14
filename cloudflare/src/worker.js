@@ -354,7 +354,7 @@ export default {
         'Access-Control-Allow-Origin': allowAll ? '*' : (originAllowed ? origin : allowedOrigins[0] || ''),
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
-        'Access-Control-Allow-Credentials': 'true',
+        ...(allowAll ? {} : { 'Access-Control-Allow-Credentials': 'true' }),
         'Vary': 'Origin'
       };
       return json({ ok: false, error: String(err?.message || err) }, 500, corsHeaders);
@@ -390,6 +390,10 @@ async function handleContact(request, env, corsHeaders) {
 
   if (!name || !email) {
     return json({ ok: false, error: 'Missing required fields' }, 400, corsHeaders);
+  }
+
+  if (!isValidEmail(email)) {
+    return json({ ok: false, error: 'Invalid email address' }, 400, corsHeaders);
   }
 
   if (!env.RESEND_API_KEY || (!env.CONTACT_TO_EMAIL && !env.TO_EMAIL) || (!env.RESEND_FROM_EMAIL && !env.FROM_EMAIL)) {
@@ -796,6 +800,15 @@ async function handleStripeWebhook(request, env, corsHeaders) {
     return json({ ok: true, warning: 'DB binding missing' }, 200, corsHeaders);
   }
 
+  if (event.type === 'checkout.session.expired') {
+    const session = event.data?.object || {};
+    const sessionId = (session.id || '').toString().trim();
+    if (sessionId) {
+      await env.DB.prepare(`DELETE FROM bookings WHERE status = 'pending' AND stripe_session_id = ?1`).bind(sessionId).run();
+    }
+    return json({ ok: true }, 200, corsHeaders);
+  }
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data?.object || {};
     const sessionId = session.id || null;
@@ -1166,6 +1179,12 @@ async function createDownloadTokenForPurchase(env, { itemName, priceId, customer
   const r2Key = (entry?.[1] || '').toString().trim();
   if (!r2Key) return null;
 
+  const r2Object = await env.DOWNLOADS_BUCKET.head(r2Key);
+  if (!r2Object) {
+    console.error('Download file missing from R2 before token creation', { r2Key, itemName, priceId, sessionId });
+    return null;
+  }
+
   const ttlSeconds = Math.max(60, parseInt(env.DOWNLOAD_TOKEN_TTL_SECONDS || '86400', 10) || 86400);
   const maxUses = Math.max(1, parseInt(env.DOWNLOAD_TOKEN_MAX_USES || '3', 10) || 3);
   const token = crypto.randomUUID();
@@ -1505,7 +1524,7 @@ async function hasValidAdminSession(request, env) {
   const [payloadB64, sig] = token.split('.');
   if (!payloadB64 || !sig) return false;
   const expectedSig = await signAdminSession(env, payloadB64);
-  if (!timingSafeEqual(sig, expectedSig)) return false;
+  if (!(await timingSafeEqual(sig, expectedSig))) return false;
   try {
     const payload = JSON.parse(base64UrlDecode(payloadB64));
     return payload?.exp && Number(payload.exp) > Math.floor(Date.now() / 1000);
@@ -4581,4 +4600,8 @@ function escapeHtml(input) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
