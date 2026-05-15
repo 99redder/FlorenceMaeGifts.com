@@ -24,6 +24,7 @@ DOWNLOAD_BASE_URL = "https://www.florencemaegifts.com/api/download"
 DOWNLOAD_TOKEN_TTL_SECONDS = "86400"
 DOWNLOAD_TOKEN_MAX_USES = "3"
 # Sender email must be a verified Resend domain/sender.
+# Optional: set ORDER_EMAIL_ALERT_TO to route failed order-email/download alerts separately; defaults to CONTACT_TO_EMAIL.
 RESEND_FROM_EMAIL = "Florence Mae Gifts <orders@florencemaegifts.com>"
 SUPPORT_EMAIL = "florencemaegifts@outlook.com"
 CONTACT_TO_EMAIL = "contact@florencemaegifts.com"

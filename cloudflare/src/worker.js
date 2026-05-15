@@ -37,6 +37,7 @@
 // Module-level caches — safe because account IDs and setup state are stable within a Worker isolate.
 const _acctIdCache = new Map();
 const _adminAuthFailures = new Map();
+const _contactRateLimits = new Map();
 let _accountingSetupDone = false;
 
 const SECURITY_HEADERS = {
@@ -90,18 +91,23 @@ export default {
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
       const isCheckoutSessionDetailsRead = url.pathname === '/api/checkout-session-details' && request.method === 'GET';
+      const isHealthRead = url.pathname === '/api/health' && request.method === 'GET';
       const isPostRoute = ['/api/contact', '/api/checkout-session', '/api/create-checkout-session'].includes(url.pathname) && request.method === 'POST';
       const isAdminSessionRoute = (url.pathname === '/api/admin/verify-session' && request.method === 'GET')
         || (url.pathname === '/api/admin/login' && request.method === 'POST')
         || (url.pathname === '/api/admin/logout' && request.method === 'POST');
-      if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead && !isAdminSessionRoute) {
+      if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead && !isAdminSessionRoute && !isHealthRead) {
         return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
       }
 
       // Public quote accept/deny, invoice landing, download, and checkout-session-details reads don't require strict origin check.
-      if (!originAllowed && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead) {
+      if (!originAllowed && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead && !isHealthRead) {
         return json({ ok: false, error: 'Origin not allowed' }, 403, corsHeaders);
       }
+    }
+
+    if (url.pathname === '/api/health' && request.method === 'GET') {
+      return json({ ok: true, service: 'fmg-stripe-api' }, 200, corsHeaders);
     }
 
     if (url.pathname === '/api/contact') {
@@ -370,6 +376,9 @@ export default {
  * @returns {Response} {ok: true} or {ok: false, error: string}
  */
 async function handleContact(request, env, corsHeaders) {
+  const limited = checkContactRateLimit(request, corsHeaders);
+  if (limited) return limited;
+
   let data;
   try {
     data = await request.json();
@@ -733,12 +742,12 @@ async function handleStoreCheckoutSession(request, env, corsHeaders, originAllow
   const successUrl = `${siteOrigin}/index.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${siteOrigin}/index.html?checkout=cancel`;
 
+  const isDigitalDownload = hasDownloadFileMapping(env, selectedItemName, priceId);
   const body = new URLSearchParams({
     mode: 'payment',
     success_url: successUrl,
     cancel_url: cancelUrl,
     billing_address_collection: 'required',
-    'shipping_address_collection[allowed_countries][0]': 'US',
     'automatic_tax[enabled]': 'true',
     'line_items[0][price]': priceId,
     'line_items[0][quantity]': '1',
@@ -746,6 +755,10 @@ async function handleStoreCheckoutSession(request, env, corsHeaders, originAllow
     'metadata[price_id]': priceId,
     'metadata[checkout_type]': 'fmg_shop_item'
   });
+
+  if (!isDigitalDownload) {
+    body.set('shipping_address_collection[allowed_countries][0]', 'US');
+  }
 
   const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
@@ -1141,7 +1154,8 @@ async function handleStripeWebhook(request, env, corsHeaders) {
           await sendOrderConfirmationEmail(env, {
             customerEmail,
             customerName,
-            downloadUrl
+            downloadUrl,
+            itemName
           });
         }
       } catch (e) {
@@ -1356,7 +1370,7 @@ async function handleDownload(request, env, corsHeaders) {
   });
 }
 
-async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl }) {
+async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl, itemName }) {
   if (!env.RESEND_API_KEY || !customerEmail) {
     console.error('Order confirmation email skipped: missing Resend API key or customer email');
     return false;
@@ -1373,14 +1387,19 @@ async function sendOrderConfirmationEmail(env, { customerEmail, customerName, do
   const validHours = Math.max(1, Math.round(ttlSeconds / 3600));
   const supportEmail = env.SUPPORT_EMAIL || env.CONTACT_TO_EMAIL || env.TO_EMAIL || 'contact@florencemaegifts.com';
   const safeName = escapeHtml(customerName || 'there');
+  const displayItemName = (itemName || 'your item').toString().replace(/[\r\n]+/g, ' ').trim() || 'your item';
+  const safeItemName = escapeHtml(displayItemName);
   const safeDownloadUrl = downloadUrl ? escapeHtml(downloadUrl) : '';
+  const downloadSection = safeDownloadUrl
+    ? `<p>Download your file here (link valid for ${validHours} hours, up to ${maxUses} downloads):<br><a href="${safeDownloadUrl}">${safeDownloadUrl}</a></p>`
+    : `<p>We received your payment, but your download link could not be generated automatically. Please reply to this email or contact us at ${escapeHtml(supportEmail)} and we’ll send the file manually.</p>`;
   const emailBody = {
     from: fromEmail,
     to: [customerEmail],
-    subject: 'Your Florence Mae Gifts Order Confirmation',
+    subject: `Your Florence Mae Gifts Order Confirmation - ${displayItemName}`,
     html: `<p>Hi ${safeName},</p>
-<p>Thank you for your order! Your payment was successful.</p>
-${safeDownloadUrl ? `<p>Download your file here (link valid for ${validHours} hours, up to ${maxUses} downloads):<br><a href="${safeDownloadUrl}">${safeDownloadUrl}</a></p>` : ''}
+<p>Thank you for your order! Your payment for <strong>${safeItemName}</strong> was successful.</p>
+${downloadSection}
 <p>Questions? Reply to this email or contact us at ${escapeHtml(supportEmail)}.</p>
 <p>— Florence Mae Gifts</p>`
   };
@@ -4581,6 +4600,42 @@ In simple terms: an audit package is a bundled export of business records for re
 }
 
 const ASKK_KNOWLEDGE_BASE = '# Ask K Knowledge Base — FlorenceMaeGifts.com\n\nThis file is the grounded operating context for Ask K inside the Florence Mae Gifts admin panel.\nAsk K should use these facts confidently when they match the user’s question.\nIf the visible UI conflicts with this file, prefer the real visible UI and current code behavior.\n\n## Scope\n\nAsk K is an explain-only assistant for the Florence Mae Gifts admin panel.\nIt helps users understand the site admin, bookkeeping, tax tracking, invoices, quotes, reconciliation, year-end close, and audit package features.\nIt does not perform actions itself.\n\n## Admin tabs\n\n### Stats\n- Purpose: dashboard snapshot and quick business overview.\n- This is not the main place to enter bookkeeping data.\n- If a user asks a tax, invoice, quote, or accounting question while on Stats, answer the real question directly instead of focusing on Stats.\n\n### Tax Ledger\n- Purpose: track business money movement and tax-supporting records.\n- Main actions include:\n  - Add Expense\n  - Add Sale\n  - Import Etsy Sales\n  - Add Income\n  - Add Owner Transfer\n  - Export CSV\n- Use Tax Ledger for day-to-day recordkeeping of money in and money out.\n\n### Accounts\n- Purpose: accounting overview and account-level bookkeeping.\n- Includes balances, account lists, journal entries, statements, invoices, and quotes support.\n- This is where invoice and quote workflows connect to formal accounting records.\n\n### Reconciliation\n- Purpose: compare bookkeeping records to real-world payment/bank/platform activity.\n- Use this after recording transactions to check for missing, duplicated, or mismatched data.\n\n### Quotes\n- Purpose: create, edit, send, review, and convert quotes.\n- Main visible actions include:\n  - Add New Quote\n  - Refresh Quotes\n  - View Quote\n  - Send Quote Email\n  - Edit\n  - Convert to Invoice\n  - Delete\n\n### Invoices\n- Purpose: create, edit, send, track, and collect payment for invoices.\n- Main visible actions include:\n  - Add New Invoice\n  - Refresh Invoices\n  - View Invoice\n  - Send Invoice Email\n  - Edit\n  - Mark Paid\n  - Record Payment\n  - Mark Sent\n  - Copy Payment Link\n  - Refresh Payment Link\n  - Delete\n\n### Year-End Close\n- Purpose: run formal closing workflow after reconciliation is complete for the year.\n- Main action:\n  - Open Year-End Close Wizard\n- Use once per year after books are reviewed and reconciled.\n\n### Audit Package\n- Purpose: create a downloadable ZIP of supporting business/accounting records.\n- Main action:\n  - Open Audit Package Builder\n- Use for accountant handoff, review, or record packaging.\n\n## Tax Ledger workflows\n\n### Add Expense\nExpected use:\n- business money going out\n- supplies, software, fees, shipping costs, tools, subscriptions, etc.\n\nTypical field meaning:\n- Date: when the money was actually spent\n- Vendor: who was paid\n- Category: expense type\n- Amount (USD): amount paid\n- Paid via: payment method\n- Notes: optional extra context\n- Receipt: optional upload, useful for support/documentation\n\n### Add Sale\nExpected use:\n- record a sale and related fees\n- especially useful when tracking channel-level sales activity\n\nTypical field meaning:\n- Date: sale date\n- Item Name: what was sold\n- Channel: Etsy, Website, In Person, or other sales source\n- Sale Amount (USD): gross sale amount\n- Fees: related sale fees such as processing/listing/shipping/marketing\n- Notes: optional details\n\n### Import Etsy Sales\nExpected use:\n- bulk import Etsy sales instead of entering them one by one\n- best when user already has Etsy export data\n\n### Add Income\nExpected use:\n- record money coming into the business that should be tracked as income\n- can include Stripe-linked income or other sources\n\nTypical field meaning:\n- Date: when money was received\n- Source: where income came from\n- Category: income type\n- Amount (USD): amount received\n- Stripe session field: fill when applicable, otherwise may be blank\n- Notes: optional context\n- Owner-funded option: use when owner money is entering business and should not be treated like customer revenue\n\n### Add Owner Transfer\nExpected use:\n- owner money moving into or out of the business\n- not normal customer revenue\n- not normal business operating expense\n\nSimple rule:\n- owner transfer = owner money\n- sale/income = customer/business revenue\n\n### Export CSV\nExpected use:\n- export tax ledger records for reporting, backup, analysis, or accountant review\n\n## Quotes workflow\n\n### Create quote\nQuote creation modal includes:\n- Customer Name (required)\n- Customer Email (required)\n- Customer Phone (optional)\n- Valid Until (defaults to 30 days)\n- Description of work / scope\n- Line items\n\nQuote line items include:\n- item description\n- quantity\n- unit amount\n- line total\n\nQuote actions:\n- create quote\n- view quote\n- send quote email\n- edit quote\n- convert quote to invoice\n- delete quote\n\nImportant rule:\n- a quote is an estimate, not a bill\n- when accepted, it can be converted into an invoice\n\n## Invoice workflow\n\n### Create invoice\nInvoice creation modal includes:\n- Customer Name (required)\n- Customer Email (required)\n- Customer Phone (optional)\n- Due Date (required)\n- Description of work\n- Line items\n\nInvoice line items include:\n- item description\n- quantity\n- unit amount\n- line total\n\nInvoice actions:\n- create invoice\n- view invoice\n- send invoice email\n- edit invoice\n- mark paid\n- record payment\n- mark sent\n- copy payment link\n- refresh payment link\n- delete invoice\n\nImportant rule:\n- an invoice is a bill for payment\n- unlike a quote, it is intended for payment collection\n\n### Payment links\n- invoices can generate or refresh Stripe payment links\n- Copy Payment Link is only available when a payment link exists\n- Refresh Payment Link creates or refreshes the Stripe checkout link for invoice payment\n\n### Record Payment vs Mark Paid\n- Record Payment: use when recording an actual payment amount received\n- Mark Paid: use when invoice is fully paid and should be treated as settled\n- Mark Sent: use when invoice has been sent to the customer\n\n## Quote to invoice conversion\n\nGrounded behavior from worker logic:\n- converting a quote creates a new invoice from quote data\n- quote line items are copied into invoice line items\n- quote status becomes accepted\n- converted invoice id is stored\n- if a stale converted invoice pointer exists, worker attempts recovery and allows fresh conversion\n\nSimple explanation:\n- convert quote = turn approved estimate into real invoice\n\n## Reconciliation\n\nDefinition:\n- reconciliation means checking that business records match actual money activity\n\nUse it to:\n- compare Stripe/bank/platform activity with ledger records\n- spot missing entries\n- spot duplicates\n- spot mismatches\n- clean up books before year-end close\n\n## Year-End Close\n\nGrounded behavior:\n- there is a Year-End Close Wizard modal\n- user opens it from the Year-End Close section\n- workflow is intended to be used once per year after final reconciliation\n- it creates formal closing entries\n\nPlain-English explanation:\n- year-end close wraps up one accounting year so the next one starts cleanly\n\n## Audit Package\n\nGrounded behavior:\n- there is an Audit Package modal/builder\n- it builds a downloadable ZIP package\n- intended for grouped business/accounting records\n\nUse it for:\n- accountant handoff\n- document packaging\n- business record review\n- backup/export support\n\n## Worker/API grounding\n\nThe admin worker supports these real endpoint families:\n- `/api/tax/*`\n- `/api/accounts/*`\n- `/api/admin/ask-k`\n- `/api/admin/ask-k/escalate`\n- `/api/quote/accept`\n- `/api/quote/deny`\n- invoice payment success/cancel pages\n\nThis means Ask K can speak confidently about these workflows existing in the system:\n- expense/income/owner-transfer CRUD\n- receipt upload\n- CSV export\n- chart of accounts / balances / journal entries / statements\n- invoices create/update/status/payment/payment-link/send/delete\n- quotes create/update/send/convert/delete\n- year-end close\n- public quote accept/deny\n\n## Confidence rules for Ask K\n\nWhen these facts are covered in this file or visible in the UI, avoid weak phrases like:\n- “it should be”\n- “you may see”\n- “probably”\n- “something like”\n\nPrefer grounded phrasing like:\n- “Use the Tax Ledger tab to…”\n- “The Invoices area includes…”\n- “The Quote screen lets you…”\n- “Use Convert to Invoice when…”\n- “The Year-End Close section is for…”\n\n## Answer style rules\n\n- Question intent beats current tab.\n- Use current tab/UI as helper context, not the boss.\n- If user asks a tax/accounting/invoice/quote question from another tab, answer the actual question first.\n- Be detailed, step-by-step, and beginner-friendly.\n- Define jargon simply.\n- If relevant, end with “In simple terms” or “What to do next.”\n';
+
+function checkContactRateLimit(request, corsHeaders) {
+  const ip = (request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown')
+    .split(',')[0]
+    .trim() || 'unknown';
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  for (const [key, entry] of _contactRateLimits) {
+    if (!entry?.expiresAt || entry.expiresAt <= now) _contactRateLimits.delete(key);
+  }
+  const existing = _contactRateLimits.get(ip);
+  const current = existing && existing.expiresAt > now ? existing : { count: 0, expiresAt: now + windowMs };
+  current.count += 1;
+  current.expiresAt = current.expiresAt || (now + windowMs);
+  _contactRateLimits.set(ip, current);
+  if (current.count > 10) {
+    return json({ ok: false, error: 'Too many contact requests. Please try again later.' }, 429, {
+      ...corsHeaders,
+      'Retry-After': String(Math.ceil((current.expiresAt - now) / 1000))
+    });
+  }
+  return null;
+}
+
+function hasDownloadFileMapping(env, itemName, priceId) {
+  try {
+    const fileMap = JSON.parse(env.DOWNLOAD_FILE_MAP || '{}') || {};
+    const lookupKeys = [itemName, priceId]
+      .map((v) => (v || '').toString().trim().toLowerCase())
+      .filter(Boolean);
+    return Object.entries(fileMap).some(([name]) => lookupKeys.includes(name.toString().trim().toLowerCase()));
+  } catch (e) {
+    console.error('Invalid DOWNLOAD_FILE_MAP JSON', e);
+    return false;
+  }
+}
 
 function json(payload, status = 200, headers = {}) {
   return new Response(JSON.stringify(payload), {
