@@ -8,7 +8,7 @@ database_name = "florence-mae-gifts-admin"
 database_id = "381735a9-b25c-4f5d-9e21-24db3b997d10"
 
 [vars]
-ALLOWED_ORIGIN = "https://www.florencemaegifts.com"
+ALLOWED_ORIGINS = "https://www.florencemaegifts.com"
 
 # Required secrets (set via `wrangler secret put`): RESEND_API_KEY, ADMIN_PASS (or legacy ADMIN_PASSWORD), ADMIN_SESSION_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 # Optional admin username secret: ADMIN_USER (defaults to "admin" if omitted)
@@ -17,8 +17,6 @@ ALLOWED_ORIGIN = "https://www.florencemaegifts.com"
 # ITEM_PRICE_MAP = '{"Example Item":"price_..."}'
 # Map digital item names to private R2 object keys for one-time download links.
 DOWNLOAD_FILE_MAP = '{"Four Star Ball Crochet Baby Hat Pattern - Beginner Level (PDF Download Only)":"four-star-ball-crochet-baby-hat-pattern.pdf","Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)":"crochet-baby-hat-pattern-five-point-design.pdf","Gohan Inspired Hat Pattern - Beginner Level (PDF Download Only)":"four-star-ball-crochet-baby-hat-pattern.pdf","Goku Inpsired Baby Hat Pattern - Beginner Level (PDF Download Only)":"crochet-baby-hat-pattern-five-point-design.pdf","Goku Inspired Baby Hat Pattern - Beginner Level (PDF Download Only)":"crochet-baby-hat-pattern-five-point-design.pdf"}'
-# Legacy fallback map (optional) for immediate in-browser success modal link.
-DOWNLOAD_LINK_MAP = '{}'
 # One-time link settings.
 DOWNLOAD_BASE_URL = "https://www.florencemaegifts.com/api/download"
 DOWNLOAD_TOKEN_TTL_SECONDS = "86400"

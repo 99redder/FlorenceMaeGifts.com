@@ -28,7 +28,7 @@
 // POST /api/accounts/journal    → handleAccountsJournalCreate() — Admin: manual journal entry
 //
 // ===== UTILITY FUNCTIONS =====
-// requireAdmin(request, env)           — Validate signed HttpOnly admin session cookie (legacy X-Admin-Password fallback)
+// requireAdmin(request, env)           — Validate signed HttpOnly admin session cookie
 // toCents(v)                           — Convert dollar string to integer cents
 // csvEscape(s)                         — Escape string for CSV output
 // verifyStripeSignature(payload, sig, secret) — HMAC-SHA256 Stripe webhook verification
@@ -67,7 +67,7 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': allowAll ? '*' : (originAllowed ? origin : allowedOrigins[0] || ''),
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
+      'Access-Control-Allow-Headers': 'Content-Type',
       ...(allowAll ? {} : { 'Access-Control-Allow-Credentials': 'true' }),
       'Vary': 'Origin'
     };
@@ -359,7 +359,7 @@ export default {
       const corsHeaders = {
         'Access-Control-Allow-Origin': allowAll ? '*' : (originAllowed ? origin : allowedOrigins[0] || ''),
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
+        'Access-Control-Allow-Headers': 'Content-Type',
         ...(allowAll ? {} : { 'Access-Control-Allow-Credentials': 'true' }),
         'Vary': 'Origin'
       };
@@ -1491,11 +1491,6 @@ function handleAdminLogout(corsHeaders) {
 
 async function requireAdmin(request, env, corsHeaders, url) {
   if (await hasValidAdminSession(request, env)) return { ok: true };
-
-  // Legacy fallback for scripts or cached old admin pages. New UI uses the HttpOnly session cookie only.
-  const legacy = (request.headers.get('X-Admin-Password') || url?.searchParams?.get('key2') || '').trim();
-  if (legacy) return requireAdminPassword(request, env, corsHeaders, legacy);
-
   return { ok: false, res: json({ ok: false, error: 'Unauthorized' }, 401, corsHeaders) };
 }
 
@@ -1564,8 +1559,8 @@ async function createAdminSessionCookie(env) {
 }
 
 async function signAdminSession(env, payloadB64) {
-  const secret = (env.ADMIN_SESSION_SECRET || env.ADMIN_PASS || env.ADMIN_PASSWORD || '').trim();
-  if (!secret) return '';
+  const secret = (env.ADMIN_SESSION_SECRET || '').trim();
+  if (!secret) throw new Error('ADMIN_SESSION_SECRET is not configured');
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payloadB64));
   return b64urlBytes(new Uint8Array(sig));
@@ -3815,18 +3810,25 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
   await env.DB.prepare(`UPDATE quotes SET status = 'accepted', accepted_at = datetime('now'), converted_invoice_id = ?1, updated_at = datetime('now') WHERE id = ?2`).bind(invoiceId, quote.id).run();
 
   // Auto-generate payment link + send invoice email to customer (pay-first flow)
+  let acceptDeliveryError = null;
   try {
     const customerEmail = (quote.customer_email || '').toString().trim();
     const fromEmail = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
-    if (env.STRIPE_SECRET_KEY && env.RESEND_API_KEY && fromEmail && customerEmail) {
-      const requestBase = new URL(request.url).origin.replace(/\/$/, '');
-      const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${requestBase}/invoice/payment-success`).replace(/\/$/, '');
-      const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${requestBase}/invoice/payment-cancelled`).replace(/\/$/, '');
-      const balanceDueCents = Math.max(0, Number(total || 0));
-      let paymentUrl = '';
-      let sessionId = '';
+    const requestBase = new URL(request.url).origin.replace(/\/$/, '');
+    const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${requestBase}/invoice/payment-success`).replace(/\/$/, '');
+    const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${requestBase}/invoice/payment-cancelled`).replace(/\/$/, '');
+    const balanceDueCents = Math.max(0, Number(total || 0));
+    if (!env.RESEND_API_KEY || !fromEmail || !customerEmail) {
+      throw new Error('Invoice email is not configured');
+    }
+    if (balanceDueCents > 0 && !env.STRIPE_SECRET_KEY) {
+      throw new Error('Stripe payment links are not configured');
+    }
 
-      if (balanceDueCents > 0) {
+    let paymentUrl = '';
+    let sessionId = '';
+
+    if (balanceDueCents > 0) {
         const form = new URLSearchParams();
         form.append('mode', 'payment');
         form.append('success_url', `${successBase}?invoice_id=${encodeURIComponent(String(invoiceId))}`);
@@ -3912,8 +3914,8 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
         const resendText = await resendRes.text().catch(() => '');
         throw new Error(`Invoice email failed: ${resendRes.status} ${resendText}`.trim());
       }
-    }
   } catch (e) {
+    acceptDeliveryError = e;
     console.error('Quote accept invoice/payment email failed', e);
   }
 
@@ -3921,14 +3923,14 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
   const notifyTo = (env.TO_EMAIL || env.CONTACT_TO_EMAIL || '').toString().trim();
   const notifyFrom = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
   if (env.RESEND_API_KEY && notifyTo && notifyFrom) {
-    const notifyHtml = `<div style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#059669;">Quote Accepted!</h2><p><strong>Quote:</strong> ${escapeHtml(quote.quote_number || `Q-${quote.id}`)}</p><p><strong>Customer:</strong> ${escapeHtml(quote.customer_name)} (${escapeHtml(quote.customer_email)})</p><p><strong>Total:</strong> ${formatUsd(total)}</p><p><strong>Invoice Created:</strong> ${invoiceNumber} (invoice email/payment link sent when configured)</p><p>Log in to the admin panel to review the invoice.</p></div>`;
+    const notifyHtml = `<div style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#059669;">Quote Accepted!</h2><p><strong>Quote:</strong> ${escapeHtml(quote.quote_number || `Q-${quote.id}`)}</p><p><strong>Customer:</strong> ${escapeHtml(quote.customer_name)} (${escapeHtml(quote.customer_email)})</p><p><strong>Total:</strong> ${formatUsd(total)}</p><p><strong>Invoice Created:</strong> ${invoiceNumber}</p>${acceptDeliveryError ? `<p style="color:#dc2626;"><strong>Customer invoice delivery failed:</strong> ${escapeHtml(acceptDeliveryError.message || String(acceptDeliveryError))}</p>` : '<p>Invoice email/payment link sent when configured.</p>'}<p>Log in to the admin panel to review the invoice.</p></div>`;
 
     const notifyPayload = {
       from: notifyFrom,
       to: [notifyTo],
       subject: `Quote ${quote.quote_number || `Q-${quote.id}`} Accepted by ${quote.customer_name}`,
       html: notifyHtml,
-      text: `Quote Accepted!\n\nQuote: ${quote.quote_number || `Q-${quote.id}`}\nCustomer: ${quote.customer_name} (${quote.customer_email})\nTotal: ${formatUsd(total)}\nInvoice Created: ${invoiceNumber} (invoice email/payment link sent when configured)\n\nLog in to the admin panel to review the invoice.`
+      text: `Quote Accepted!\n\nQuote: ${quote.quote_number || `Q-${quote.id}`}\nCustomer: ${quote.customer_name} (${quote.customer_email})\nTotal: ${formatUsd(total)}\nInvoice Created: ${invoiceNumber}${acceptDeliveryError ? `\nCustomer invoice delivery failed: ${acceptDeliveryError.message || String(acceptDeliveryError)}` : `\nInvoice email/payment link sent when configured.`}\n\nLog in to the admin panel to review the invoice.`
     };
     if (env.CC_EMAIL) notifyPayload.cc = [env.CC_EMAIL];
 
@@ -3937,6 +3939,10 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(notifyPayload)
     }).catch(() => {});
+  }
+
+  if (acceptDeliveryError) {
+    return new Response(htmlPage('Quote Accepted — Follow-Up Needed', 'Quote Accepted', "Your quote was accepted, but we could not generate or send the invoice/payment email automatically. Please contact us and we’ll send the payment details manually.", false), { status: 502, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
   }
 
   return new Response(htmlPage('Quote Accepted', 'Thank You!', "Your quote has been accepted. Please check your email inbox for your invoice and payment details.", true), { status: 200, headers: withSecurityHeaders({ 'Content-Type': 'text/html' }) });
