@@ -1397,12 +1397,17 @@ async function sendOrderConfirmationEmail(env, { customerEmail, customerName, do
     from: fromEmail,
     to: [customerEmail],
     subject: `Your Florence Mae Gifts Order Confirmation - ${displayItemName}`,
+    reply_to: supportEmail,
     html: `<p>Hi ${safeName},</p>
 <p>Thank you for your order! Your payment for <strong>${safeItemName}</strong> was successful.</p>
 ${downloadSection}
 <p>Questions? Reply to this email or contact us at ${escapeHtml(supportEmail)}.</p>
 <p>— Florence Mae Gifts</p>`
   };
+  const adminBcc = (env.ORDER_EMAIL_BCC || env.ORDER_EMAIL_ALERT_TO || env.CONTACT_TO_EMAIL || env.TO_EMAIL || '').toString().trim();
+  if (adminBcc && adminBcc.toLowerCase() !== customerEmail.toLowerCase()) {
+    emailBody.bcc = [adminBcc];
+  }
 
   try {
     const resendRes = await fetch('https://api.resend.com/emails', {
