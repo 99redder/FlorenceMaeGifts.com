@@ -397,7 +397,7 @@ async function handleContact(request, env, corsHeaders) {
     return json({ ok: true }, 200, corsHeaders);
   }
 
-  if (!name || !email) {
+  if (!name || !email || !message) {
     return json({ ok: false, error: 'Missing required fields' }, 400, corsHeaders);
   }
 
@@ -730,6 +730,9 @@ async function handleStoreCheckoutSession(request, env, corsHeaders, originAllow
   }
 
   const allowedPriceIds = parseAllowedPriceIds(env.STORE_ALLOWED_PRICE_IDS);
+  if (!allowedPriceIds.size) {
+    return json({ ok: false, error: 'Store checkout is not configured' }, 500, corsHeaders);
+  }
   if (!allowedPriceIds.has(priceId)) {
     return json({ ok: false, error: 'Unknown Stripe price id.' }, 400, corsHeaders);
   }
@@ -1371,8 +1374,16 @@ async function handleDownload(request, env, corsHeaders) {
 }
 
 async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl, itemName }) {
-  if (!env.RESEND_API_KEY || !customerEmail) {
-    console.error('Order confirmation email skipped: missing Resend API key or customer email');
+  if (!env.RESEND_API_KEY) {
+    console.error('Order confirmation email skipped: missing Resend API key');
+    return false;
+  }
+  if (!customerEmail) {
+    console.error('Order confirmation email skipped: missing customer email');
+    await alertOrderEmailFailure(env, {
+      customerEmail,
+      detail: `Paid order has no customer email; confirmation/download email was not sent. Item: ${itemName || 'n/a'}`
+    });
     return false;
   }
 
@@ -1464,6 +1475,9 @@ async function handleAdminLogin(request, env, corsHeaders) {
   if (!expectedPass) {
     return json({ ok: false, error: 'Admin credentials not configured' }, 500, corsHeaders);
   }
+  if (!(env.ADMIN_SESSION_SECRET || '').trim()) {
+    return json({ ok: false, error: 'Admin session secret not configured' }, 500, corsHeaders);
+  }
 
   const ip = getClientIp(request);
   const limited = recordFailedAdminAttempt(ip, false);
@@ -1495,6 +1509,9 @@ function handleAdminLogout(corsHeaders) {
 }
 
 async function requireAdmin(request, env, corsHeaders, url) {
+  if (!(env.ADMIN_SESSION_SECRET || '').trim()) {
+    return { ok: false, res: json({ ok: false, error: 'Admin session secret not configured' }, 500, corsHeaders) };
+  }
   if (await hasValidAdminSession(request, env)) return { ok: true };
   return { ok: false, res: json({ ok: false, error: 'Unauthorized' }, 401, corsHeaders) };
 }
@@ -3258,7 +3275,7 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
-  const fromEmailEnv = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+  const fromEmailEnv = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
   if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
 
   let data;
@@ -3287,8 +3304,8 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
   const paymentUrl = (invoice.stripe_checkout_url || '').toString().trim();
   const hasPaymentLink = !!paymentUrl && balanceDueCents > 0 && !['paid','void'].includes(String(invoice.status || '').toLowerCase());
   const payButtonHtml = hasPaymentLink ? `<div style="margin:18px 0 12px;text-align:center;"><a href="${escapeHtml(paymentUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">Pay Invoice Securely</a><div style="margin-top:8px;font-size:12px;color:#6b7280;">Secure checkout powered by Stripe</div></div>` : '';
-  const fromEmail = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
-  const replyToEmail = (env.CC_EMAIL || env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+  const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
+  const replyToEmail = (env.CC_EMAIL || env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
 
   const itemRowsHtml = items.map((item) => {
     const desc = escapeHtml(item.item_description || 'Service');
@@ -3566,7 +3583,7 @@ async function handleQuoteSend(request, env, corsHeaders, url) {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
-  const fromEmailEnv = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+  const fromEmailEnv = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
   if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
 
   let data;
@@ -3589,7 +3606,7 @@ async function handleQuoteSend(request, env, corsHeaders, url) {
   const subtotalCents = Number(quote.subtotal_cents || 0);
   const totalCents = Number(quote.total_cents || 0);
   const notes = (quote.notes || '').toString().trim();
-  const fromEmail = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+  const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
 
   const baseUrl = new URL(request.url).origin;
   const acceptUrl = `${baseUrl}/api/quote/accept?token=${encodeURIComponent(quote.accept_token)}`;
@@ -3818,7 +3835,7 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
   let acceptDeliveryError = null;
   try {
     const customerEmail = (quote.customer_email || '').toString().trim();
-    const fromEmail = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
+    const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
     const requestBase = new URL(request.url).origin.replace(/\/$/, '');
     const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${requestBase}/invoice/payment-success`).replace(/\/$/, '');
     const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${requestBase}/invoice/payment-cancelled`).replace(/\/$/, '');
