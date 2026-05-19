@@ -662,7 +662,7 @@ async function handleCheckoutSession(request, env, corsHeaders, originAllowed, a
     body: body.toString()
   });
 
-  const stripeData = await stripeRes.json();
+  const stripeData = await stripeRes.json().catch(() => ({}));
   if (!stripeRes.ok) {
     return json({ ok: false, error: 'Stripe session failed', detail: stripeData }, 502, corsHeaders);
   }
@@ -812,7 +812,27 @@ async function handleStripeWebhook(request, env, corsHeaders) {
   }
 
   if (!env.DB) {
-    // Still ack so Stripe doesn't keep retrying if DB isn't bound yet.
+    const session = event.data?.object || {};
+    if (event.type === 'checkout.session.completed') {
+      const checkoutType = (session.metadata?.checkout_type || '').toString().trim().toLowerCase();
+      const itemName = (session.metadata?.item_name || session.metadata?.selectedItemName || '').toString().trim();
+      const priceId = (session.metadata?.price_id || '').toString().trim();
+      const isFmgShopItem = checkoutType === 'fmg_shop_item' || !!itemName;
+      if (isFmgShopItem && hasDownloadFileMapping(env, itemName, priceId)) {
+        await fulfillFmgShopOrder(env, {
+          sessionId: (session.id || '').toString().trim(),
+          itemName,
+          priceId,
+          customerEmail: session.customer_details?.email || session.customer_email || null,
+          customerName: session.metadata?.customer_name || session.customer_details?.name || null
+        });
+      }
+    }
+    await alertFmgOperationalFailure(env, {
+      subject: '[ACTION NEEDED] FMG Stripe webhook DB binding missing',
+      detail: 'A Stripe webhook was acknowledged while the D1 DB binding was missing. Review Stripe and D1 manually.',
+      session
+    });
     return json({ ok: true, warning: 'DB binding missing' }, 200, corsHeaders);
   }
 
@@ -938,11 +958,11 @@ async function handleStripeWebhook(request, env, corsHeaders) {
     const itemName = (session.metadata?.item_name || session.metadata?.selectedItemName || '').toString().trim();
     const priceId = (session.metadata?.price_id || '').toString().trim();
     const isFmgShopItem = checkoutType === 'fmg_shop_item' || !!itemName;
+    const isDigitalDownload = isFmgShopItem && hasDownloadFileMapping(env, itemName, priceId);
     const incomeCategory = isFmgShopItem ? 'Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'AI Lessons' : 'OpenClaw Setup');
     const incomeSource = isFmgShopItem ? 'Stripe - Florence Mae Gifts Shop' : (serviceType === 'lessons' ? 'Stripe - Lessons' : 'Stripe');
     const amount = Number(session.amount_total ?? 0);
     let downloadUrl = null;
-    let shouldSendOrderConfirmation = false;
 
     if (sessionId) {
       try {
@@ -1042,7 +1062,6 @@ async function handleStripeWebhook(request, env, corsHeaders) {
           ? `Auto-imported from Stripe checkout (${itemName || serviceLabel || incomeCategory}) for ${customerName}`
           : `Auto-imported from Stripe checkout (${itemName || serviceLabel || incomeCategory})`;
         let incomeId = Number(existingIncome?.id || 0) || null;
-        const isNewIncome = !incomeId;
         if (!incomeId) {
           const ins = await env.DB.prepare(
             `INSERT INTO tax_income (
@@ -1058,6 +1077,16 @@ async function handleStripeWebhook(request, env, corsHeaders) {
           ).run();
           incomeId = Number(ins.meta?.last_row_id || 0) || null;
         }
+        if (isDigitalDownload) {
+          downloadUrl = await fulfillFmgShopOrder(env, {
+            sessionId,
+            itemName,
+            priceId,
+            customerEmail,
+            customerName
+          });
+        }
+
         if (incomeId) {
           await upsertTaxIncomeJournal(env.DB, {
             id: incomeId,
@@ -1068,20 +1097,6 @@ async function handleStripeWebhook(request, env, corsHeaders) {
             notes: incomeNotes
           });
         }
-
-        if (isNewIncome && isFmgShopItem) {
-          try {
-            downloadUrl = await createDownloadTokenForPurchase(env, {
-              itemName,
-              priceId,
-              customerEmail,
-              sessionId
-            });
-          } catch (e) {
-            console.error('Download token generation failed', e);
-          }
-        }
-        shouldSendOrderConfirmation = isNewIncome && isFmgShopItem;
 
         // Clean up stale pending rows for same slot(s) after successful payment
         if (!isFmgShopItem) {
@@ -1146,29 +1161,64 @@ async function handleStripeWebhook(request, env, corsHeaders) {
         } catch (e) {
           console.error('Stripe fee expense insert failed; continuing webhook delivery flow', e);
         }
-
-        if (shouldSendOrderConfirmation) {
-          if (!downloadUrl) {
-            await alertOrderEmailFailure(env, {
-              customerEmail,
-              detail: `Digital download token generation failed for paid order. session_id=${sessionId || 'n/a'}, item=${itemName || 'n/a'}, price_id=${priceId || 'n/a'}`
-            });
-          }
-          await sendOrderConfirmationEmail(env, {
-            customerEmail,
-            customerName,
-            downloadUrl,
-            itemName
-          });
-        }
       } catch (e) {
         console.error('Stripe webhook DB write failed', e);
-        return json({ ok: false, error: `Webhook DB write failed: ${e?.message || e}` }, 500, corsHeaders);
+        if (isDigitalDownload) {
+          downloadUrl = await fulfillFmgShopOrder(env, {
+            sessionId,
+            itemName,
+            priceId,
+            customerEmail,
+            customerName
+          }).catch((fulfillErr) => {
+            console.error('FMG shop fulfillment recovery failed', fulfillErr);
+            return null;
+          });
+        }
+        await alertFmgOperationalFailure(env, {
+          subject: '[ACTION NEEDED] FMG Stripe webhook DB write failed',
+          detail: `A paid Stripe checkout could not be fully written to D1. Stripe was acknowledged to avoid duplicate retry side effects. Fulfillment recovery ${downloadUrl ? 'created or found a download link' : 'did not create a download link'}. Error: ${e?.message || e}`,
+          session
+        });
+        return json({ ok: true, warning: `Webhook DB write failed: ${e?.message || e}` }, 200, corsHeaders);
       }
     }
   }
 
   return json({ ok: true }, 200, corsHeaders);
+}
+
+async function fulfillFmgShopOrder(env, { sessionId, itemName, priceId, customerEmail, customerName }) {
+  if (!sessionId) return null;
+  if (await hasOrderConfirmationBeenSent(env, sessionId)) return await getDownloadUrlForSession(env, sessionId);
+
+  let downloadUrl = null;
+  try {
+    downloadUrl = await createDownloadTokenForPurchase(env, {
+      itemName,
+      priceId,
+      customerEmail,
+      sessionId
+    });
+  } catch (e) {
+    console.error('Download token generation failed', e);
+  }
+
+  if (!downloadUrl) {
+    await alertOrderEmailFailure(env, {
+      customerEmail,
+      detail: `Digital download token generation failed for paid order. session_id=${sessionId || 'n/a'}, item=${itemName || 'n/a'}, price_id=${priceId || 'n/a'}`
+    });
+  }
+
+  const sent = await sendOrderConfirmationEmail(env, {
+    customerEmail,
+    customerName,
+    downloadUrl,
+    itemName
+  });
+  if (sent) await markOrderConfirmationSent(env, sessionId);
+  return downloadUrl;
 }
 
 async function createDownloadTokenForPurchase(env, { itemName, priceId, customerEmail, sessionId }) {
@@ -1253,6 +1303,27 @@ async function getDownloadUrlForSession(env, sessionId) {
     return buildDownloadUrl(env, token);
   } catch {
     return null;
+  }
+}
+
+async function hasOrderConfirmationBeenSent(env, sessionId) {
+  if (!env.DOWNLOAD_TOKENS || !sessionId) return false;
+  try {
+    return !!(await env.DOWNLOAD_TOKENS.get(`order-confirmation-sent:${sessionId}`));
+  } catch {
+    return false;
+  }
+}
+
+async function markOrderConfirmationSent(env, sessionId) {
+  if (!env.DOWNLOAD_TOKENS || !sessionId) return;
+  try {
+    const ttlSeconds = Math.max(7 * 24 * 60 * 60, parseInt(env.DOWNLOAD_TOKEN_TTL_SECONDS || '86400', 10) || 86400);
+    await env.DOWNLOAD_TOKENS.put(`order-confirmation-sent:${sessionId}`, JSON.stringify({ sentAt: Date.now() }), {
+      expirationTtl: ttlSeconds
+    });
+  } catch (e) {
+    console.error('Order confirmation sent marker failed', e);
   }
 }
 
@@ -1456,6 +1527,38 @@ async function alertOrderEmailFailure(env, { customerEmail, detail }) {
       html: `<p>An order confirmation email failed.</p><p><strong>Customer:</strong> ${escapeHtml(customerEmail || '(missing)')}</p><p><strong>Error:</strong> ${escapeHtml(detail || 'Unknown error')}</p>`
     })
   }).catch((e) => console.error('Order confirmation failure alert failed', e));
+}
+
+async function alertFmgOperationalFailure(env, { subject, detail, session }) {
+  const alertTo = (env.ORDER_EMAIL_ALERT_TO || env.CONTACT_TO_EMAIL || env.TO_EMAIL || '').toString().trim();
+  const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
+  if (!env.RESEND_API_KEY || !alertTo || !fromEmail) return;
+
+  const metadata = session?.metadata || {};
+  const customerEmail = session?.customer_details?.email || session?.customer_email || '';
+  const lines = [
+    detail || 'FMG worker operational failure.',
+    '',
+    `Stripe session: ${(session?.id || '').toString() || 'n/a'}`,
+    `Payment intent: ${(session?.payment_intent || '').toString() || 'n/a'}`,
+    `Customer: ${(session?.customer_details?.name || metadata.customer_name || '').toString() || '(not provided)'}`,
+    `Email: ${customerEmail || '(not provided)'}`,
+    `Checkout type: ${(metadata.checkout_type || '').toString() || '(not provided)'}`,
+    `Item: ${(metadata.item_name || metadata.selectedItemName || '').toString() || '(not provided)'}`,
+    `Price ID: ${(metadata.price_id || '').toString() || '(not provided)'}`,
+    `Amount: ${formatUsd(Number(session?.amount_total || 0))}`
+  ];
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: [alertTo],
+      subject: subject || '[ACTION NEEDED] FMG worker alert',
+      text: lines.join('\n')
+    })
+  }).catch((e) => console.error('FMG operational alert failed', e));
 }
 
 // ===== Utility Functions =====
