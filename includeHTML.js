@@ -11,24 +11,6 @@
 */
 
 
-function runIncludedScripts(container) {
-  var scripts = container.getElementsByTagName("script");
-  var i;
-  for (i = 0; i < scripts.length; i++) {
-    var oldScript = scripts[i];
-    var newScript = document.createElement("script");
-    var j;
-
-    for (j = 0; j < oldScript.attributes.length; j++) {
-      var attr = oldScript.attributes[j];
-      newScript.setAttribute(attr.name, attr.value);
-    }
-
-    newScript.text = oldScript.text || oldScript.textContent || "";
-    oldScript.parentNode.replaceChild(newScript, oldScript);
-  }
-}
-
 function includeHTML() {
   var z, i, elmnt, file, xhttp;
   /*loop through a collection of all HTML elements:*/
@@ -43,10 +25,14 @@ function includeHTML() {
       xhttp.onreadystatechange = function() {
         if (this.readyState == 4) {
           if (this.status == 200) {
-            elmnt.innerHTML = this.responseText;
-            runIncludedScripts(elmnt);
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(this.responseText, "text/html");
+            doc.querySelectorAll("script").forEach(function(script) {
+              script.remove();
+            });
+            elmnt.replaceChildren.apply(elmnt, Array.prototype.slice.call(doc.body.childNodes));
           }
-          if (this.status == 404) {elmnt.innerHTML = "Page not found.";}
+          if (this.status == 404) {elmnt.textContent = "Page not found.";}
           /*remove the attribute, and call this function once more:*/
           elmnt.removeAttribute("w3-include-html");
           includeHTML();

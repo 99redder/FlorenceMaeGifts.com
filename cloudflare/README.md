@@ -5,6 +5,10 @@
 - `npm i -g wrangler`
 - `wrangler login`
 
+## 1.5) Create local Wrangler config
+
+Copy `cloudflare/wrangler.toml.example` to `cloudflare/wrangler.toml` and fill in your Cloudflare resource IDs before deploying. The real `wrangler.toml` is ignored by git so production infrastructure IDs are not committed.
+
 ## 2) Set secrets
 
 - `wrangler secret put STRIPE_SECRET_KEY`

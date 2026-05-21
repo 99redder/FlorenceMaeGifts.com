@@ -5,7 +5,7 @@ compatibility_date = "2026-02-12"
 [[d1_databases]]
 binding = "DB"
 database_name = "florence-mae-gifts-admin"
-database_id = "381735a9-b25c-4f5d-9e21-24db3b997d10"
+database_id = "YOUR_D1_DATABASE_ID_HERE"
 
 [vars]
 ALLOWED_ORIGINS = "https://www.florencemaegifts.com"
@@ -29,12 +29,12 @@ CONTACT_TO_EMAIL = "contact@florencemaegifts.com"
 
 [[r2_buckets]]
 binding = "DOWNLOADS_BUCKET"
-bucket_name = "fmg"
+bucket_name = "YOUR_DOWNLOADS_R2_BUCKET_NAME_HERE"
 
 [[r2_buckets]]
 binding = "RECEIPTS"
-bucket_name = "fmg-receipts"
+bucket_name = "YOUR_RECEIPTS_R2_BUCKET_NAME_HERE"
 
 [[kv_namespaces]]
 binding = "DOWNLOAD_TOKENS"
-id = "7350d3bd812644928452170df7b380ec"
+id = "YOUR_KV_NAMESPACE_ID_HERE"
