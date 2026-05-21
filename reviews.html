@@ -24,6 +24,7 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none';">
 
   <!--Fonts-->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,25 +35,20 @@
   <!--Style Sheets-->
   <link href="fmg.css" type="text/css" rel="stylesheet">
   <link href="logo-font/logo-font.css" type="text/css" rel="stylesheet">
+  <link href="fontawesome-fallback.css" type="text/css" rel="stylesheet">
 
   <!--Favorites Icon-->
   <link rel="icon" href="images/favicon.png">
-  
-  <!---Font Awesome Script-->
-  <script src="https://kit.fontawesome.com/aeba1ec76b.js" crossorigin="anonymous"></script>
-
-  <!---The JavaScript source doe for the theme functions setDefaultTheme and setSelectedTheme-->
-  <script src="theme.js"></script>
-  
-  <!---The JavaScript source code for the include HTML function-->
-  <script src="includeHTML.js"></script>
+  <script src="includeHTML.js" defer></script>
+  <script src="site.js" defer></script>
+  <script src="footer.js" defer></script>
 
 </head>
 
 <body class="light-theme">
 
 <!-- Creates the icon and adds the onclick functionality for changing between themes-->
-<i onclick="toggleMode(this)" id="icon-mode" class="fa fa-toggle-off pull-right" style="font-size: 20px;"><span id="icon-text" class="toggle"></span></i><br><br>
+<i id="icon-mode" class="fa fa-toggle-off pull-right" style="font-size: 20px;" role="button" tabindex="0" aria-label="Toggle color theme"><span id="icon-text" class="toggle"></span></i><br><br>
 
 <div w3-include-html="header.html" class="header"></div>
 
@@ -72,47 +68,5 @@
   </main>
 
   <div w3-include-html="footer.html" class="stuff-centered"></div>  
-
-  
-<script>
-  // sets a default theme; this code needs to be first
-  setDefaultTheme();
-
-  // the function which will toggle between the two different themes
-  function toggleMode(x)
-  {
-      let colorTheme = document.body.classList; // establishes the variable that holds the body CSS class
-      let iconMode = x.classList; // gets the classes 
-
-      // if the value shows light, update the preference in storage
-      if (colorTheme.value === "light-theme")
-      {
-          localStorage.clear();
-          localStorage.setItem("mode", "dark-theme");
-          localStorage.setItem("iconMode", "fa-toggle-on");
-          localStorage.setItem("iconText", "Dark Mode");
-      }
-      
-      else
-      {
-          localStorage.clear();
-          localStorage.setItem("mode", "light-theme");
-          localStorage.setItem("iconMode", "fa-toggle-off");
-          localStorage.setItem("iconText", "Light Mode");
-      }
-
-      // applies the updated selection
-      colorTheme.value = localStorage.getItem("mode");
-      iconMode.value = `fa ${localStorage.getItem("iconMode")} pull-right`;
-      document.getElementById("icon-text").innerHTML = localStorage.getItem("iconText");
-  }
-
-// allows for the import of the html files
-includeHTML();
-
-</script>
-
-
-
 </body>
 </html>

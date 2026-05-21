@@ -33,6 +33,7 @@
 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none';">
 
   <!--Fonts-->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -43,42 +44,20 @@
   <!--Style Sheets-->
   <link href="fmg.css" type="text/css" rel="stylesheet">
   <link href="logo-font/logo-font.css" type="text/css" rel="stylesheet">
+  <link href="fontawesome-fallback.css" type="text/css" rel="stylesheet">
 
   <!--Favorites Icon-->
   <link rel="icon" href="images/favicon.png">
-  
-  <!---Font Awesome Script-->
-  <script src="https://kit.fontawesome.com/aeba1ec76b.js" crossorigin="anonymous"></script>
-
-  <!---The JavaScript source doe for the theme functions setDefaultTheme and setSelectedTheme-->
-  <script src="theme.js"></script>
-  
-  <!---The JavaScript source code for the include HTML function-->
-  <script src="includeHTML.js"></script>
-
-
-
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Store",
-    "name": "Florence Mae Gifts",
-    "url": "https://www.florencemaegifts.com/",
-    "description": "Handmade crochet baby sets, hats, Dragon Ball Z inspired baby cosplay sets, and downloadable crochet patterns.",
-    "brand": "Florence Mae Gifts",
-    "sameAs": [
-      "https://www.etsy.com/shop/florencemaegifts",
-      "https://www.instagram.com/florencemaegifts/"
-    ]
-  }
-  </script>
-
+  <script src="includeHTML.js" defer></script>
+  <script src="site.js" defer></script>
+  <script src="footer.js" defer></script>
+  <script src="shop.js" defer></script>
 </head>
 
 <body class="light-theme">
 
   <!-- Creates the icon and adds the onclick functionality for changing between themes-->
-  <i onclick="toggleMode(this)" id="icon-mode" class="fa fa-toggle-off pull-right" style="font-size: 20px;"><span id="icon-text" class="toggle"></span></i><br><br>
+  <i id="icon-mode" class="fa fa-toggle-off pull-right" style="font-size: 20px;" role="button" tabindex="0" aria-label="Toggle color theme"><span id="icon-text" class="toggle"></span></i><br><br>
 
 
   <div w3-include-html="header.html" class="header"></div>
@@ -102,515 +81,34 @@
                       <img class="modal-content" id="img01">
                       <div id="caption"></div>
                       </div>
-
-                      <script>
-                      // Get the modal
-                      var modal = document.getElementById("myModal");
-
-                      // Get the image and insert it inside the modal - use its "alt" text as a caption
-                      var img = document.getElementById("example1");
-                      var modalImg = document.getElementById("img01");
-                      var captionText = document.getElementById("caption");
-                      img.onclick = function(){
-                        modal.style.display = "block";
-                        modalImg.src = this.src;
-                        captionText.innerHTML = this.alt;
-                      }
-
-                      // Get the <span> element that closes the modal
-                      var span = document.getElementsByClassName("close")[0];
-
-                      // When the user clicks on <span> (x), close the modal
-                      span.onclick = function() { 
-                        modal.style.display = "none";
-                      }
-                      </script>
-
-
                   <img class="examples" id="example5" class="examples" src="images/example5.png" alt="Dumbo Crochet Baby Set (Beanie and Diaper Cover)">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example5");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                   <img class="examples" id="example18" src="images/example18.png" alt="Rainbow Axolotl Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example18");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
-
                   <img class="examples" id="example12" src="images/example12.png" alt="Squirt from Finding Nemo Amigurumi Doll">
-                    
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example12");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                 </div>
                 <div class="column">
 
                   <img class="examples" id="example30" src="images/example30.jpg" alt="Dragonball Z Inspired Kid Gohan Crochet Baby Hat">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example30");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                     <img class="examples" id="example99" src="images/luffy.png" alt="One Piece Inspired Luffy Straw Hat">
-
-                    <script>
-                      // Get the modal
-                      var modal = document.getElementById("myModal");
-  
-                      // Get the image and insert it inside the modal - use its "alt" text as a caption
-                      var img = document.getElementById("example99");
-                      var modalImg = document.getElementById("img01");
-                      var captionText = document.getElementById("caption");
-                      img.onclick = function(){
-                        modal.style.display = "block";
-                        modalImg.src = this.src;
-                        captionText.innerHTML = this.alt;
-                      }
-  
-                      // Get the <span> element that closes the modal
-                      var span = document.getElementsByClassName("close")[0];
-  
-                      // When the user clicks on <span> (x), close the modal
-                      span.onclick = function() { 
-                        modal.style.display = "none";
-                      }
-                      </script>
-
                   <img class="examples" id="example7" src="images/example7.png" alt="Deku Link from Legend of Zelda: Majoras' Mask Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example7");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                     <img class="examples" id="example32" src="images/example32.jpeg" alt="Winnie the Pooh Inspired Crochet Baby Set" width="70%">
-                                      
-                    <script>
-                      // Get the modal
-                      var modal = document.getElementById("myModal");
-
-                      // Get the image and insert it inside the modal - use its "alt" text as a caption
-                      var img = document.getElementById("example32");
-                      var modalImg = document.getElementById("img01");
-                      var captionText = document.getElementById("caption");
-                      img.onclick = function(){
-                        modal.style.display = "block";
-                        modalImg.src = this.src;
-                        captionText.innerHTML = this.alt;
-                      }
-
-                      // Get the <span> element that closes the modal
-                      var span = document.getElementsByClassName("close")[0];
-
-                      // When the user clicks on <span> (x), close the modal
-                      span.onclick = function() { 
-                        modal.style.display = "none";
-                      }
-                      </script>
-
                     <img id="example20" src="images/example20.png" alt="Custom Made Cthulhu with Roller Skates Amigurumi Doll">
-
-                    <script>
-                      // Get the modal
-                      var modal = document.getElementById("myModal");
-
-                      // Get the image and insert it inside the modal - use its "alt" text as a caption
-                      var img = document.getElementById("example20");
-                      var modalImg = document.getElementById("img01");
-                      var captionText = document.getElementById("caption");
-                      img.onclick = function(){
-                        modal.style.display = "block";
-                        modalImg.src = this.src;
-                        captionText.innerHTML = this.alt;
-                      }
-
-                      // Get the <span> element that closes the modal
-                      var span = document.getElementsByClassName("close")[0];
-
-                      // When the user clicks on <span> (x), close the modal
-                      span.onclick = function() { 
-                        modal.style.display = "none";
-                      }
-                      </script>
-
                       <img class="examples" id="example3" src="images/example3.png" alt="Dory from Finding Nemo Amigurumi Doll">
-                                        
-                      <script>
-                        // Get the modal
-                        var modal = document.getElementById("myModal");
-
-                        // Get the image and insert it inside the modal - use its "alt" text as a caption
-                        var img = document.getElementById("example3");
-                        var modalImg = document.getElementById("img01");
-                        var captionText = document.getElementById("caption");
-                        img.onclick = function(){
-                          modal.style.display = "block";
-                          modalImg.src = this.src;
-                          captionText.innerHTML = this.alt;
-                        }
-
-                        // Get the <span> element that closes the modal
-                        var span = document.getElementsByClassName("close")[0];
-
-                        // When the user clicks on <span> (x), close the modal
-                        span.onclick = function() { 
-                          modal.style.display = "none";
-                        }
-                        </script>
-
                 </div>
                 <div class="column">
 
                   <img class="examples" id="example16" src="images/example16.png" alt="Baby Donald Duck Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example16");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                   <img class="examples" id="example2" src="images/example2.jpeg" alt="An Original Character Creation - Gordie the Giraffe Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example2");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                   <img class="examples" id="example17" src="images/example17.png" alt="Charmander from Pokémon with attached Poké Ball Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example17");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                   <img class="examples" id="example4" src="images/example4.jpeg" alt="An Original Character Creation - Maurice the Mallard Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example4");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                   <img class="examples" id="example15" src="images/example15.png" alt="Vileplume from Pokémon Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example15");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                 </div>
                 <div class="column">
 
                   <img class="examples" id="example31" src="images/example31.jpeg" alt="Baby Santa Crochet Diaper Cover Set">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example31");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                   <img class="examples" id="example19" src="images/example19.jpeg" alt="An Original Character Creation - Edmund the Elephant Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example19");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                     <img class="examples" id="example33" src="images/example33.jpeg" alt="Baby Trunks Diaper Set">
-
-                    <script>
-                      // Get the modal
-                      var modal = document.getElementById("myModal");
-  
-                      // Get the image and insert it inside the modal - use its "alt" text as a caption
-                      var img = document.getElementById("example33");
-                      var modalImg = document.getElementById("img01");
-                      var captionText = document.getElementById("caption");
-                      img.onclick = function(){
-                        modal.style.display = "block";
-                        modalImg.src = this.src;
-                        captionText.innerHTML = this.alt;
-                      }
-  
-                      // Get the <span> element that closes the modal
-                      var span = document.getElementsByClassName("close")[0];
-  
-                      // When the user clicks on <span> (x), close the modal
-                      span.onclick = function() { 
-                        modal.style.display = "none";
-                      }
-                    </script>
-
                   <img class="examples" id="example6" src="images/example6.png" alt="Stitch from Lilo and Stitch Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example6");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
-
                   <img class="examples" id="example10" src="images/example10.png" alt="Master Roshi from Dragonball Z Amigurumi Doll">
-
-                  <script>
-                    // Get the modal
-                    var modal = document.getElementById("myModal");
-
-                    // Get the image and insert it inside the modal - use its "alt" text as a caption
-                    var img = document.getElementById("example10");
-                    var modalImg = document.getElementById("img01");
-                    var captionText = document.getElementById("caption");
-                    img.onclick = function(){
-                      modal.style.display = "block";
-                      modalImg.src = this.src;
-                      captionText.innerHTML = this.alt;
-                    }
-
-                    // Get the <span> element that closes the modal
-                    var span = document.getElementsByClassName("close")[0];
-
-                    // When the user clicks on <span> (x), close the modal
-                    span.onclick = function() { 
-                      modal.style.display = "none";
-                    }
-                    </script>
                 </div>
               </div>
           </div>
@@ -624,46 +122,5 @@
 </main>
 
   <div w3-include-html="footer.html" class="stuff-centered"></div>  
-
-
-          <script>
-            // start of the code for the light / dark theme
-            // sets a default theme; this code needs to be first
-            setDefaultTheme();
-    
-            // the function which will toggle between the two different themes
-            function toggleMode(x)
-            {
-                let colorTheme = document.body.classList; // establishes the variable that holds the body CSS class
-                let iconMode = x.classList; // gets the classes 
-    
-                // if the value shows light, update the preference in storage
-                if (colorTheme.value === "light-theme")
-                {
-                    localStorage.clear();
-                    localStorage.setItem("mode", "dark-theme");
-                    localStorage.setItem("iconMode", "fa-toggle-on");
-                    localStorage.setItem("iconText", "Dark Mode");
-                }
-                
-                else
-                {
-                    localStorage.clear();
-                    localStorage.setItem("mode", "light-theme");
-                    localStorage.setItem("iconMode", "fa-toggle-off");
-                    localStorage.setItem("iconText", "Light Mode");
-                }
-    
-                // applies the updated selection
-                colorTheme.value = localStorage.getItem("mode");
-                iconMode.value = `fa ${localStorage.getItem("iconMode")} pull-right`;
-                document.getElementById("icon-text").innerHTML = localStorage.getItem("iconText");
-            }
-
-// allows for the import of the html files
-includeHTML();
-
-        </script>
-
 </body>
 </html>
