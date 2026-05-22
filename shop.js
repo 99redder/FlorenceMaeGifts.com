@@ -288,7 +288,10 @@
     const itemName = stripeOrderButton.getAttribute("data-item-name") || "Custom Item";
     const isPdfOnly = [
       "Four Star Ball Crochet Baby Hat Pattern - Beginner Level (PDF Download Only)",
-      "Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)"
+      "Crochet Baby Hat Pattern: Five Point Design (PDF Download Only)",
+      "Gohan Inspired Hat Pattern - Beginner Level (PDF Download Only)",
+      "Goku Inpsired Baby Hat Pattern - Beginner Level (PDF Download Only)",
+      "Goku Inspired Baby Hat Pattern - Beginner Level (PDF Download Only)"
     ].includes(itemName);
 
     if (isPdfOnly && !window.confirm("Digital item confirmation: You are purchasing a digital item only. This order includes a PDF file only, and no physical item will be shipped. Continue?")) {

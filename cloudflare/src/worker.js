@@ -723,10 +723,13 @@ async function handleStoreCheckoutSession(request, env, corsHeaders, originAllow
   }
 
   const priceId = (data.priceId || '').toString().trim();
-  const selectedItemName = (data.selectedItemName || 'Florence Mae Gifts item').toString().trim();
+  const selectedItemName = (data.selectedItemName || '').toString().trim();
 
   if (!priceId || !priceId.startsWith('price_')) {
     return json({ ok: false, error: 'Missing or invalid Stripe price id.' }, 400, corsHeaders);
+  }
+  if (!selectedItemName) {
+    return json({ ok: false, error: 'Missing selected item name.' }, 400, corsHeaders);
   }
 
   const allowedPriceIds = parseAllowedPriceIds(env.STORE_ALLOWED_PRICE_IDS);
@@ -939,7 +942,12 @@ async function handleStripeWebhook(request, env, corsHeaders) {
         }
       } catch (e) {
         console.error('Invoice Stripe webhook handling failed', e);
-        return json({ ok: false, error: `Invoice webhook failed: ${e?.message || e}` }, 500, corsHeaders);
+        await alertFmgOperationalFailure(env, {
+          subject: '[ACTION NEEDED] FMG invoice Stripe webhook failed',
+          detail: `Invoice checkout webhook failed after Stripe reported payment. Stripe was acknowledged to avoid duplicate retry side effects. Error: ${e?.message || e}`,
+          session
+        });
+        return json({ ok: true, warning: `Invoice webhook failed: ${e?.message || e}` }, 200, corsHeaders);
       }
 
       return json({ ok: true }, 200, corsHeaders);
@@ -1191,6 +1199,7 @@ async function handleStripeWebhook(request, env, corsHeaders) {
 async function fulfillFmgShopOrder(env, { sessionId, itemName, priceId, customerEmail, customerName }) {
   if (!sessionId) return null;
   if (await hasOrderConfirmationBeenSent(env, sessionId)) return await getDownloadUrlForSession(env, sessionId);
+  await markOrderConfirmationSent(env, sessionId, 'sending');
 
   let downloadUrl = null;
   try {
@@ -1217,7 +1226,11 @@ async function fulfillFmgShopOrder(env, { sessionId, itemName, priceId, customer
     downloadUrl,
     itemName
   });
-  if (sent) await markOrderConfirmationSent(env, sessionId);
+  if (sent) {
+    await markOrderConfirmationSent(env, sessionId, 'sent');
+  } else {
+    await markOrderConfirmationSent(env, sessionId, 'failed');
+  }
   return downloadUrl;
 }
 
@@ -1298,7 +1311,7 @@ async function getDownloadUrlForSession(env, sessionId) {
     const stored = JSON.parse(tokenRaw);
     const expiresAt = Number(stored?.expiresAt || 0);
     const usesRemaining = Number(stored?.usesRemaining || 0);
-    if ((expiresAt && expiresAt <= Date.now()) || usesRemaining <= 0) return null;
+    if (!expiresAt || expiresAt <= Date.now() || usesRemaining <= 0) return null;
 
     return buildDownloadUrl(env, token);
   } catch {
@@ -1315,11 +1328,11 @@ async function hasOrderConfirmationBeenSent(env, sessionId) {
   }
 }
 
-async function markOrderConfirmationSent(env, sessionId) {
+async function markOrderConfirmationSent(env, sessionId, status = 'sent') {
   if (!env.DOWNLOAD_TOKENS || !sessionId) return;
   try {
     const ttlSeconds = Math.max(7 * 24 * 60 * 60, parseInt(env.DOWNLOAD_TOKEN_TTL_SECONDS || '86400', 10) || 86400);
-    await env.DOWNLOAD_TOKENS.put(`order-confirmation-sent:${sessionId}`, JSON.stringify({ sentAt: Date.now() }), {
+    await env.DOWNLOAD_TOKENS.put(`order-confirmation-sent:${sessionId}`, JSON.stringify({ status, sentAt: status === 'sent' ? Date.now() : null, updatedAt: Date.now() }), {
       expirationTtl: ttlSeconds
     });
   } catch (e) {
@@ -1402,7 +1415,7 @@ async function handleDownload(request, env, corsHeaders) {
   }
 
   const expiresAt = Number(stored.expiresAt || 0);
-  if (expiresAt && expiresAt <= Date.now()) {
+  if (!expiresAt || expiresAt <= Date.now()) {
     await env.DOWNLOAD_TOKENS.delete(token).catch(() => {});
     return json({ ok: false, error: 'Download token expired' }, 410, corsHeaders);
   }
