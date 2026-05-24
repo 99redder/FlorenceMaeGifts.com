@@ -4881,8 +4881,9 @@
         }
         if (action === 'send') {
           await runAction(async () => {
-            await fetchAdminJson(INVOICE_SEND_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id }) });
-            openSuccessModal('Invoice email sent successfully.', 'Invoice Email Sent ✅');
+            const data = await fetchAdminJson(INVOICE_SEND_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, invoiceId: id }) });
+            const link = data.paymentUrl || data.payment_url || '';
+            openSuccessModal(link ? 'Invoice email sent successfully with a secure payment button.' : 'Invoice email sent successfully.', 'Invoice Email Sent ✅');
             await refreshInvoiceList();
           }, 'Sending…');
           return;

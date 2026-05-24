@@ -3438,8 +3438,62 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
   const amountPaidCents = Number(invoice.amount_paid_cents || 0);
   const balanceDueCents = Number(invoice.balance_due_cents || 0);
   const notes = (invoice.notes || '').toString().trim();
-  const paymentUrl = (invoice.stripe_checkout_url || '').toString().trim();
-  const hasPaymentLink = !!paymentUrl && balanceDueCents > 0 && !['paid','void'].includes(String(invoice.status || '').toLowerCase());
+  const invoiceStatus = String(invoice.status || '').toLowerCase();
+  let paymentUrl = (invoice.stripe_checkout_url || '').toString().trim();
+  if (!paymentUrl && balanceDueCents > 0 && !['paid','void'].includes(invoiceStatus)) {
+    if (!env.STRIPE_SECRET_KEY) return json({ ok: false, error: 'Stripe secret not configured' }, 500, corsHeaders);
+
+    const metadata = {
+      checkout_type: 'invoice_payment',
+      invoice_id: String(id),
+      invoice_number: String(invoice.invoice_number || `INV-${id}`),
+      customer_email: customerEmail,
+      balance_due_cents: String(balanceDueCents)
+    };
+
+    const requestBase = new URL(request.url).origin.replace(/\/$/, '');
+    const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${requestBase}/invoice/payment-success`).replace(/\/$/, '');
+    const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${requestBase}/invoice/payment-cancelled`).replace(/\/$/, '');
+    const form = new URLSearchParams();
+    form.append('mode', 'payment');
+    form.append('success_url', `${successBase}?invoice_id=${encodeURIComponent(String(id))}`);
+    form.append('cancel_url', `${cancelBase}?invoice_id=${encodeURIComponent(String(id))}`);
+    form.append('client_reference_id', `invoice:${id}`);
+    form.append('customer_email', customerEmail);
+    Object.entries(metadata).forEach(([k, v]) => {
+      form.append(`metadata[${k}]`, v);
+      form.append(`payment_intent_data[metadata][${k}]`, v);
+    });
+
+    form.append('line_items[0][price_data][currency]', 'usd');
+    form.append('line_items[0][price_data][unit_amount]', String(balanceDueCents));
+    form.append('line_items[0][price_data][product_data][name]', `Invoice ${String(invoice.invoice_number || `INV-${id}`)} Balance Due`);
+    form.append('line_items[0][quantity]', '1');
+
+    const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: form.toString()
+    });
+    const stripeData = await stripeRes.json().catch(() => ({}));
+    if (!stripeRes.ok || !stripeData?.url || !stripeData?.id) {
+      return json({ ok: false, error: `Stripe payment link failed: ${stripeData?.error?.message || stripeRes.status}` }, 502, corsHeaders);
+    }
+    paymentUrl = stripeData.url;
+    await env.DB.prepare(
+      `UPDATE invoices
+       SET stripe_checkout_session_id = ?1,
+           stripe_checkout_url = ?2,
+           stripe_payment_status = 'pending',
+           stripe_payment_link_generated_at = datetime('now'),
+           updated_at = datetime('now')
+       WHERE id = ?3`
+    ).bind(stripeData.id, paymentUrl, id).run();
+  }
+  const hasPaymentLink = !!paymentUrl && balanceDueCents > 0 && !['paid','void'].includes(invoiceStatus);
   const payButtonHtml = hasPaymentLink ? `<div style="margin:18px 0 12px;text-align:center;"><a href="${escapeHtml(paymentUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">Pay Invoice Securely</a><div style="margin-top:8px;font-size:12px;color:#6b7280;">Secure checkout powered by Stripe</div></div>` : '';
   const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
   const replyToEmail = (env.CC_EMAIL || env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
@@ -3503,7 +3557,7 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
   }
 
   await env.DB.prepare(`UPDATE invoices SET status = CASE WHEN status IN ('paid','void') THEN status ELSE 'sent' END, sent_at = COALESCE(sent_at, datetime('now')), updated_at = datetime('now') WHERE id = ?1`).bind(id).run();
-  return json({ ok: true, id, emailId: sendJson?.id || null }, 200, corsHeaders);
+  return json({ ok: true, id, emailId: sendJson?.id || null, paymentUrl: hasPaymentLink ? paymentUrl : null }, 200, corsHeaders);
 }
 
 async function convertQuoteToInvoice(db, quote) {
