@@ -3316,15 +3316,6 @@ async function handleInvoicePaymentLink(request, env, corsHeaders, url) {
       lineIdx += 1;
     }
 
-    const subtotalCents = Number(invoice.subtotal_cents || 0);
-    const taxCents = Math.max(0, Number(invoice.tax_cents || 0));
-    if (taxCents > 0 && subtotalCents > 0) {
-      form.append(`line_items[${lineIdx}][price_data][currency]`, 'usd');
-      form.append(`line_items[${lineIdx}][price_data][unit_amount]`, String(taxCents));
-      form.append(`line_items[${lineIdx}][price_data][product_data][name]`, 'Invoice Tax');
-      form.append(`line_items[${lineIdx}][quantity]`, '1');
-      lineIdx += 1;
-    }
   }
 
   if (!lineIdx) return json({ ok: false, error: 'Invoice line items are invalid for checkout' }, 400, corsHeaders);
