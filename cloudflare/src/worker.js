@@ -63,8 +63,9 @@ function todayEtDate() {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
-function requireUsShippingAddress(form) {
+function requireUsShippingAddressAndAutomaticTax(form) {
   form.append('billing_address_collection', 'required');
+  form.append('automatic_tax[enabled]', 'true');
   form.append('shipping_address_collection[allowed_countries][0]', 'US');
 }
 
@@ -3290,7 +3291,7 @@ async function handleInvoicePaymentLink(request, env, corsHeaders, url) {
   form.append('cancel_url', `${cancelBase}?invoice_id=${encodeURIComponent(String(id))}`);
   form.append('client_reference_id', `invoice:${id}`);
   if (invoice.customer_email) form.append('customer_email', String(invoice.customer_email));
-  requireUsShippingAddress(form);
+  requireUsShippingAddressAndAutomaticTax(form);
 
   Object.entries(metadata).forEach(([k, v]) => {
     form.append(`metadata[${k}]`, v);
@@ -3461,7 +3462,7 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
     form.append('cancel_url', `${cancelBase}?invoice_id=${encodeURIComponent(String(id))}`);
     form.append('client_reference_id', `invoice:${id}`);
     form.append('customer_email', customerEmail);
-    requireUsShippingAddress(form);
+    requireUsShippingAddressAndAutomaticTax(form);
     Object.entries(metadata).forEach(([k, v]) => {
       form.append(`metadata[${k}]`, v);
       form.append(`payment_intent_data[metadata][${k}]`, v);
@@ -4050,7 +4051,7 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
         form.append('cancel_url', `${cancelBase}?invoice_id=${encodeURIComponent(String(invoiceId))}`);
         form.append('client_reference_id', `invoice:${invoiceId}`);
         form.append('customer_email', customerEmail);
-        requireUsShippingAddress(form);
+        requireUsShippingAddressAndAutomaticTax(form);
         const metadata = {
           checkout_type: 'invoice_payment',
           invoice_id: String(invoiceId),
