@@ -52,6 +52,17 @@ function withSecurityHeaders(headers = {}) {
   return { ...SECURITY_HEADERS, ...headers };
 }
 
+function todayEtDate() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  const get = (type) => parts.find((part) => part.type === type)?.value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
 export default {
   async fetch(request, env) {
     try {
@@ -2899,7 +2910,7 @@ async function handleInvoiceCreate(request, env, corsHeaders, url) {
   const customerName = (data.customerName || '').toString().trim();
   const customerEmail = (data.customerEmail || '').toString().trim();
   const customerPhone = (data.customerPhone || '').toString().trim();
-  const issueDate = (data.issueDate || '').toString().trim();
+  const issueDate = (data.issueDate || todayEtDate()).toString().trim();
   const dueDate = (data.dueDate || '').toString().trim();
   const descriptionOfWork = (data.descriptionOfWork || data.notes || '').toString().trim();
   const rawItems = Array.isArray(data.items) ? data.items : [];

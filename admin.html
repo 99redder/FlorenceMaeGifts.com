@@ -4069,7 +4069,7 @@
 
     function normalizeLineItems(items) {
       return (Array.isArray(items) ? items : []).map((item) => ({
-        description: item.description || item.name || '',
+        description: item.description || item.item_description || item.itemDescription || item.name || '',
         quantity: Number(item.quantity || 1),
         unitAmount: Number(item.unit_amount ?? item.unitAmount ?? (Number(item.unit_amount_cents ?? item.unitAmountCents ?? 0) / 100) ?? 0)
       }));
@@ -4210,7 +4210,7 @@
       if (invoiceCustomerPhoneEl) invoiceCustomerPhoneEl.value = inv.customer_phone || inv.customerPhone || '';
       if (invoiceDueDateEl) invoiceDueDateEl.value = inv.due_date || inv.dueDate || '';
       if (invoiceDescriptionEl) invoiceDescriptionEl.value = inv.description_of_work || inv.descriptionOfWork || '';
-      invoiceDraftItems = normalizeLineItems(inv.items || []);
+      invoiceDraftItems = normalizeLineItems(inv.line_items || inv.items || []);
       if (!invoiceDraftItems.length) invoiceDraftItems = [{ description:'Services', quantity:1, unitAmount:'' }];
       wireLineItems(invoiceLineItemsEl, invoiceDraftItems, invoiceTotalDisplayEl);
       if (invoiceCreateBtn) invoiceCreateBtn.textContent = 'Save Invoice';
@@ -4227,7 +4227,7 @@
       if (quoteCustomerPhoneEl) quoteCustomerPhoneEl.value = qu.customer_phone || qu.customerPhone || '';
       if (quoteValidUntilEl) quoteValidUntilEl.value = qu.valid_until || qu.validUntil || '';
       if (quoteDescriptionEl) quoteDescriptionEl.value = qu.description_of_work || qu.descriptionOfWork || '';
-      quoteDraftItems = normalizeLineItems(qu.items || []);
+      quoteDraftItems = normalizeLineItems(qu.line_items || qu.items || []);
       if (!quoteDraftItems.length) quoteDraftItems = [{ description:'Services', quantity:1, unitAmount:'' }];
       wireLineItems(quoteLineItemsEl, quoteDraftItems, quoteTotalDisplayEl);
       if (quoteCreateBtn) quoteCreateBtn.textContent = 'Save Quote';
