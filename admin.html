@@ -4185,7 +4185,7 @@
     async function saveInvoice(){
       const customerEmail = invoiceCustomerEmailEl?.value?.trim() || '';
       if (!isValidEmailAddress(customerEmail)) throw new Error('Please enter a valid customer email address before saving the invoice.');
-      const payload={ id:editingInvoiceId||undefined, invoiceId:editingInvoiceId||undefined, customerName:invoiceCustomerNameEl?.value?.trim()||'', customerEmail, customerPhone:invoiceCustomerPhoneEl?.value?.trim()||'', dueDate:invoiceDueDateEl?.value||'', descriptionOfWork:invoiceDescriptionEl?.value||'', items:toApiItems(invoiceDraftItems) };
+      const payload={ id:editingInvoiceId||undefined, invoiceId:editingInvoiceId||undefined, customerName:invoiceCustomerNameEl?.value?.trim()||'', customerEmail, customerPhone:invoiceCustomerPhoneEl?.value?.trim()||'', issueDate:nowEtParts().date, dueDate:invoiceDueDateEl?.value||'', descriptionOfWork:invoiceDescriptionEl?.value||'', items:toApiItems(invoiceDraftItems) };
       const endpoint=editingInvoiceId?INVOICE_UPDATE_API_URL:INVOICES_API_URL;
       await fetchAdminJson(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       closeInvoiceCreateModal();

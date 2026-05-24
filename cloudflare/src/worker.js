@@ -2927,8 +2927,13 @@ async function handleInvoiceCreate(request, env, corsHeaders, url) {
     })
     .filter((item) => item.unitAmountCents > 0 || item.description);
 
-  if (!customerName || !/^\d{4}-\d{2}-\d{2}$/.test(issueDate) || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || !items.length) {
-    return json({ ok: false, error: 'Missing required invoice fields' }, 400, corsHeaders);
+  const missing = [];
+  if (!customerName) missing.push('customer name');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(issueDate)) missing.push('issue date');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) missing.push('due date');
+  if (!items.length) missing.push('at least one line item');
+  if (missing.length) {
+    return json({ ok: false, error: `Missing required invoice fields: ${missing.join(', ')}` }, 400, corsHeaders);
   }
 
   let subtotal = 0;
@@ -3006,8 +3011,13 @@ async function handleInvoiceUpdate(request, env, corsHeaders, url) {
     })
     .filter((item) => item.unitAmountCents > 0 || item.description);
 
-  if (!id || !customerName || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || !items.length) {
-    return json({ ok: false, error: 'Missing required invoice fields' }, 400, corsHeaders);
+  const missing = [];
+  if (!id) missing.push('invoice id');
+  if (!customerName) missing.push('customer name');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) missing.push('due date');
+  if (!items.length) missing.push('at least one line item');
+  if (missing.length) {
+    return json({ ok: false, error: `Missing required invoice fields: ${missing.join(', ')}` }, 400, corsHeaders);
   }
 
   const existing = await env.DB.prepare(`SELECT id, tax_cents, amount_paid_cents, issue_date, invoice_number, status, customer_company FROM invoices WHERE id = ?1`).bind(id).first();
