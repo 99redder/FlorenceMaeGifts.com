@@ -63,6 +63,11 @@ function todayEtDate() {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+function requireUsShippingAddress(form) {
+  form.append('billing_address_collection', 'required');
+  form.append('shipping_address_collection[allowed_countries][0]', 'US');
+}
+
 export default {
   async fetch(request, env) {
     try {
@@ -3251,18 +3256,13 @@ async function handleInvoicePaymentLink(request, env, corsHeaders, url) {
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
 
   const id = Number(data.id || data.invoiceId || 0);
-  const regenerate = !!data.regenerate;
   if (!id) return json({ ok: false, error: 'Invalid invoice id' }, 400, corsHeaders);
 
   const invoice = await env.DB.prepare(`SELECT * FROM invoices WHERE id = ?1`).bind(id).first();
   if (!invoice) return json({ ok: false, error: 'Invoice not found' }, 404, corsHeaders);
 
   const status = (invoice.status || '').toString().toLowerCase();
-  const existingUrl = (invoice.stripe_checkout_url || '').toString().trim();
-  const existingSessionId = (invoice.stripe_checkout_session_id || '').toString().trim();
-  if (!regenerate && existingUrl && existingSessionId && !['paid','void'].includes(status)) {
-    return json({ ok: true, id, paymentUrl: existingUrl, stripeCheckoutSessionId: existingSessionId, reused: true }, 200, corsHeaders);
-  }
+  if (['paid','void'].includes(status)) return json({ ok: false, error: 'Invoice is not payable' }, 400, corsHeaders);
 
   const itemsRes = await env.DB.prepare(`SELECT item_description, quantity, unit_amount_cents, line_total_cents FROM invoice_line_items WHERE invoice_id = ?1 ORDER BY id ASC`).bind(id).all();
   const items = itemsRes.results || [];
@@ -3290,6 +3290,7 @@ async function handleInvoicePaymentLink(request, env, corsHeaders, url) {
   form.append('cancel_url', `${cancelBase}?invoice_id=${encodeURIComponent(String(id))}`);
   form.append('client_reference_id', `invoice:${id}`);
   if (invoice.customer_email) form.append('customer_email', String(invoice.customer_email));
+  requireUsShippingAddress(form);
 
   Object.entries(metadata).forEach(([k, v]) => {
     form.append(`metadata[${k}]`, v);
@@ -3439,8 +3440,8 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
   const balanceDueCents = Number(invoice.balance_due_cents || 0);
   const notes = (invoice.notes || '').toString().trim();
   const invoiceStatus = String(invoice.status || '').toLowerCase();
-  let paymentUrl = (invoice.stripe_checkout_url || '').toString().trim();
-  if (!paymentUrl && balanceDueCents > 0 && !['paid','void'].includes(invoiceStatus)) {
+  let paymentUrl = '';
+  if (balanceDueCents > 0 && !['paid','void'].includes(invoiceStatus)) {
     if (!env.STRIPE_SECRET_KEY) return json({ ok: false, error: 'Stripe secret not configured' }, 500, corsHeaders);
 
     const metadata = {
@@ -3460,6 +3461,7 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
     form.append('cancel_url', `${cancelBase}?invoice_id=${encodeURIComponent(String(id))}`);
     form.append('client_reference_id', `invoice:${id}`);
     form.append('customer_email', customerEmail);
+    requireUsShippingAddress(form);
     Object.entries(metadata).forEach(([k, v]) => {
       form.append(`metadata[${k}]`, v);
       form.append(`payment_intent_data[metadata][${k}]`, v);
@@ -4048,6 +4050,7 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
         form.append('cancel_url', `${cancelBase}?invoice_id=${encodeURIComponent(String(invoiceId))}`);
         form.append('client_reference_id', `invoice:${invoiceId}`);
         form.append('customer_email', customerEmail);
+        requireUsShippingAddress(form);
         const metadata = {
           checkout_type: 'invoice_payment',
           invoice_id: String(invoiceId),
