@@ -127,6 +127,26 @@
     .invoice-flow-note { margin:.1rem 0 .7rem; color:var(--muted); line-height:1.45; }
     .invoice-action-btn { padding:.3rem .52rem; font-size:.78rem; line-height:1.2; white-space:nowrap; }
     .btn.working { opacity:.8; cursor:progress; }
+    .btn.importing-blink {
+      animation: admin-import-blink .85s ease-in-out infinite;
+      cursor:progress;
+    }
+    @keyframes admin-import-blink {
+      0%, 100% {
+        filter:brightness(1);
+        box-shadow:0 0 0 2px rgba(255,102,153,.25), 0 3px 8px rgba(254,102,102,.22);
+      }
+      50% {
+        filter:brightness(1.18);
+        box-shadow:0 0 0 4px rgba(255,102,153,.45), 0 6px 14px rgba(254,102,102,.35);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .btn.importing-blink {
+        animation:none;
+        box-shadow:0 0 0 4px rgba(255,102,153,.45), 0 6px 14px rgba(254,102,102,.35);
+      }
+    }
     .invoice-fab { position: fixed; right: 1.1rem; bottom: 1.1rem; z-index: 1325; border-radius: 999px; padding: .8rem 1rem; box-shadow: 0 8px 24px rgba(0,0,0,.28); display: none; }
 
     /* ===== Tax Ledger ===== */
@@ -3677,6 +3697,7 @@
       if (importBtn) {
         importBtn.disabled = true;
         importBtn.textContent = 'Importing…';
+        importBtn.classList.add('importing-blink');
       }
       if (taxPreviewEtsyCsvBtn) taxPreviewEtsyCsvBtn.disabled = true;
       if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.disabled = true;
@@ -3712,6 +3733,7 @@
         if (importBtn) {
           importBtn.disabled = false;
           importBtn.textContent = prevText;
+          importBtn.classList.remove('importing-blink');
         }
         if (taxPreviewEtsyCsvBtn) taxPreviewEtsyCsvBtn.disabled = false;
         if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.disabled = false;
