@@ -103,7 +103,7 @@ export default {
       const isTaxRead = ['/api/tax/transactions','/api/tax/export.csv','/api/tax/receipt'].includes(url.pathname) && request.method === 'GET';
       const isTaxWrite = ['/api/tax/expense','/api/tax/income','/api/tax/owner-transfer','/api/tax/expense/update','/api/tax/income/update','/api/tax/expense/delete','/api/tax/income/delete','/api/tax/receipt/upload'].includes(url.pathname) && request.method === 'POST';
       const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail','/api/accounts/notes','/api/admin/notes'].includes(url.pathname) && request.method === 'GET';
-      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/shipped','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes'].includes(url.pathname) && request.method === 'POST';
+      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/shipped','/api/accounts/invoices/shipped/preview','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes'].includes(url.pathname) && request.method === 'POST';
       const isQuotePublic = ['/api/quote/accept','/api/quote/deny'].includes(url.pathname) && request.method === 'GET';
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
@@ -303,6 +303,10 @@ export default {
 
     if (url.pathname === '/api/accounts/invoices/send' && request.method === 'POST') {
       return handleInvoiceSend(request, env, corsHeaders, url);
+    }
+
+    if (url.pathname === '/api/accounts/invoices/shipped/preview' && request.method === 'POST') {
+      return handleInvoiceShippedPreview(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/accounts/invoices/shipped' && request.method === 'POST') {
@@ -3572,42 +3576,22 @@ function buildTrackingUrl(carrier, trackingNumber) {
   return '';
 }
 
-async function handleInvoiceShippedEmail(request, env, corsHeaders, url) {
-  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
-  const auth = await requireAdmin(request, env, corsHeaders, url);
-  if (!auth.ok) return auth.res;
-  const fromEmailEnv = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
-  if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
+// Default editable copy for the "Your Item Has Shipped" email. The admin
+// modal pre-fills these same strings so preview and send stay identical.
+const DEFAULT_SHIPPED_INTRO = 'Great news — your handmade order from Florence Mae Gifts is on its way! Your tracking details are below.';
+const DEFAULT_SHIPPED_CLOSING = 'Thank you so much for your order! Questions? Just reply to this email.';
 
-  let data;
-  try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
-
-  const id = Number(data.id || data.invoiceId || 0);
-  if (!id) return json({ ok: false, error: 'Invalid payload' }, 400, corsHeaders);
-
-  const carrier = (data.carrier || data.trackingCarrier || '').toString().trim();
-  const trackingNumber = (data.trackingNumber || data.tracking_number || '').toString().trim();
-  if (!trackingNumber) return json({ ok: false, error: 'Tracking number is required' }, 400, corsHeaders);
-  const shipDate = (data.shipDate || data.shipped_at || '').toString().trim();
-  const note = (data.note || data.message || '').toString().trim();
-  const trackingUrl = (data.trackingUrl || data.tracking_url || '').toString().trim() || buildTrackingUrl(carrier, trackingNumber);
-
-  const invoice = await env.DB.prepare(`SELECT * FROM invoices WHERE id = ?1`).bind(id).first();
-  if (!invoice) return json({ ok: false, error: 'Invoice not found' }, 404, corsHeaders);
-
-  const customerEmail = (invoice.customer_email || '').toString().trim();
-  if (!customerEmail) return json({ ok: false, error: 'Invoice has no customer email' }, 400, corsHeaders);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) return json({ ok: false, error: 'Invoice customer email is invalid' }, 400, corsHeaders);
-
-  const itemsRes = await env.DB.prepare(`SELECT item_description, quantity FROM invoice_line_items WHERE invoice_id = ?1 ORDER BY id ASC`).bind(id).all();
-  const items = itemsRes.results || [];
-
-  const fromEmail = fromEmailEnv;
-  const replyToEmail = (env.CC_EMAIL || env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
+// Build the branded shipped-email HTML + plain-text + subject from an invoice,
+// its line items, tracking info, and (optionally personalized) copy. Shared by
+// the send handler and the preview endpoint so they never drift.
+function buildShippedEmailContent({ invoice, id, items, carrier, trackingNumber, shipDate, note, trackingUrl, introMessage, closingMessage }) {
   const invoiceNumber = String(invoice.invoice_number || `INV-${id}`);
+  const intro = (introMessage || '').toString().trim() || DEFAULT_SHIPPED_INTRO;
+  const closing = (closingMessage || '').toString().trim() || DEFAULT_SHIPPED_CLOSING;
+  const safeItems = items || [];
 
-  const itemsListHtml = items.length
-    ? `<ul style="margin:0;padding-left:18px;color:#374151;">${items.map((it) => `<li style="margin:2px 0;">${escapeHtml(it.item_description || 'Item')}${Number(it.quantity || 1) > 1 ? ` × ${Number(it.quantity)}` : ''}</li>`).join('')}</ul>`
+  const itemsListHtml = safeItems.length
+    ? `<ul style="margin:0;padding-left:18px;color:#374151;">${safeItems.map((it) => `<li style="margin:2px 0;">${escapeHtml(it.item_description || 'Item')}${Number(it.quantity || 1) > 1 ? ` × ${Number(it.quantity)}` : ''}</li>`).join('')}</ul>`
     : '';
 
   const trackButtonHtml = trackingUrl
@@ -3621,31 +3605,99 @@ async function handleInvoiceShippedEmail(request, env, corsHeaders, url) {
       ${shipDate ? `<div style="margin:0;"><strong>Shipped:</strong> ${escapeHtml(shipDate)}</div>` : ''}
     </div>`;
 
-  const html = `<div style="font-family:Arial,sans-serif;background:#f7fafc;padding:24px;color:#111827;"><div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;"><img src="https://www.florencemaegifts.com/images/banner3.png" alt="Florence Mae Gifts" style="width:100%;height:auto;display:block;" /><div style="padding:20px 24px;background:linear-gradient(135deg,#0f172a,#1f2937);color:#ffffff;"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#FE6666;">Florence Mae Gifts</div><h1 style="margin:6px 0 0;font-size:24px;">Your Order Has Shipped! 📦</h1></div><div style="padding:24px;"><p style="margin:0 0 12px;">Hi ${escapeHtml(invoice.customer_name || 'there')},</p><p style="margin:0 0 14px;color:#374151;">Great news — your handmade order from Florence Mae Gifts is on its way! Here are your tracking details for invoice <strong>${escapeHtml(invoiceNumber)}</strong>.</p>${trackingRowsHtml}${trackButtonHtml}${trackingUrl ? '' : '<p style="margin:12px 0 0;color:#6b7280;font-size:13px;text-align:center;">Use the tracking number above with your carrier to follow your package.</p>'}${itemsListHtml ? `<div style="margin:20px 0 0;"><div style="font-weight:700;margin-bottom:6px;color:#111827;">What's in your package:</div>${itemsListHtml}</div>` : ''}${note ? `<p style="margin:18px 0 0;white-space:pre-wrap;color:#374151;">${escapeHtml(note)}</p>` : ''}<p style="margin:18px 0 0;color:#374151;text-align:center;">Thank you so much for your order! Questions? Just reply to this email.</p></div><div style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;color:#4b5563;font-size:13px;text-align:center;"><strong>Florence Mae Gifts, LLC</strong> • <a href="https://www.florencemaegifts.com" style="color:#2563eb;">www.florencemaegifts.com</a><p style="margin:6px 0 0;font-size:11px;line-height:1.45;color:#6b7280;">Privacy: We use your contact information only for order and shipping communication. Tracking details are provided by the carrier.</p></div></div></div>`;
+  const html = `<div style="font-family:Arial,sans-serif;background:#f7fafc;padding:24px;color:#111827;"><div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;"><img src="https://www.florencemaegifts.com/images/banner3.png" alt="Florence Mae Gifts" style="width:100%;height:auto;display:block;" /><div style="padding:20px 24px;background:linear-gradient(135deg,#0f172a,#1f2937);color:#ffffff;"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#FE6666;">Florence Mae Gifts</div><h1 style="margin:6px 0 0;font-size:24px;">Your Order Has Shipped! 📦</h1></div><div style="padding:24px;"><p style="margin:0 0 12px;">Hi ${escapeHtml(invoice.customer_name || 'there')},</p><p style="margin:0 0 14px;white-space:pre-wrap;color:#374151;">${escapeHtml(intro)}</p>${trackingRowsHtml}${trackButtonHtml}${trackingUrl ? '' : '<p style="margin:12px 0 0;color:#6b7280;font-size:13px;text-align:center;">Use the tracking number above with your carrier to follow your package.</p>'}${itemsListHtml ? `<div style="margin:20px 0 0;"><div style="font-weight:700;margin-bottom:6px;color:#111827;">What's in your package:</div>${itemsListHtml}</div>` : ''}${note ? `<p style="margin:18px 0 0;white-space:pre-wrap;color:#374151;">${escapeHtml(note)}</p>` : ''}<p style="margin:18px 0 0;white-space:pre-wrap;color:#374151;text-align:center;">${escapeHtml(closing)}</p></div><div style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;color:#4b5563;font-size:13px;text-align:center;"><strong>Florence Mae Gifts, LLC</strong> • <a href="https://www.florencemaegifts.com" style="color:#2563eb;">www.florencemaegifts.com</a><p style="margin:6px 0 0;font-size:11px;line-height:1.45;color:#6b7280;">Privacy: We use your contact information only for order and shipping communication. Tracking details are provided by the carrier.</p></div></div></div>`;
 
   const textLines = [
     `Your Florence Mae Gifts order has shipped! 📦`,
     `Invoice: ${invoiceNumber}`,
     `Customer: ${invoice.customer_name || ''}`,
+    '',
+    intro,
     ''
   ];
   if (carrier) textLines.push(`Carrier: ${carrier}`);
   textLines.push(`Tracking Number: ${trackingNumber}`);
   if (shipDate) textLines.push(`Shipped: ${shipDate}`);
   if (trackingUrl) textLines.push('', `Track your package: ${trackingUrl}`);
-  if (items.length) {
+  if (safeItems.length) {
     textLines.push('', "What's in your package:");
-    for (const it of items) textLines.push(`- ${(it.item_description || 'Item').toString()}${Number(it.quantity || 1) > 1 ? ` x ${Number(it.quantity)}` : ''}`);
+    for (const it of safeItems) textLines.push(`- ${(it.item_description || 'Item').toString()}${Number(it.quantity || 1) > 1 ? ` x ${Number(it.quantity)}` : ''}`);
   }
   if (note) textLines.push('', note);
-  textLines.push('', 'Thank you so much for your order!', 'Reply to this email with any questions.', 'Florence Mae Gifts, LLC', 'https://www.florencemaegifts.com');
+  textLines.push('', closing, 'Florence Mae Gifts, LLC', 'https://www.florencemaegifts.com');
+
+  return {
+    subject: `Your Florence Mae Gifts order has shipped (${invoiceNumber})`,
+    html,
+    text: textLines.join('\n')
+  };
+}
+
+// Shared: parse + validate shipped-email inputs and load the invoice + items.
+// Returns { error, status } on failure or the resolved context on success.
+async function resolveShippedEmailContext(request, env) {
+  let data;
+  try { data = await request.json(); } catch { return { error: 'Invalid JSON', status: 400 }; }
+
+  const id = Number(data.id || data.invoiceId || 0);
+  if (!id) return { error: 'Invalid payload', status: 400 };
+
+  const carrier = (data.carrier || data.trackingCarrier || '').toString().trim();
+  const trackingNumber = (data.trackingNumber || data.tracking_number || '').toString().trim();
+  if (!trackingNumber) return { error: 'Tracking number is required', status: 400 };
+  const shipDate = (data.shipDate || data.shipped_at || '').toString().trim();
+  const note = (data.note || data.message || '').toString().trim();
+  const introMessage = (data.introMessage || data.intro || '').toString();
+  const closingMessage = (data.closingMessage || data.closing || '').toString();
+  const trackingUrl = (data.trackingUrl || data.tracking_url || '').toString().trim() || buildTrackingUrl(carrier, trackingNumber);
+
+  const invoice = await env.DB.prepare(`SELECT * FROM invoices WHERE id = ?1`).bind(id).first();
+  if (!invoice) return { error: 'Invoice not found', status: 404 };
+
+  const itemsRes = await env.DB.prepare(`SELECT item_description, quantity FROM invoice_line_items WHERE invoice_id = ?1 ORDER BY id ASC`).bind(id).all();
+  const items = itemsRes.results || [];
+
+  return { id, carrier, trackingNumber, shipDate, note, introMessage, closingMessage, trackingUrl, invoice, items };
+}
+
+async function handleInvoiceShippedPreview(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+
+  const ctx = await resolveShippedEmailContext(request, env);
+  if (ctx.error) return json({ ok: false, error: ctx.error }, ctx.status, corsHeaders);
+
+  const built = buildShippedEmailContent(ctx);
+  return json({ ok: true, subject: built.subject, html: built.html }, 200, corsHeaders);
+}
+
+async function handleInvoiceShippedEmail(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+  const fromEmailEnv = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
+  if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
+
+  const ctx = await resolveShippedEmailContext(request, env);
+  if (ctx.error) return json({ ok: false, error: ctx.error }, ctx.status, corsHeaders);
+  const { id, carrier, trackingNumber, shipDate, trackingUrl, invoice, items } = ctx;
+
+  const customerEmail = (invoice.customer_email || '').toString().trim();
+  if (!customerEmail) return json({ ok: false, error: 'Invoice has no customer email' }, 400, corsHeaders);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) return json({ ok: false, error: 'Invoice customer email is invalid' }, 400, corsHeaders);
+
+  const fromEmail = fromEmailEnv;
+  const replyToEmail = (env.CC_EMAIL || env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
+
+  const built = buildShippedEmailContent(ctx);
 
   const emailPayload = {
     from: fromEmail,
     to: [customerEmail],
-    subject: `Your Florence Mae Gifts order has shipped (${invoiceNumber})`,
-    html,
-    text: textLines.join('\n'),
+    subject: built.subject,
+    html: built.html,
+    text: built.text,
     reply_to: replyToEmail || fromEmail
   };
   if (env.CC_EMAIL) emailPayload.cc = [env.CC_EMAIL];
