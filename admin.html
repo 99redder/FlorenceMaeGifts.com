@@ -1095,8 +1095,8 @@
 
   <div class="success-modal-overlay" id="invoice-shipped-modal" aria-hidden="true">
     <div class="error-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-shipped-title" style="width:min(480px,94vw); text-align:left;">
-      <h3 id="invoice-shipped-title" style="margin:.1rem 0 .3rem;">Send "Item Shipped" Email</h3>
-      <p style="margin:.2rem 0 .7rem; color:var(--muted);">Enter tracking details. A branded shipping email will be sent to the customer.</p>
+      <h3 id="invoice-shipped-title" style="margin:.1rem 0 .3rem;">Preview & Send Shipped Email</h3>
+      <p style="margin:.2rem 0 .7rem; color:var(--muted);">Enter tracking details, then Preview Email to review, or send it now. Nothing is sent until you click a Send button.</p>
       <label style="display:block; font-size:.9rem; margin:.4rem 0 .15rem;">Carrier</label>
       <select id="invoice-shipped-carrier" style="width:100%;">
         <option value="USPS">USPS</option>
@@ -4241,7 +4241,6 @@
       const balC = Number(inv.balance_due_cents || 0) / 100;
       const paid = status === 'paid' || balC <= 0;
       const alreadySent = status === 'sent' || Boolean(inv.sent_at || inv.sentAt);
-      const shipped = Boolean(inv.shipped_at || inv.shippedAt);
       const hasPaymentLink = Boolean((inv.stripe_checkout_url || inv.stripeCheckoutUrl || inv.payment_url || inv.paymentUrl || '').toString().trim());
       const markPaidBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="mark-paid" data-id="${id}" ${paid ? 'disabled title="Already paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Paid</button>`;
       const recordPaymentBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="record-payment" data-id="${id}" ${paid ? 'disabled title="Already fully paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Record Payment</button>`;
@@ -4252,7 +4251,7 @@
         <button type="button" class="btn invoice-action-btn" data-invoice-action="view" data-id="${id}">View Invoice</button>
         <button type="button" class="btn invoice-action-btn" data-invoice-action="edit" data-id="${id}">Edit Invoice</button>
         <button type="button" class="btn invoice-action-btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
-        <button type="button" class="btn invoice-action-btn" data-invoice-action="shipped" data-id="${id}">${shipped ? 'Resend Shipped Email' : 'Send Shipped Email'}</button>
+        <button type="button" class="btn invoice-action-btn" data-invoice-action="shipped" data-id="${id}">Preview Shipped Email</button>
         ${markSentBtn}
         ${markPaidBtn}
         ${recordPaymentBtn}
