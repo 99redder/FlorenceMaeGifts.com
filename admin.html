@@ -1093,6 +1093,33 @@
     </div>
   </div>
 
+  <div class="success-modal-overlay" id="invoice-shipped-modal" aria-hidden="true">
+    <div class="error-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-shipped-title" style="width:min(480px,94vw); text-align:left;">
+      <h3 id="invoice-shipped-title" style="margin:.1rem 0 .3rem;">Send "Item Shipped" Email</h3>
+      <p style="margin:.2rem 0 .7rem; color:var(--muted);">Enter tracking details. A branded shipping email will be sent to the customer.</p>
+      <label style="display:block; font-size:.9rem; margin:.4rem 0 .15rem;">Carrier</label>
+      <select id="invoice-shipped-carrier" style="width:100%;">
+        <option value="USPS">USPS</option>
+        <option value="UPS">UPS</option>
+        <option value="FedEx">FedEx</option>
+        <option value="DHL">DHL</option>
+        <option value="Other">Other</option>
+      </select>
+      <label style="display:block; font-size:.9rem; margin:.6rem 0 .15rem;">Tracking Number</label>
+      <input id="invoice-shipped-tracking" type="text" placeholder="e.g. 9400 1000 0000 0000 0000 00" style="width:100%;" />
+      <label style="display:block; font-size:.9rem; margin:.6rem 0 .15rem;">Ship Date</label>
+      <input id="invoice-shipped-date" type="date" style="width:100%;" />
+      <label style="display:block; font-size:.9rem; margin:.6rem 0 .15rem;">Tracking URL <span style="color:var(--muted);">(optional — auto-built for known carriers)</span></label>
+      <input id="invoice-shipped-url" type="url" placeholder="https://…" style="width:100%;" />
+      <label style="display:block; font-size:.9rem; margin:.6rem 0 .15rem;">Personal Note <span style="color:var(--muted);">(optional)</span></label>
+      <textarea id="invoice-shipped-note" rows="2" placeholder="e.g. Thanks so much — hope you love it!" style="width:100%;"></textarea>
+      <div class="form-actions" style="display:flex; gap:.5rem; justify-content:flex-end; margin-top:.9rem;">
+        <button type="button" class="btn" id="invoice-shipped-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="invoice-shipped-save-btn">Send Shipping Email</button>
+      </div>
+    </div>
+  </div>
+
   <div class="success-modal-overlay" id="tax-category-modal" aria-hidden="true">
     <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="tax-category-title" style="width:min(920px,94vw); max-height:86vh; overflow-y:auto;">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:.5rem;">
@@ -1369,6 +1396,7 @@
     const INVOICE_PAYMENT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/payment');
     const INVOICE_PAYMENT_LINK_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/payment-link');
     const INVOICE_SEND_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/send');
+    const INVOICE_SHIPPED_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/shipped');
     const INVOICE_DELETE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/delete');
     const INVOICE_DETAIL_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/detail');
     const INVOICE_UPDATE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/update');
@@ -1551,6 +1579,14 @@
     const invoicePaymentAmountEl = document.getElementById('invoice-payment-amount');
     const invoicePaymentCancelBtn = document.getElementById('invoice-payment-cancel-btn');
     const invoicePaymentSaveBtn = document.getElementById('invoice-payment-save-btn');
+    const invoiceShippedModal = document.getElementById('invoice-shipped-modal');
+    const invoiceShippedCarrierEl = document.getElementById('invoice-shipped-carrier');
+    const invoiceShippedTrackingEl = document.getElementById('invoice-shipped-tracking');
+    const invoiceShippedDateEl = document.getElementById('invoice-shipped-date');
+    const invoiceShippedUrlEl = document.getElementById('invoice-shipped-url');
+    const invoiceShippedNoteEl = document.getElementById('invoice-shipped-note');
+    const invoiceShippedCancelBtn = document.getElementById('invoice-shipped-cancel-btn');
+    const invoiceShippedSaveBtn = document.getElementById('invoice-shipped-save-btn');
     const quoteModeViewBtn = document.getElementById('quote-mode-view-btn');
     const quoteModeAddBtn = document.getElementById('quote-mode-add-btn');
     const quoteFabBtn = document.getElementById('quote-fab-btn');
@@ -4096,6 +4132,7 @@
     function closeQuoteCreateModal(){ quoteCreateModal?.classList.remove('active'); quoteCreateModal?.setAttribute('aria-hidden','true'); resetQuoteForm(); }
 
     let pendingInvoicePaymentId = null;
+    let pendingInvoiceShippedId = null;
 
     async function fetchAdminJson(url, options = {}) {
       const headers = { ...(options.headers || {}) };
@@ -4175,6 +4212,7 @@
       const balC = Number(inv.balance_due_cents || 0) / 100;
       const paid = status === 'paid' || balC <= 0;
       const alreadySent = status === 'sent' || Boolean(inv.sent_at || inv.sentAt);
+      const shipped = Boolean(inv.shipped_at || inv.shippedAt);
       const hasPaymentLink = Boolean((inv.stripe_checkout_url || inv.stripeCheckoutUrl || inv.payment_url || inv.paymentUrl || '').toString().trim());
       const markPaidBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="mark-paid" data-id="${id}" ${paid ? 'disabled title="Already paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Mark Paid</button>`;
       const recordPaymentBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="record-payment" data-id="${id}" ${paid ? 'disabled title="Already fully paid" style="opacity:.5;cursor:not-allowed;"' : ''}>Record Payment</button>`;
@@ -4184,6 +4222,7 @@
       return `<div style="display:flex; gap:.24rem; flex-wrap:wrap; justify-content:flex-end; align-items:center;">
         <button type="button" class="btn invoice-action-btn" data-invoice-action="view" data-id="${id}">View Invoice</button>
         <button type="button" class="btn invoice-action-btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
+        <button type="button" class="btn invoice-action-btn" data-invoice-action="shipped" data-id="${id}">${shipped ? 'Resend Shipped Email' : 'Send Shipped Email'}</button>
         <button type="button" class="btn invoice-action-btn" data-invoice-action="edit" data-id="${id}">Edit</button>
         ${markSentBtn}
         ${markPaidBtn}
@@ -4284,6 +4323,23 @@
       pendingInvoicePaymentId = null;
       invoicePaymentModal?.classList.remove('active');
       invoicePaymentModal?.setAttribute('aria-hidden', 'true');
+    }
+
+    function openInvoiceShippedModal(id) {
+      pendingInvoiceShippedId = Number(id || 0);
+      if (invoiceShippedCarrierEl) invoiceShippedCarrierEl.value = 'USPS';
+      if (invoiceShippedTrackingEl) invoiceShippedTrackingEl.value = '';
+      if (invoiceShippedDateEl) invoiceShippedDateEl.value = nowEtParts().date;
+      if (invoiceShippedUrlEl) invoiceShippedUrlEl.value = '';
+      if (invoiceShippedNoteEl) invoiceShippedNoteEl.value = '';
+      invoiceShippedModal?.classList.add('active');
+      invoiceShippedModal?.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeInvoiceShippedModal() {
+      pendingInvoiceShippedId = null;
+      invoiceShippedModal?.classList.remove('active');
+      invoiceShippedModal?.setAttribute('aria-hidden', 'true');
     }
 
 
@@ -4926,6 +4982,10 @@
           }, 'Sending…');
           return;
         }
+        if (action === 'shipped') {
+          openInvoiceShippedModal(id);
+          return;
+        }
         if (action === 'edit') {
           await runAction(async () => { await loadInvoiceIntoModal(id); }, 'Loading…');
           return;
@@ -5019,6 +5079,42 @@
       } finally {
         invoicePaymentSaveBtn.disabled = false;
         invoicePaymentSaveBtn.textContent = oldText;
+      }
+    });
+
+    invoiceShippedCancelBtn?.addEventListener('click', closeInvoiceShippedModal);
+    invoiceShippedModal?.addEventListener('click', (e) => { if (e.target === invoiceShippedModal) closeInvoiceShippedModal(); });
+    invoiceShippedSaveBtn?.addEventListener('click', async () => {
+      const invoiceId = Number(pendingInvoiceShippedId || 0);
+      if (!invoiceId) return;
+      const trackingNumber = invoiceShippedTrackingEl?.value?.trim() || '';
+      if (!trackingNumber) { openErrorModal('Enter a tracking number.'); return; }
+      const payload = {
+        id: invoiceId,
+        invoiceId,
+        carrier: invoiceShippedCarrierEl?.value?.trim() || '',
+        trackingNumber,
+        shipDate: invoiceShippedDateEl?.value || '',
+        trackingUrl: invoiceShippedUrlEl?.value?.trim() || '',
+        note: invoiceShippedNoteEl?.value?.trim() || ''
+      };
+      const oldText = invoiceShippedSaveBtn.textContent;
+      invoiceShippedSaveBtn.disabled = true;
+      invoiceShippedSaveBtn.textContent = 'Sending…';
+      try {
+        await fetchAdminJson(INVOICE_SHIPPED_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        closeInvoiceShippedModal();
+        openSuccessModal('Shipping notification email sent to the customer.', 'Shipped Email Sent ✅');
+        await refreshInvoiceList();
+      } catch (err) {
+        openErrorModal(err.message || String(err));
+      } finally {
+        invoiceShippedSaveBtn.disabled = false;
+        invoiceShippedSaveBtn.textContent = oldText;
       }
     });
 
