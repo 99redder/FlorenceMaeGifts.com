@@ -1881,9 +1881,19 @@
       advertisingCostsCents: 23927
     };
 
+    // Income categories that represent an actual sale for Stats purposes.
+    // Manual "Add Sale" and Etsy/Mercari imports use "Product Sale".
+    // Stripe shop auto-imports use "Florence Mae Gifts Shop" and Stripe
+    // invoice payments use "Service Revenue" — all count as real sales.
+    const STATS_SALE_CATEGORIES = new Set([
+      'product sale',
+      'florence mae gifts shop',
+      'service revenue'
+    ]);
+
     function isStatsSaleIncomeRow(r) {
       const category = String(r?.category || '').trim().toLowerCase();
-      return category === 'product sale';
+      return STATS_SALE_CATEGORIES.has(category);
     }
 
     async function buildAllTimeBusinessStats() {
