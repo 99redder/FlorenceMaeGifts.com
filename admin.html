@@ -4250,9 +4250,9 @@
       const refreshPaymentLinkBtn = `<button type="button" class="btn invoice-action-btn" data-invoice-action="payment-link-refresh" data-id="${id}">Refresh Payment Link</button>`;
       return `<div style="display:flex; gap:.24rem; flex-wrap:wrap; justify-content:flex-end; align-items:center;">
         <button type="button" class="btn invoice-action-btn" data-invoice-action="view" data-id="${id}">View Invoice</button>
+        <button type="button" class="btn invoice-action-btn" data-invoice-action="edit" data-id="${id}">Edit Invoice</button>
         <button type="button" class="btn invoice-action-btn" data-invoice-action="send" data-id="${id}">Send Invoice Email</button>
         <button type="button" class="btn invoice-action-btn" data-invoice-action="shipped" data-id="${id}">${shipped ? 'Resend Shipped Email' : 'Send Shipped Email'}</button>
-        <button type="button" class="btn invoice-action-btn" data-invoice-action="edit" data-id="${id}">Edit</button>
         ${markSentBtn}
         ${markPaidBtn}
         ${recordPaymentBtn}
