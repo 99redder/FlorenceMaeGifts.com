@@ -5005,13 +5005,34 @@
       accountsRebuildJournalBtn.classList.add('active');
       accountsRebuildJournalBtn.textContent = 'Rebuilding…';
       try {
-        const res = await fetch(ACCOUNTS_REBUILD_JOURNAL_API_URL, { method: 'POST', credentials: 'same-origin' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Rebuild failed');
-        const r = data.rebuilt || {};
-        const errCount = (r.expenseErrors||0) + (r.incomeErrors||0);
-        const errDetail = errCount && r.errors?.length ? '\n\nSkipped rows:\n' + r.errors.map(e => `• ${e.type} id=${e.id} [${e.category}] ${e.amount_cents}¢ — ${e.error}`).join('\n') : '';
-        openConfirmModal(`Journal rebuilt. ${(r.expenseEntries ?? 0)} expense entries and ${(r.incomeEntries ?? 0)} income entries posted.${errCount ? ` (${errCount} rows skipped with errors)` : ''}${errDetail}`, 'Rebuild Complete', 'OK')
+        // Chunked rebuild: the worker processes a slice per call and returns the
+        // next start index. Loop until done so we never exceed Cloudflare's
+        // per-request DB-call limit on large ledgers.
+        let start = 0;
+        let total = 0;
+        let processedTotal = 0;
+        const allErrors = [];
+        let guard = 0;
+        while (true) {
+          if (++guard > 1000) throw new Error('Rebuild did not finish (too many chunks)');
+          const res = await fetch(ACCOUNTS_REBUILD_JOURNAL_API_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ start })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Rebuild failed');
+          total = data.total || 0;
+          processedTotal += (data.processed || 0);
+          if (Array.isArray(data.errors) && data.errors.length) allErrors.push(...data.errors);
+          accountsRebuildJournalBtn.textContent = `Rebuilding… ${Math.min(processedTotal, total)}/${total}`;
+          if (data.done) break;
+          start = data.nextStart;
+        }
+        const errCount = allErrors.length;
+        const errDetail = errCount ? '\n\nSkipped rows:\n' + allErrors.slice(0, 50).map(e => `• ${e.type} id=${e.id} [${e.category}] ${e.amount_cents}¢ — ${e.error}`).join('\n') : '';
+        openConfirmModal(`Journal rebuilt. ${processedTotal} of ${total} tax entries posted.${errCount ? ` (${errCount} rows skipped with errors)` : ''}${errDetail}`, 'Rebuild Complete', 'OK')
           .then(() => loadAccountsData());
       } catch (e) {
         openErrorModal('Rebuild failed: ' + e.message);

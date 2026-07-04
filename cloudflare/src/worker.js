@@ -2786,14 +2786,22 @@ async function handleAccountsRebuildAutoJournal(request, env, corsHeaders, url) 
   const accountingReady = await ensureAccountingSetup(env.DB);
   if (!accountingReady) return json({ ok: false, error: 'Accounting tables are not migrated yet. Run D1 migrations with --remote.' }, 503, corsHeaders);
 
-  const autoRows = await env.DB.prepare(
-    `SELECT id FROM journal_entries WHERE source_type IN ('tax_expense','tax_income')`
-  ).all();
+  // Chunked rebuild: Cloudflare caps the number of DB calls a single Worker
+  // invocation can make (~1000). With hundreds of tax rows (each needing several
+  // DB ops) a one-shot rebuild blows past that limit and fails partway. The client
+  // calls this repeatedly with an increasing `start` until `done` is true.
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const start = Math.max(0, Number(body.start || 0));
+  const BATCH = 150;
 
-  for (const r of (autoRows.results || [])) {
-    await env.DB.prepare(`DELETE FROM journal_lines WHERE entry_id = ?1`).bind(r.id).run();
+  // Clear all auto-generated journal rows once, on the first chunk only.
+  if (start === 0) {
+    await env.DB.prepare(
+      `DELETE FROM journal_lines WHERE entry_id IN (SELECT id FROM journal_entries WHERE source_type IN ('tax_expense','tax_income'))`
+    ).run();
+    await env.DB.prepare(`DELETE FROM journal_entries WHERE source_type IN ('tax_expense','tax_income')`).run();
   }
-  await env.DB.prepare(`DELETE FROM journal_entries WHERE source_type IN ('tax_expense','tax_income')`).run();
 
   const expenses = await env.DB.prepare(
     `SELECT id, expense_date, vendor, category, amount_cents, paid_via, notes FROM tax_expenses ORDER BY id ASC`
@@ -2802,23 +2810,34 @@ async function handleAccountsRebuildAutoJournal(request, env, corsHeaders, url) 
     `SELECT id, income_date, source, category, amount_cents, notes, is_owner_funded FROM tax_income ORDER BY id ASC`
   ).all();
 
+  const combined = [
+    ...(expenses.results || []).map(row => ({ kind: 'expense', row })),
+    ...(income.results || []).map(row => ({ kind: 'income', row }))
+  ];
+  const total = combined.length;
+  const slice = combined.slice(start, start + BATCH);
+
   const errors = [];
-  for (const e of (expenses.results || [])) {
-    try { await upsertTaxExpenseJournal(env.DB, e, false); } catch (err) { errors.push({ type: 'expense', id: e.id, category: e.category, amount_cents: e.amount_cents, error: String(err?.message || err) }); }
-  }
-  for (const i of (income.results || [])) {
-    try { await upsertTaxIncomeJournal(env.DB, i, false); } catch (err) { errors.push({ type: 'income', id: i.id, category: i.category, amount_cents: i.amount_cents, error: String(err?.message || err) }); }
+  for (const item of slice) {
+    try {
+      // skipDelete=true: the bulk delete above already cleared prior auto rows,
+      // and each source row appears in exactly one chunk, so no per-row delete needed.
+      if (item.kind === 'expense') await upsertTaxExpenseJournal(env.DB, item.row, true);
+      else await upsertTaxIncomeJournal(env.DB, item.row, true);
+    } catch (err) {
+      errors.push({ type: item.kind, id: item.row.id, category: item.row.category, amount_cents: item.row.amount_cents, error: String(err?.message || err) });
+    }
   }
 
+  const nextStart = start + slice.length;
+  const done = nextStart >= total;
   return json({
     ok: true,
-    rebuilt: {
-      expenseEntries: (expenses.results || []).length,
-      incomeEntries: (income.results || []).length,
-      expenseErrors: errors.filter(e => e.type === 'expense').length,
-      incomeErrors: errors.filter(e => e.type === 'income').length,
-      errors
-    }
+    done,
+    nextStart,
+    total,
+    processed: slice.length,
+    errors
   }, 200, corsHeaders);
 }
 
