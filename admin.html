@@ -174,6 +174,14 @@
     .tax-ledger-actions label { margin:0; min-width:auto; font-size:.82rem; color:var(--muted); letter-spacing:.04em; }
     .tax-ledger-actions select { max-width:none; min-width:86px; width:auto; padding:.38rem .5rem; font-size:.88rem; }
     .tax-ledger-actions .btn { padding:.42rem .62rem; font-size:.84rem; white-space:nowrap; }
+    .tax-ledger-actions input[type="date"] { min-width:120px; width:auto; padding:.34rem .5rem; font-size:.88rem; }
+    .tax-ledger-actions.accounts-controls { gap:.3rem; }
+    .tax-ledger-actions.accounts-controls label { font-size:.75rem; }
+    .tax-ledger-actions.accounts-controls select { min-width:68px; padding:.28rem .38rem; font-size:.82rem; }
+    .tax-ledger-actions.accounts-controls input[type="date"] { min-width:102px; padding:.26rem .32rem; font-size:.8rem; }
+    .tax-ledger-actions.accounts-controls .btn { padding:.32rem .5rem; font-size:.8rem; }
+    #accounts-rebuild-journal-btn { background:linear-gradient(135deg,#ffb020,#e88a00); border-color:#e88a00; color:#1a1205; }
+    #accounts-rebuild-journal-btn:hover { filter:brightness(1.05); }
     #tax-export-type { min-width:112px; }
     #tax-export-quarter { min-width:128px; }
     @media (max-width:760px) { .tax-ledger-actions { width:100%; max-width:none; margin-left:0; justify-content:flex-start; } }
@@ -487,21 +495,25 @@
         </div>
         <div id="accounts-body" class="admin-collapsible-body-collapsed">
           <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
-            <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem;">
-              <button type="button" class="btn active" id="accounts-tab-balances">Trial Balance</button>
-              <button type="button" class="btn" id="accounts-tab-balance-sheet">Balance Sheet</button>
-              <button type="button" class="btn" id="accounts-tab-pnl">Income Statement (P&L)</button>
-              <button type="button" class="btn" id="accounts-tab-cashflow">Cash Flow</button>
-              <button type="button" class="btn" id="accounts-tab-journal">Journal</button>
-              <button type="button" class="btn" id="accounts-cc-payment-btn" title="Create journal entry for credit card payment">Credit Card Payment</button>
-              <label>Year</label>
-              <select id="accounts-year" style="max-width:140px;"></select>
-              <label>From</label>
-              <input id="accounts-from" type="date" style="max-width:170px;" />
-              <label>To</label>
-              <input id="accounts-to" type="date" style="max-width:170px;" />
-              <button type="button" class="btn" id="accounts-refresh-btn">Refresh</button>
-              <button type="button" class="btn" id="accounts-rebuild-journal-btn" title="Re-posts all auto journal entries from tax ledger using current account mappings">Rebuild Auto Journal</button>
+            <div class="tax-ledger-action-row" style="margin-bottom:.5rem;">
+              <div class="tax-ledger-primary-actions">
+                <button type="button" class="btn active" id="accounts-tab-balances">Trial Balance</button>
+                <button type="button" class="btn" id="accounts-tab-balance-sheet">Balance Sheet</button>
+                <button type="button" class="btn" id="accounts-tab-pnl">Income Statement (P&L)</button>
+                <button type="button" class="btn" id="accounts-tab-cashflow">Cash Flow</button>
+                <button type="button" class="btn" id="accounts-tab-journal">Journal</button>
+                <button type="button" class="btn" id="accounts-cc-payment-btn" title="Create journal entry for credit card payment">Credit Card Payment</button>
+                <button type="button" class="btn" id="accounts-rebuild-journal-btn" title="Re-posts all auto journal entries from tax ledger using current account mappings">Rebuild Auto Journal</button>
+              </div>
+              <div class="tax-ledger-actions accounts-controls">
+                <label for="accounts-year">Year</label>
+                <select id="accounts-year"></select>
+                <label for="accounts-from">From</label>
+                <input id="accounts-from" type="date" />
+                <label for="accounts-to">To</label>
+                <input id="accounts-to" type="date" />
+                <button type="button" class="btn" id="accounts-refresh-btn">Refresh</button>
+              </div>
             </div>
             <div id="accounts-balance-status" class="admin-calendar-title" style="margin-bottom:.4rem;">Trial Balance: —</div>
             <div class="admin-list" id="accounts-list">No data yet.</div>
