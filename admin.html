@@ -166,11 +166,17 @@
     .tax-row .edit { padding:.35rem .75rem; font-size:.95rem; }
     .tax-row .delete { padding:.35rem .75rem; font-size:.95rem; border-color:#5a2222; color:#ff9b9b; }
     .btn.tx-filter-btn.active { background:linear-gradient(135deg, #FEA0AE 0%, #FE6666 100%); border-color:#FE6666; color:#000; }
-    .tax-controls-row { display:flex; gap:1rem; flex-wrap:wrap; align-items:center; margin-top:.7rem; }
-    .tax-control-group { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; }
-    .tax-control-group label { margin:0; color:var(--muted); font-size:.9rem; white-space:nowrap; }
-    .tax-control-group select { max-width:150px; }
-    .tax-export-group { padding:.45rem .7rem; border:1px solid var(--line); border-radius:8px; background:var(--card); }
+    .tax-ledger-action-row { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-top:.4rem; }
+    .tax-ledger-primary-actions { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+    .tax-ledger-actions { display:flex; align-items:center; justify-content:flex-end; gap:.35rem; flex-wrap:wrap; margin-left:auto; max-width:540px; padding:.5rem .65rem; border:1px solid var(--line); border-radius:8px; background:var(--card-soft); }
+    .tax-export-label { flex-basis:100%; font-size:.74rem; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; line-height:1.2; }
+    .tax-export-label strong { color:var(--cyan); font-weight:700; }
+    .tax-ledger-actions label { margin:0; min-width:auto; font-size:.82rem; color:var(--muted); letter-spacing:.04em; }
+    .tax-ledger-actions select { max-width:none; min-width:86px; width:auto; padding:.38rem .5rem; font-size:.88rem; }
+    .tax-ledger-actions .btn { padding:.42rem .62rem; font-size:.84rem; white-space:nowrap; }
+    #tax-export-type { min-width:112px; }
+    #tax-export-quarter { min-width:128px; }
+    @media (max-width:760px) { .tax-ledger-actions { width:100%; max-width:none; margin-left:0; justify-content:flex-start; } }
     .tax-export-group .tax-export-label { font-weight:700; color:var(--text); font-size:.85rem; text-transform:uppercase; letter-spacing:.03em; margin-right:.1rem; }
     .admin-calendar-wrap { margin-top:.7rem; border:1px solid var(--line); border-radius:8px; background:var(--card); padding:1rem; }
     .tax-summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
@@ -423,36 +429,38 @@
                   <div class="tax-summary-grid" id="tax-summary-list">No data yet.</div>
                 </div>
 
-                <div class="admin-row" style="gap:.4rem; flex-wrap:wrap; margin-top:.4rem;">
-                  <button type="button" class="btn btn-primary" id="tax-mode-expense-btn">Add Expense</button>
-                  <button type="button" class="btn btn-primary" id="tax-mode-sale-btn">Add Sale</button>
-                  <button type="button" class="btn btn-primary" id="tax-mode-import-sales-btn">Import Etsy Sales</button>
-                  <button type="button" class="btn btn-primary" id="tax-mode-import-mercari-btn">Import Mercari Sales</button>
-                  <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-owner-transfer-btn">Add Owner Transfer</button>
-                  <button type="button" class="btn btn-primary" id="tax-mode-income-btn">Add Income</button>
-                  <button type="button" class="btn btn-primary" id="tax-manage-categories-btn" onclick="window.openTaxCategoryManager && window.openTaxCategoryManager()">Manage Categories</button>
-                </div>
-                <p style="margin:.55rem 0 0; font-size:.9rem; color:var(--muted);">LLC cutover note: <strong style="color:var(--text);">March 18, 2026</strong> is the first official day as Florence Mae Gifts, LLC. Use this date when splitting sole proprietorship vs. LLC bookkeeping/imports.</p>
-
-                <div class="tax-controls-row">
-                  <div class="tax-control-group">
+                <div class="tax-ledger-action-row">
+                  <div class="tax-ledger-primary-actions">
+                    <button type="button" class="btn btn-primary" id="tax-mode-expense-btn">Add Expense</button>
+                    <button type="button" class="btn btn-primary" id="tax-mode-sale-btn">Add Sale</button>
+                    <button type="button" class="btn btn-primary" id="tax-mode-import-sales-btn">Import Etsy Sales</button>
+                    <button type="button" class="btn btn-primary" id="tax-mode-import-mercari-btn">Import Mercari Sales</button>
+                    <button type="button" class="btn btn-primary tx-entry-mode-btn" id="tax-mode-owner-transfer-btn">Add Owner Transfer</button>
+                    <button type="button" class="btn btn-primary" id="tax-mode-income-btn">Add Income</button>
+                    <button type="button" class="btn btn-primary" id="tax-manage-categories-btn" onclick="window.openTaxCategoryManager && window.openTaxCategoryManager()">Manage Categories</button>
+                  </div>
+                  <div class="tax-ledger-actions" id="tax-ledger-actions">
+                    <div class="tax-export-label"><strong>CSV Export</strong> — choose what goes into the downloaded file</div>
                     <label for="tax-year">Year</label>
                     <select id="tax-year"></select>
-                    <button type="button" class="btn" id="tax-refresh-btn">Refresh</button>
-                  </div>
-                  <div class="tax-control-group tax-export-group">
-                    <span class="tax-export-label">CSV Export</span>
-                    <label for="tax-export-quarter">Period</label>
+                    <label for="tax-export-type">Type</label>
+                    <select id="tax-export-type">
+                      <option value="all">All</option>
+                      <option value="income">Income</option>
+                      <option value="expense">Expenses</option>
+                    </select>
+                    <label for="tax-export-quarter">Export</label>
                     <select id="tax-export-quarter">
                       <option value="all">Full year</option>
-                      <option value="1">Q1 (Jan–Mar)</option>
-                      <option value="2">Q2 (Apr–Jun)</option>
-                      <option value="3">Q3 (Jul–Sep)</option>
-                      <option value="4">Q4 (Oct–Dec)</option>
+                      <option value="1">Q1 (Jan-Mar)</option>
+                      <option value="2">Q2 (Apr-Jun)</option>
+                      <option value="3">Q3 (Jul-Sep)</option>
+                      <option value="4">Q4 (Oct-Dec)</option>
                     </select>
-                    <button type="button" class="btn btn-primary" id="tax-export-btn">Download CSV</button>
+                    <button type="button" class="btn btn-primary" id="tax-export-btn">CSV</button>
                   </div>
                 </div>
+                <p style="margin:.55rem 0 0; font-size:.9rem; color:var(--muted);">LLC cutover note: <strong style="color:var(--text);">March 18, 2026</strong> is the first official day as Florence Mae Gifts, LLC. Use this date when splitting sole proprietorship vs. LLC bookkeeping/imports.</p>
 
                 <div>
                   <div style="display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; margin:.1rem 0 .4rem;">
@@ -1499,7 +1507,7 @@
     const taxYearEl = document.getElementById('tax-year');
     const taxSummaryYearEl = document.getElementById('tax-summary-year');
     const taxExportQuarterEl = document.getElementById('tax-export-quarter');
-    const taxRefreshBtn = document.getElementById('tax-refresh-btn');
+    const taxExportTypeEl = document.getElementById('tax-export-type');
     const taxExportBtn = document.getElementById('tax-export-btn');
     const taxModeExpenseBtn = document.getElementById('tax-mode-expense-btn');
     const taxModeSaleBtn = document.getElementById('tax-mode-sale-btn');
@@ -3606,6 +3614,7 @@
 
     async function downloadTaxCsv() {
       const year = taxYearEl.value;
+      const type = taxExportTypeEl?.value || 'all';
       const quarter = taxExportQuarterEl?.value || 'all';
       const quarterSuffix = quarter && quarter !== 'all' ? `-Q${quarter}` : '';
       try {
@@ -4842,7 +4851,6 @@
     });
 
     // ===== Tax Ledger Event Listeners =====
-    taxRefreshBtn.addEventListener('click', loadTaxTransactions);
     taxYearEl.addEventListener('change', loadTaxTransactions);
     taxSummaryYearEl?.addEventListener('change', loadTaxTransactions);
     taxModeExpenseBtn?.addEventListener('click', openAddExpenseModal);
