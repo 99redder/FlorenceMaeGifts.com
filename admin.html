@@ -182,6 +182,13 @@
     .tax-ledger-actions.accounts-controls .btn { padding:.32rem .5rem; font-size:.8rem; }
     #accounts-rebuild-journal-btn { background:linear-gradient(135deg,#ffb020,#e88a00); border-color:#e88a00; color:#1a1205; }
     #accounts-rebuild-journal-btn:hover { filter:brightness(1.05); }
+    /* Accounts controls: tabs left, pill top-right, rebuild on its own 2nd row (right) */
+    .accounts-controls-bar { display:flex; flex-wrap:wrap; align-items:flex-start; gap:.4rem .6rem; }
+    .accounts-tabs { display:flex; gap:.3rem; flex-wrap:wrap; flex:1 1 300px; }
+    .accounts-tabs .btn { padding:.36rem .64rem; font-size:.82rem; }
+    .accounts-controls-bar .tax-ledger-actions.accounts-controls { margin-left:auto; }
+    .accounts-rebuild-wrap { flex-basis:100%; display:flex; justify-content:flex-end; }
+    .accounts-rebuild-wrap .btn { padding:.36rem .7rem; font-size:.82rem; }
     #tax-export-type { min-width:112px; }
     #tax-export-quarter { min-width:128px; }
     @media (max-width:760px) { .tax-ledger-actions { width:100%; max-width:none; margin-left:0; justify-content:flex-start; } }
@@ -495,15 +502,14 @@
         </div>
         <div id="accounts-body" class="admin-collapsible-body-collapsed">
           <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
-            <div class="tax-ledger-action-row" style="margin-bottom:.5rem;">
-              <div class="tax-ledger-primary-actions">
+            <div class="accounts-controls-bar" style="margin-bottom:.5rem;">
+              <div class="accounts-tabs">
                 <button type="button" class="btn active" id="accounts-tab-balances">Trial Balance</button>
                 <button type="button" class="btn" id="accounts-tab-balance-sheet">Balance Sheet</button>
                 <button type="button" class="btn" id="accounts-tab-pnl">Income Statement (P&L)</button>
                 <button type="button" class="btn" id="accounts-tab-cashflow">Cash Flow</button>
                 <button type="button" class="btn" id="accounts-tab-journal">Journal</button>
                 <button type="button" class="btn" id="accounts-cc-payment-btn" title="Create journal entry for credit card payment">Credit Card Payment</button>
-                <button type="button" class="btn" id="accounts-rebuild-journal-btn" title="Re-posts all auto journal entries from tax ledger using current account mappings">Rebuild Auto Journal</button>
               </div>
               <div class="tax-ledger-actions accounts-controls">
                 <label for="accounts-year">Year</label>
@@ -513,6 +519,9 @@
                 <label for="accounts-to">To</label>
                 <input id="accounts-to" type="date" />
                 <button type="button" class="btn" id="accounts-refresh-btn">Refresh</button>
+              </div>
+              <div class="accounts-rebuild-wrap">
+                <button type="button" class="btn" id="accounts-rebuild-journal-btn" title="Re-posts all auto journal entries from tax ledger using current account mappings">Rebuild Auto Journal</button>
               </div>
             </div>
             <div id="accounts-balance-status" class="admin-calendar-title" style="margin-bottom:.4rem;">Trial Balance: —</div>
@@ -5039,7 +5048,8 @@
           processedTotal += (data.processed || 0);
           if (Array.isArray(data.errors) && data.errors.length) allErrors.push(...data.errors);
           accountsRebuildJournalBtn.textContent = `Rebuilding… ${Math.min(processedTotal, total)}/${total}`;
-          if (data.done) break;
+          // Old (non-chunked) worker responses omit these fields — stop after one call.
+          if (data.done || typeof data.nextStart !== 'number') break;
           start = data.nextStart;
         }
         const errCount = allErrors.length;
