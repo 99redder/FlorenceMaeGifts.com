@@ -4397,7 +4397,8 @@ async function ensureAccountingSetup(db) {
     ['5400','Contractor Expense','expense','debit'],
     ['5600','Utilities Expense','expense','debit'],
     ['5700','Marketplace Fees','expense','debit'],
-    ['5800','Shipping Expense','expense','debit']
+    ['5800','Shipping Expense','expense','debit'],
+    ['5900','Taxes & Licenses','expense','debit']
   ];
 
   for (const s of seed) {
@@ -4452,8 +4453,16 @@ async function upsertTaxExpenseJournal(db, row, skipDelete = false) {
     expenseAccountCode = '5000'; // Software Expense
   } else if (cat === 'Shipping Costs') {
     expenseAccountCode = '5800'; // Shipping Expense
+  } else if (cat === 'Taxes - Sales & Use' || cat === 'Business License Fees' || cat === 'LLC Fees') {
+    expenseAccountCode = '5900'; // Taxes & Licenses
   } else {
     expenseAccountCode = '5200'; // Supplies Expense (catch-all, includes Shipping & Packaging Supplies)
+  }
+  // Guarantee the Taxes & Licenses account exists on already-seeded (production) DBs,
+  // since ensureAccountingSetup only seeds fresh DBs and getAccountIdByCode won't create it.
+  if (expenseAccountCode === '5900') {
+    await ensureAccountByCode(db, '5900', 'Taxes & Licenses', 'expense', 'debit');
+    _acctIdCache.delete('5900');
   }
   const paidVia = (row.paid_via || '').toLowerCase();
 

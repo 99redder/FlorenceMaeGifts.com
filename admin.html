@@ -2863,7 +2863,7 @@
     const DEFAULT_TAX_EXPENSE_CATEGORIES = [
       'Startup cost', 'Advertising/Marketing', 'Software/SaaS', 'Hosting/Cloud',
       'Product Testing', 'Office Supplies',
-      'Professional Services', 'Stripe Processing Fees', 'Etsy Processing Fees', 'Mercari Processing Fees', 'Etsy Listing Fees', 'Etsy Transaction Fees', 'Etsy Offsite Ads', 'Mercari Selling Fees', 'Shipping Costs', 'Shipping & Packaging Supplies', 'Other Expense', 'Other'
+      'Professional Services', 'Stripe Processing Fees', 'Etsy Processing Fees', 'Mercari Processing Fees', 'Etsy Listing Fees', 'Etsy Transaction Fees', 'Etsy Offsite Ads', 'Mercari Selling Fees', 'Shipping Costs', 'Shipping & Packaging Supplies', 'Taxes - Sales & Use', 'Other Expense', 'Other'
     ];
 
     const DEFAULT_TAX_INCOME_CATEGORIES = [
@@ -3651,6 +3651,7 @@
             created_at: r.created_at || ''
           }))
         ]
+          .filter(r => type === 'all' || r.type === type)
           .filter(r => inTaxDateRange(r.date, startDate, endDate))
           .sort((a, b) => {
             const ad = String(a.date || '');
@@ -3662,7 +3663,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `florence-mae-gifts-tax-${year}${quarterSuffix}.csv`;
+        a.download = `florence-mae-gifts-tax-${year}-${type}${quarterSuffix}.csv`;
         document.body.appendChild(a);
         a.click();
         a.remove();
