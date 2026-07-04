@@ -166,6 +166,12 @@
     .tax-row .edit { padding:.35rem .75rem; font-size:.95rem; }
     .tax-row .delete { padding:.35rem .75rem; font-size:.95rem; border-color:#5a2222; color:#ff9b9b; }
     .btn.tx-filter-btn.active { background:linear-gradient(135deg, #FEA0AE 0%, #FE6666 100%); border-color:#FE6666; color:#000; }
+    .tax-controls-row { display:flex; gap:1rem; flex-wrap:wrap; align-items:center; margin-top:.7rem; }
+    .tax-control-group { display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; }
+    .tax-control-group label { margin:0; color:var(--muted); font-size:.9rem; white-space:nowrap; }
+    .tax-control-group select { max-width:150px; }
+    .tax-export-group { padding:.45rem .7rem; border:1px solid var(--line); border-radius:8px; background:var(--card); }
+    .tax-export-group .tax-export-label { font-weight:700; color:var(--text); font-size:.85rem; text-transform:uppercase; letter-spacing:.03em; margin-right:.1rem; }
     .admin-calendar-wrap { margin-top:.7rem; border:1px solid var(--line); border-radius:8px; background:var(--card); padding:1rem; }
     .tax-summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
     .tax-summary-col { border:1px solid var(--line); border-radius:8px; padding:.6rem; background:var(--card); }
@@ -428,16 +434,24 @@
                 </div>
                 <p style="margin:.55rem 0 0; font-size:.9rem; color:var(--muted);">LLC cutover note: <strong style="color:var(--text);">March 18, 2026</strong> is the first official day as Florence Mae Gifts, LLC. Use this date when splitting sole proprietorship vs. LLC bookkeeping/imports.</p>
 
-                <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-top:.5rem;">
-                  <label style="min-width:80px;">Year</label>
-                  <select id="tax-year" style="max-width:160px;"></select>
-                  <label style="min-width:70px;">Type</label>
-                  <select id="tax-type" style="max-width:200px;">
-                    <option value="all">All</option>
-                    <option value="income">Income</option>
-                    <option value="expense">Expenses</option>
-                  </select>
-                  <button type="button" class="btn" id="tax-refresh-btn">Refresh</button>
+                <div class="tax-controls-row">
+                  <div class="tax-control-group">
+                    <label for="tax-year">Year</label>
+                    <select id="tax-year"></select>
+                    <button type="button" class="btn" id="tax-refresh-btn">Refresh</button>
+                  </div>
+                  <div class="tax-control-group tax-export-group">
+                    <span class="tax-export-label">CSV Export</span>
+                    <label for="tax-export-quarter">Period</label>
+                    <select id="tax-export-quarter">
+                      <option value="all">Full year</option>
+                      <option value="1">Q1 (Jan–Mar)</option>
+                      <option value="2">Q2 (Apr–Jun)</option>
+                      <option value="3">Q3 (Jul–Sep)</option>
+                      <option value="4">Q4 (Oct–Dec)</option>
+                    </select>
+                    <button type="button" class="btn btn-primary" id="tax-export-btn">Download CSV</button>
+                  </div>
                 </div>
 
                 <div>
@@ -1484,7 +1498,7 @@
 
     const taxYearEl = document.getElementById('tax-year');
     const taxSummaryYearEl = document.getElementById('tax-summary-year');
-    const taxTypeEl = document.getElementById('tax-type');
+    const taxExportQuarterEl = document.getElementById('tax-export-quarter');
     const taxRefreshBtn = document.getElementById('tax-refresh-btn');
     const taxExportBtn = document.getElementById('tax-export-btn');
     const taxModeExpenseBtn = document.getElementById('tax-mode-expense-btn');
@@ -3172,10 +3186,9 @@
       if (!adminUnlocked) return;
       const year = taxYearEl.value;
       const summaryYear = taxSummaryYearEl?.value || year;
-      const type = taxTypeEl.value;
       try {
         const [res, summaryRes] = await Promise.all([
-          fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=${encodeURIComponent(type)}&limit=5000`, {
+          fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, {
             credentials: 'same-origin'
           }),
           fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(summaryYear)}&type=all&limit=5000`, {
@@ -3552,22 +3565,95 @@
       if (!data.ok) throw new Error(data.error || 'Receipt upload failed');
     }
 
+    function taxCsvEscape(value) {
+      const s = String(value == null ? '' : value);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    }
+
+    function getTaxQuarterRange(year, quarter) {
+      const ranges = {
+        '1': [`${year}-01-01`, `${year}-03-31`],
+        '2': [`${year}-04-01`, `${year}-06-30`],
+        '3': [`${year}-07-01`, `${year}-09-30`],
+        '4': [`${year}-10-01`, `${year}-12-31`]
+      };
+      return ranges[quarter] || [`${year}-01-01`, `${year}-12-31`];
+    }
+
+    function inTaxDateRange(dateValue, startDate, endDate) {
+      const d = String(dateValue || '').slice(0, 10);
+      return d >= startDate && d <= endDate;
+    }
+
+    function buildTaxCsv(rows) {
+      const lines = [];
+      lines.push(['date','type','category','vendor_or_source','amount','paid_via','stripe_session_id','notes','created_at'].join(','));
+      for (const r of rows) {
+        lines.push([
+          taxCsvEscape(r.date),
+          taxCsvEscape(r.type),
+          taxCsvEscape(r.category),
+          taxCsvEscape(r.vendor_or_source),
+          (Number(r.amount_cents || 0) / 100).toFixed(2),
+          taxCsvEscape(r.paid_via || ''),
+          taxCsvEscape(r.stripe_session_id || ''),
+          taxCsvEscape(r.notes || ''),
+          taxCsvEscape(r.created_at || '')
+        ].join(','));
+      }
+      return lines.join('\n');
+    }
+
     async function downloadTaxCsv() {
       const year = taxYearEl.value;
-      const type = taxTypeEl.value;
+      const quarter = taxExportQuarterEl?.value || 'all';
+      const quarterSuffix = quarter && quarter !== 'all' ? `-Q${quarter}` : '';
       try {
-        const res = await fetch(`${TAX_EXPORT_API_URL}?year=${encodeURIComponent(year)}&type=${encodeURIComponent(type)}`, {
+        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=10000`, {
           credentials: 'same-origin'
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           throw new Error(data.error || 'Export failed');
         }
-        const blob = await res.blob();
+        const data = await res.json();
+        const [startDate, endDate] = getTaxQuarterRange(year, quarter);
+        const rows = [
+          ...(data.income || []).map(r => ({
+            type: 'income',
+            date: r.date,
+            category: r.category,
+            vendor_or_source: r.source || '',
+            amount_cents: r.amount_cents,
+            paid_via: '',
+            stripe_session_id: r.stripe_session_id || '',
+            notes: r.notes || '',
+            created_at: r.created_at || ''
+          })),
+          ...(data.expenses || []).map(r => ({
+            type: 'expense',
+            date: r.date,
+            category: r.category,
+            vendor_or_source: r.vendor || '',
+            amount_cents: r.amount_cents,
+            paid_via: r.paid_via || '',
+            stripe_session_id: '',
+            notes: r.notes || '',
+            created_at: r.created_at || ''
+          }))
+        ]
+          .filter(r => inTaxDateRange(r.date, startDate, endDate))
+          .sort((a, b) => {
+            const ad = String(a.date || '');
+            const bd = String(b.date || '');
+            if (ad !== bd) return ad.localeCompare(bd);
+            return a.type.localeCompare(b.type);
+          });
+        const blob = new Blob([buildTaxCsv(rows)], { type: 'text/csv;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `florence-mae-gifts-tax-${year}-${type}.csv`;
+        a.download = `florence-mae-gifts-tax-${year}${quarterSuffix}.csv`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -4759,7 +4845,6 @@
     taxRefreshBtn.addEventListener('click', loadTaxTransactions);
     taxYearEl.addEventListener('change', loadTaxTransactions);
     taxSummaryYearEl?.addEventListener('change', loadTaxTransactions);
-    taxTypeEl.addEventListener('change', loadTaxTransactions);
     taxModeExpenseBtn?.addEventListener('click', openAddExpenseModal);
     taxModeSaleBtn?.addEventListener('click', openAddSaleModal);
     taxModeImportSalesBtn?.addEventListener('click', openImportEtsyModal);
