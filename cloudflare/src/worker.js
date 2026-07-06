@@ -2995,9 +2995,15 @@ async function handleInvoicesList(request, env, corsHeaders, url) {
   if (!auth.ok) return auth.res;
   const status = (url.searchParams.get('status') || '').trim();
   const useStatus = status && status !== 'all';
+  const sort = (url.searchParams.get('sort') || 'newest').trim();
+  const orderBy = ({
+    newest: 'created_at DESC, issue_date DESC, id DESC',
+    'last-name': 'lower(customer_name) ASC, created_at DESC, id DESC',
+    status: 'status ASC, created_at DESC, id DESC'
+  })[sort] || 'created_at DESC, issue_date DESC, id DESC';
   const rows = useStatus
-    ? await env.DB.prepare(`SELECT * FROM invoices WHERE status = ?1 ORDER BY due_date ASC, id DESC LIMIT 300`).bind(status).all()
-    : await env.DB.prepare(`SELECT * FROM invoices ORDER BY due_date ASC, id DESC LIMIT 300`).all();
+    ? await env.DB.prepare(`SELECT * FROM invoices WHERE status = ?1 ORDER BY ${orderBy} LIMIT 300`).bind(status).all()
+    : await env.DB.prepare(`SELECT * FROM invoices ORDER BY ${orderBy} LIMIT 300`).all();
   return json({ ok: true, invoices: rows.results || [] }, 200, corsHeaders);
 }
 
