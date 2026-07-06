@@ -3722,6 +3722,8 @@ async function handleInvoiceShippedEmail(request, env, corsHeaders, url) {
     reply_to: replyToEmail || fromEmail
   };
   if (env.CC_EMAIL) emailPayload.cc = [env.CC_EMAIL];
+  const shippedEmailBcc = 'florencemaegifts@outlook.com';
+  if (customerEmail.toLowerCase() !== shippedEmailBcc) emailPayload.bcc = [shippedEmailBcc];
 
   const sendRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
