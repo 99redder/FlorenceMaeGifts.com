@@ -1096,6 +1096,7 @@
       <h3 id="user-guide-title">Admin User Guide</h3>
       <div style="display:flex; gap:.4rem; flex-wrap:wrap; margin:.2rem 0 .8rem;" id="user-guide-tabs">
         <button type="button" class="btn active" data-guide-tab="expenses">Expenses + Journal</button>
+        <button type="button" class="btn" data-guide-tab="invoices">Invoices + Shipping</button>
         <button type="button" class="btn" data-guide-tab="statements">Statements + Accounts</button>
       </div>
 
@@ -1108,6 +1109,16 @@
         </ul>
       </div>
 
+      <div id="user-guide-panel-invoices" data-guide-panel="invoices" style="display:none; color:var(--text);">
+        <ul style="margin:.7rem 0 0 1.1rem; padding:0; display:grid; gap:.28rem;">
+          <li>Invoices default to Sort By: Newest, so the newest invoices stay at the top unless you choose another sort.</li>
+          <li>Use Filter for All/Open/Paid and Sort By for Newest, Customer Last Name, or Status.</li>
+          <li>Use Preview Shipped Email to review the customer shipping email before sending. Tracking number is required.</li>
+          <li>The shipped email package description comes from the invoice Description/Notes field, not the line-item category like Services.</li>
+          <li>Shipped emails automatically BCC florencemaegifts@outlook.com for an internal copy.</li>
+          <li>After a shipped email is sent, the invoice row shows a green Shipped email sent marker with timestamp and tracking details.</li>
+        </ul>
+      </div>
 
       <div id="user-guide-panel-statements" data-guide-panel="statements" style="display:none; color:var(--text);">
         <img src="./images/admin-guide-statements.svg" alt="Guide diagram for trial balance, statements, and journal tabs" style="width:100%; border:1px solid var(--line); border-radius:6px; background:#0a0b10;" />
@@ -1310,6 +1321,7 @@
       <div style="display:flex; gap:.4rem; flex-wrap:wrap; margin:.2rem 0 .8rem;" id="user-guide-tabs">
         <button type="button" class="btn active" data-guide-tab="expenses">Expenses + Journal</button>
         <button type="button" class="btn" data-guide-tab="bookings">Booking Controls</button>
+        <button type="button" class="btn" data-guide-tab="invoices">Invoices + Shipping</button>
         <button type="button" class="btn" data-guide-tab="statements">Statements + Accounts</button>
       </div>
 
@@ -1328,6 +1340,17 @@
           <li>Use block-slot for specific time windows; block-day for all-day closures.</li>
           <li>Refresh after changes to confirm the calendar state.</li>
           <li>Clean stale pending bookings periodically.</li>
+        </ul>
+      </div>
+
+      <div id="user-guide-panel-invoices" data-guide-panel="invoices" style="display:none; color:var(--text);">
+        <ul style="margin:.7rem 0 0 1.1rem; padding:0; display:grid; gap:.28rem;">
+          <li>Invoices default to Sort By: Newest, so the newest invoices stay at the top unless you choose another sort.</li>
+          <li>Use Filter for All/Open/Paid and Sort By for Newest, Customer Last Name, or Status.</li>
+          <li>Use Preview Shipped Email to review the customer shipping email before sending. Tracking number is required.</li>
+          <li>The shipped email package description comes from the invoice Description/Notes field, not the line-item category like Services.</li>
+          <li>Shipped emails automatically BCC florencemaegifts@outlook.com for an internal copy.</li>
+          <li>After a shipped email is sent, the invoice row shows a green Shipped email sent marker with timestamp and tracking details.</li>
         </ul>
       </div>
 

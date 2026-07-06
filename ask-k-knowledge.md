@@ -61,6 +61,7 @@ It does not perform actions itself.
   - Mark Sent
   - Copy Payment Link
   - Refresh Payment Link
+  - Preview Shipped Email
   - Delete
 
 ### Year-End Close
@@ -193,16 +194,35 @@ Invoice actions:
 - mark sent
 - copy payment link
 - refresh payment link
+- preview and send shipped email
 - delete invoice
 
 Important rule:
 - an invoice is a bill for payment
 - unlike a quote, it is intended for payment collection
 
+### Invoice list sorting and filters
+- The Invoices list defaults to **Sort By: Newest**, so newly created invoices appear at the top.
+- The invoice filter supports All, Open, and Paid.
+- The invoice sort menu supports Newest, Customer Last Name, and Status.
+- If the user wants newest invoices on top, tell them to use Sort By: Newest.
+
 ### Payment links
 - invoices can generate or refresh Stripe payment links
 - Copy Payment Link is only available when a payment link exists
 - Refresh Payment Link creates or refreshes the Stripe checkout link for invoice payment
+
+### Shipped email workflow
+- Use **Preview Shipped Email** from an invoice row to open the shipping email modal.
+- The modal asks for carrier, tracking number, ship date, optional tracking URL, intro message, personal note, and closing message.
+- Tracking number is required.
+- Preview Email shows the exact customer email before sending.
+- Nothing is sent until the user clicks a Send button.
+- The "What's in your package" section comes from the invoice Description/Notes field, not from the line-item category. This avoids sending generic text like "Services" when the notes describe the actual package.
+- Shipped emails are sent by the worker through Resend.
+- Shipped emails automatically BCC `florencemaegifts@outlook.com` for the internal store copy, unless the customer email is already that address.
+- After a shipped email sends successfully, the invoice row shows a green "Shipped email sent" marker with timestamp and tracking details when available.
+- The worker stores shipped email state on the invoice using shipped/tracking fields such as `shipped_at`, `tracking_carrier`, `tracking_number`, and `tracking_url`.
 
 ### Record Payment vs Mark Paid
 - Record Payment: use when recording an actual payment amount received
@@ -324,6 +344,8 @@ These are grounded system facts Ask K should use confidently when users ask how 
 
 ### Email delivery
 - Invoice and quote emails are sent through **Resend**.
+- Shipped notification emails are also sent through **Resend**.
+- Shipped notification emails BCC `florencemaegifts@outlook.com` for an internal copy.
 - Ask K should not say emails are sent directly from the browser.
 - The browser triggers worker/API actions, and the worker handles the actual email send.
 
@@ -348,4 +370,3 @@ For questions about storage, uploads, email sending, payment links, quote accept
 - prefer grounded system facts from this file
 - do not guess
 - do not say "probably local" or "maybe in the browser" when worker/storage facts are known
-
