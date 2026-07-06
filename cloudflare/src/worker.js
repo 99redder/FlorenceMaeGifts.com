@@ -3607,16 +3607,15 @@ const DEFAULT_SHIPPED_INTRO = 'Great news — your handmade order from Florence 
 const DEFAULT_SHIPPED_CLOSING = 'Thank you so much for your order! Questions? Just reply to this email.';
 
 // Build the branded shipped-email HTML + plain-text + subject from an invoice,
-// its line items, tracking info, and (optionally personalized) copy. Shared by
+// its notes, tracking info, and (optionally personalized) copy. Shared by
 // the send handler and the preview endpoint so they never drift.
-function buildShippedEmailContent({ invoice, id, items, carrier, trackingNumber, shipDate, note, trackingUrl, introMessage, closingMessage }) {
+function buildShippedEmailContent({ invoice, id, carrier, trackingNumber, shipDate, note, trackingUrl, introMessage, closingMessage }) {
   const invoiceNumber = String(invoice.invoice_number || `INV-${id}`);
   const intro = (introMessage || '').toString().trim() || DEFAULT_SHIPPED_INTRO;
   const closing = (closingMessage || '').toString().trim() || DEFAULT_SHIPPED_CLOSING;
-  const safeItems = items || [];
-
-  const itemsListHtml = safeItems.length
-    ? `<ul style="margin:0;padding-left:18px;color:#374151;">${safeItems.map((it) => `<li style="margin:2px 0;">${escapeHtml(it.item_description || 'Item')}${Number(it.quantity || 1) > 1 ? ` × ${Number(it.quantity)}` : ''}</li>`).join('')}</ul>`
+  const packageNotes = (invoice.notes || '').toString().trim();
+  const packageNotesHtml = packageNotes
+    ? `<div style="margin:20px 0 0;"><div style="font-weight:700;margin-bottom:6px;color:#111827;">What's in your package:</div><p style="margin:0;white-space:pre-wrap;color:#374151;">${escapeHtml(packageNotes)}</p></div>`
     : '';
 
   const trackButtonHtml = trackingUrl
@@ -3630,7 +3629,7 @@ function buildShippedEmailContent({ invoice, id, items, carrier, trackingNumber,
       ${shipDate ? `<div style="margin:0;"><strong>Shipped:</strong> ${escapeHtml(shipDate)}</div>` : ''}
     </div>`;
 
-  const html = `<div style="font-family:Arial,sans-serif;background:#f7fafc;padding:24px;color:#111827;"><div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;"><img src="https://www.florencemaegifts.com/images/banner3.png" alt="Florence Mae Gifts" style="width:100%;height:auto;display:block;" /><div style="padding:20px 24px;background:linear-gradient(135deg,#0f172a,#1f2937);color:#ffffff;"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#FE6666;">Florence Mae Gifts</div><h1 style="margin:6px 0 0;font-size:24px;">Your Order Has Shipped! 📦</h1></div><div style="padding:24px;"><p style="margin:0 0 12px;">Hi ${escapeHtml(invoice.customer_name || 'there')},</p><p style="margin:0 0 14px;white-space:pre-wrap;color:#374151;">${escapeHtml(intro)}</p>${trackingRowsHtml}${trackButtonHtml}${trackingUrl ? '' : '<p style="margin:12px 0 0;color:#6b7280;font-size:13px;text-align:center;">Use the tracking number above with your carrier to follow your package.</p>'}${itemsListHtml ? `<div style="margin:20px 0 0;"><div style="font-weight:700;margin-bottom:6px;color:#111827;">What's in your package:</div>${itemsListHtml}</div>` : ''}${note ? `<p style="margin:18px 0 0;white-space:pre-wrap;color:#374151;">${escapeHtml(note)}</p>` : ''}<p style="margin:18px 0 0;white-space:pre-wrap;color:#374151;text-align:center;">${escapeHtml(closing)}</p></div><div style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;color:#4b5563;font-size:13px;text-align:center;"><strong>Florence Mae Gifts, LLC</strong> • <a href="https://www.florencemaegifts.com" style="color:#2563eb;">www.florencemaegifts.com</a><p style="margin:6px 0 0;font-size:11px;line-height:1.45;color:#6b7280;">Privacy: We use your contact information only for order and shipping communication. Tracking details are provided by the carrier.</p></div></div></div>`;
+  const html = `<div style="font-family:Arial,sans-serif;background:#f7fafc;padding:24px;color:#111827;"><div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;"><img src="https://www.florencemaegifts.com/images/banner3.png" alt="Florence Mae Gifts" style="width:100%;height:auto;display:block;" /><div style="padding:20px 24px;background:linear-gradient(135deg,#0f172a,#1f2937);color:#ffffff;"><div style="font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#FE6666;">Florence Mae Gifts</div><h1 style="margin:6px 0 0;font-size:24px;">Your Order Has Shipped! 📦</h1></div><div style="padding:24px;"><p style="margin:0 0 12px;">Hi ${escapeHtml(invoice.customer_name || 'there')},</p><p style="margin:0 0 14px;white-space:pre-wrap;color:#374151;">${escapeHtml(intro)}</p>${trackingRowsHtml}${trackButtonHtml}${trackingUrl ? '' : '<p style="margin:12px 0 0;color:#6b7280;font-size:13px;text-align:center;">Use the tracking number above with your carrier to follow your package.</p>'}${packageNotesHtml}${note ? `<p style="margin:18px 0 0;white-space:pre-wrap;color:#374151;">${escapeHtml(note)}</p>` : ''}<p style="margin:18px 0 0;white-space:pre-wrap;color:#374151;text-align:center;">${escapeHtml(closing)}</p></div><div style="padding:14px 24px;border-top:1px solid #e5e7eb;background:#f9fafb;color:#4b5563;font-size:13px;text-align:center;"><strong>Florence Mae Gifts, LLC</strong> • <a href="https://www.florencemaegifts.com" style="color:#2563eb;">www.florencemaegifts.com</a><p style="margin:6px 0 0;font-size:11px;line-height:1.45;color:#6b7280;">Privacy: We use your contact information only for order and shipping communication. Tracking details are provided by the carrier.</p></div></div></div>`;
 
   const textLines = [
     `Your Florence Mae Gifts order has shipped! 📦`,
@@ -3644,9 +3643,9 @@ function buildShippedEmailContent({ invoice, id, items, carrier, trackingNumber,
   textLines.push(`Tracking Number: ${trackingNumber}`);
   if (shipDate) textLines.push(`Shipped: ${shipDate}`);
   if (trackingUrl) textLines.push('', `Track your package: ${trackingUrl}`);
-  if (safeItems.length) {
+  if (packageNotes) {
     textLines.push('', "What's in your package:");
-    for (const it of safeItems) textLines.push(`- ${(it.item_description || 'Item').toString()}${Number(it.quantity || 1) > 1 ? ` x ${Number(it.quantity)}` : ''}`);
+    textLines.push(packageNotes);
   }
   if (note) textLines.push('', note);
   textLines.push('', closing, 'Florence Mae Gifts, LLC', 'https://www.florencemaegifts.com');
@@ -3658,7 +3657,7 @@ function buildShippedEmailContent({ invoice, id, items, carrier, trackingNumber,
   };
 }
 
-// Shared: parse + validate shipped-email inputs and load the invoice + items.
+// Shared: parse + validate shipped-email inputs and load the invoice.
 // Returns { error, status } on failure or the resolved context on success.
 async function resolveShippedEmailContext(request, env) {
   let data;
@@ -3679,10 +3678,7 @@ async function resolveShippedEmailContext(request, env) {
   const invoice = await env.DB.prepare(`SELECT * FROM invoices WHERE id = ?1`).bind(id).first();
   if (!invoice) return { error: 'Invoice not found', status: 404 };
 
-  const itemsRes = await env.DB.prepare(`SELECT item_description, quantity FROM invoice_line_items WHERE invoice_id = ?1 ORDER BY id ASC`).bind(id).all();
-  const items = itemsRes.results || [];
-
-  return { id, carrier, trackingNumber, shipDate, note, introMessage, closingMessage, trackingUrl, invoice, items };
+  return { id, carrier, trackingNumber, shipDate, note, introMessage, closingMessage, trackingUrl, invoice };
 }
 
 async function handleInvoiceShippedPreview(request, env, corsHeaders, url) {
@@ -3706,7 +3702,7 @@ async function handleInvoiceShippedEmail(request, env, corsHeaders, url) {
 
   const ctx = await resolveShippedEmailContext(request, env);
   if (ctx.error) return json({ ok: false, error: ctx.error }, ctx.status, corsHeaders);
-  const { id, carrier, trackingNumber, shipDate, trackingUrl, invoice, items } = ctx;
+  const { id, carrier, trackingNumber, shipDate, trackingUrl, invoice } = ctx;
 
   const customerEmail = (invoice.customer_email || '').toString().trim();
   if (!customerEmail) return json({ ok: false, error: 'Invoice has no customer email' }, 400, corsHeaders);
