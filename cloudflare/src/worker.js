@@ -4530,22 +4530,24 @@ async function upsertTaxIncomeJournal(db, row, skipDelete = false) {
   if (!skipDelete) await deleteAutoJournalBySource(db, 'tax_income', row.id);
 
   const amount = Number(row.amount_cents || 0);
-  if (!Number.isFinite(amount) || amount <= 0) return;
+  if (!Number.isFinite(amount) || amount === 0) return;
 
-  const debitAccountId = await getAccountIdByCode(db, '1000');
+  const cashAccountId = await getAccountIdByCode(db, '1000');
   const categoryRaw = (row.category || '').toString().trim().toLowerCase();
   const sourceRaw = (row.source || '').toString().trim().toLowerCase();
   const isOwnerFunded = Number(row.is_owner_funded || 0) === 1 || categoryRaw.includes('owner funded') || categoryRaw.includes('non-revenue') || sourceRaw.includes('owner funded') || sourceRaw.includes('test');
   const isOtherIncome = categoryRaw.includes('credit card bonus') || categoryRaw.includes('bank interest') || sourceRaw.includes('credit card bonus') || sourceRaw.includes('bank interest');
   const creditAccountCode = isOwnerFunded ? '3100' : (isOtherIncome ? '4900' : '4000');
-  const creditAccountId = await getAccountIdByCode(db, creditAccountCode);
-  if (!debitAccountId || !creditAccountId) return;
+  const incomeAccountId = await getAccountIdByCode(db, creditAccountCode);
+  if (!cashAccountId || !incomeAccountId) return;
 
   const memo = `${row.category || 'Income'}${row.source ? ` - ${row.source}` : ''}`;
   const notes = (row.notes || '').toString().trim();
   const ins = await db.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, source_id, notes) VALUES (?1, ?2, 'tax_income', ?3, ?4)`).bind(row.income_date, memo, row.id, notes).run();
   const entryId = Number(ins.meta?.last_row_id || 0);
-  await db.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, debitAccountId, amount, creditAccountId).run();
+  const absAmount = Math.abs(amount);
+  const [lineDebitId, lineCreditId] = amount > 0 ? [cashAccountId, incomeAccountId] : [incomeAccountId, cashAccountId];
+  await db.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, lineDebitId, absAmount, lineCreditId).run();
 }
 
 /** Estimate Stripe fee for fallback bookkeeping when Stripe balance transaction is delayed. */
