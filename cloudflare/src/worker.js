@@ -2742,13 +2742,21 @@ async function handleAccountsJournalCreate(request, env, corsHeaders, url) {
   const lineValues = [];
 
   for (const line of lines) {
-    // Support both account_id (numeric) and code (string)
-    let accountId = Number(line.account_id || line.accountId || 0);
-    if (!accountId && line.code) {
-      // Look up account ID by code
-      const account = await env.DB.prepare(`SELECT id FROM accounts WHERE code = ?1`).bind(line.code).first();
-      if (!account) return json({ ok: false, error: `Account code '${line.code}' not found` }, 400, corsHeaders);
-      accountId = account.id;
+    let accountId = 0;
+    const code = (line.code || line.account_code || line.accountCode || '').toString().trim();
+    if (code) {
+      accountId = await getAccountIdByCode(env.DB, code);
+      if (!accountId) return json({ ok: false, error: `Account code '${code}' not found` }, 400, corsHeaders);
+    } else {
+      const rawAccountId = line.account_id ?? line.accountId ?? '';
+      accountId = Number(rawAccountId || 0);
+      if (accountId) {
+        const account = await env.DB.prepare(`SELECT id FROM accounts WHERE id = ?1`).bind(accountId).first();
+        if (!account) {
+          const accountCode = rawAccountId.toString().trim();
+          accountId = accountCode ? await getAccountIdByCode(env.DB, accountCode) : null;
+        }
+      }
     }
     if (!accountId) return json({ ok: false, error: 'Invalid account_id or code in lines' }, 400, corsHeaders);
 

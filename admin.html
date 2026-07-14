@@ -2532,8 +2532,8 @@
             memo: memo,
             notes: 'Credit card payment',
             lines: [
-              { account_id: 2100, debit_cents: amountCents, credit_cents: 0 },  // Credit Card Payable (debit liability)
-              { account_id: 1000, debit_cents: 0, credit_cents: amountCents }      // Cash on Hand (credit asset)
+              { code: '2100', debit_cents: amountCents, credit_cents: 0 },  // Credit Card Payable (debit liability)
+              { code: '1000', debit_cents: 0, credit_cents: amountCents }      // Cash on Hand (credit asset)
             ]
           })
         });
