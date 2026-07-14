@@ -13,6 +13,7 @@
 // POST /api/admin/ask-k         → handleAdminAskK()      — Admin: explain current admin page/context
 // POST /api/admin/ask-k/escalate → handleAdminAskKEscalate() — Admin: notify Eastern Shore AI staff
 // GET  /api/tax/transactions    → handleTaxTransactions() — Admin: tax entries by year/type
+// GET  /api/tax/summary         → handleTaxSummary()      — Read-only service token: annual totals only
 // POST /api/tax/expense         → handleTaxExpense()      — Admin: add expense entry
 // POST /api/tax/income          → handleTaxIncome()       — Admin: add income entry
 // POST /api/tax/expense/update  → handleTaxExpenseUpdate() — Admin: edit expense entry
@@ -84,7 +85,7 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': allowAll ? '*' : (originAllowed ? origin : allowedOrigins[0] || ''),
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Tax-Read-Token',
       ...(allowAll ? {} : { 'Access-Control-Allow-Credentials': 'true' }),
       'Vary': 'Origin'
     };
@@ -100,7 +101,7 @@ export default {
       const isBookingsRead = url.pathname === '/api/bookings' && request.method === 'GET';
       const isAvailabilityRead = url.pathname === '/api/availability' && request.method === 'GET';
       const isAdminBlockWrite = ['/api/admin/block-slot','/api/admin/block-day','/api/admin/bookings/cleanup-pending','/api/admin/ask-k','/api/admin/ask-k/escalate'].includes(url.pathname) && request.method === 'POST';
-      const isTaxRead = ['/api/tax/transactions','/api/tax/export.csv','/api/tax/receipt'].includes(url.pathname) && request.method === 'GET';
+      const isTaxRead = ['/api/tax/transactions','/api/tax/summary','/api/tax/export.csv','/api/tax/receipt'].includes(url.pathname) && request.method === 'GET';
       const isTaxWrite = ['/api/tax/expense','/api/tax/income','/api/tax/owner-transfer','/api/tax/expense/update','/api/tax/income/update','/api/tax/expense/delete','/api/tax/income/delete','/api/tax/receipt/upload'].includes(url.pathname) && request.method === 'POST';
       const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail','/api/accounts/notes','/api/admin/notes'].includes(url.pathname) && request.method === 'GET';
       const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/shipped','/api/accounts/invoices/shipped/preview','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes'].includes(url.pathname) && request.method === 'POST';
@@ -195,6 +196,10 @@ export default {
 
     if (url.pathname === '/api/tax/transactions') {
       return handleTaxTransactions(request, env, corsHeaders, url);
+    }
+
+    if (url.pathname === '/api/tax/summary') {
+      return handleTaxSummary(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/tax/expense') {
@@ -1970,6 +1975,37 @@ async function handleAdminCleanupPendingBookings(request, env, corsHeaders, url)
   ).bind(days).run();
 
   return json({ ok: true, days, deleted: Number(result.meta?.changes || 0) }, 200, corsHeaders);
+}
+
+/**
+ * GET /api/tax/summary — Service-to-service annual totals. The dedicated token
+ * cannot authorize transaction reads, exports, receipt access, or any writes.
+ */
+async function handleTaxSummary(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const expected = String(env.TAX_READ_TOKEN || '').trim();
+  const provided = String(request.headers.get('X-Tax-Read-Token') || '').trim();
+  if (!expected) return json({ ok: false, error: 'Tax read integration is not configured' }, 503, corsHeaders);
+  if (!provided || !(await timingSafeEqual(provided, expected))) {
+    return json({ ok: false, error: 'Unauthorized' }, 401, corsHeaders);
+  }
+
+  const year = (url.searchParams.get('year') || '').trim();
+  if (!/^\d{4}$/.test(year)) return json({ ok: false, error: 'Missing/invalid year' }, 400, corsHeaders);
+
+  const [expenseTotal, incomeTotal] = await Promise.all([
+    env.DB.prepare(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+       FROM tax_expenses WHERE substr(expense_date, 1, 4) = ?1`
+    ).bind(year).first(),
+    env.DB.prepare(
+      `SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+       FROM tax_income WHERE substr(income_date, 1, 4) = ?1`
+    ).bind(year).first(),
+  ]);
+  const incomeCents = Number(incomeTotal?.total_cents || 0);
+  const expenseCents = Number(expenseTotal?.total_cents || 0);
+  return json({ ok: true, year, incomeCents, expenseCents, netCents: incomeCents - expenseCents }, 200, corsHeaders);
 }
 
 /**

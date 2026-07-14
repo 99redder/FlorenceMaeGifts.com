@@ -10,7 +10,7 @@ database_id = "YOUR_D1_DATABASE_ID_HERE"
 [vars]
 ALLOWED_ORIGINS = "https://www.florencemaegifts.com"
 
-# Required secrets (set via `wrangler secret put`): RESEND_API_KEY, ADMIN_PASS (or legacy ADMIN_PASSWORD), ADMIN_SESSION_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+# Required secrets (set via `wrangler secret put`): RESEND_API_KEY, ADMIN_PASS (or legacy ADMIN_PASSWORD), ADMIN_SESSION_SECRET, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, TAX_READ_TOKEN
 # Optional admin username secret: ADMIN_USER (defaults to "admin" if omitted)
 # Optional: map item names to fallback price ids if client doesn't send one.
 # Required for shop checkout: set STORE_ALLOWED_PRICE_IDS as a Worker secret (comma-separated price IDs).
