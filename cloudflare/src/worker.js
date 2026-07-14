@@ -2680,7 +2680,12 @@ async function handleAccountsStatements(request, env, corsHeaders, url) {
   const accounts = (rows.results || []).map((r) => {
     const debits = Number(r.debit_total || 0);
     const credits = Number(r.credit_total || 0);
-    const bal = r.normal_side === 'debit' ? (debits - credits) : (credits - debits);
+    let bal;
+    if (r.account_type === 'asset' || r.account_type === 'expense') {
+      bal = debits - credits;
+    } else {
+      bal = credits - debits;
+    }
     return { ...r, debit_total: debits, credit_total: credits, balance_cents: bal };
   });
 
@@ -2702,6 +2707,7 @@ async function handleAccountsStatements(request, env, corsHeaders, url) {
     income: incomeStatement.income.reduce((s, a) => s + Number(a.balance_cents || 0), 0),
     expenses: incomeStatement.expenses.reduce((s, a) => s + Number(a.balance_cents || 0), 0)
   };
+  const currentEarnings = totals.income - totals.expenses;
 
   const cashAccount = accounts.find(a => a.code === '1000');
   const cashFlow = {
@@ -2715,7 +2721,7 @@ async function handleAccountsStatements(request, env, corsHeaders, url) {
     incomeStatement,
     cashFlow,
     totals,
-    equationBalanced: totals.assets === (totals.liabilities + totals.equity)
+    equationBalanced: totals.assets === (totals.liabilities + totals.equity + currentEarnings)
   }, 200, corsHeaders);
 }
 
