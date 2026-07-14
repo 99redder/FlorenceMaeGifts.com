@@ -1730,6 +1730,7 @@
     let blurMoneyEnabled = false;
     let pendingEtsyImportSales = [];
     let pendingEtsyImportExpenses = [];
+    let skippedEtsyImportRows = [];
     let etsyImportInProgress = false;
     let pendingMercariImportSales = [];
     let pendingMercariImportExpenses = [];
@@ -3364,6 +3365,7 @@
       if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.value = '';
       pendingEtsyImportSales = [];
       pendingEtsyImportExpenses = [];
+      skippedEtsyImportRows = [];
       if (taxSaleImportPreviewEl) taxSaleImportPreviewEl.textContent = 'No import preview yet.';
       closeAddSaleModal();
     }
@@ -3743,6 +3745,7 @@
       if (!file) { openErrorModal('Choose an Etsy statement CSV first.'); return; }
       const rows = parseCsvTable(await file.text());
       if (rows.length < 2) { openErrorModal('CSV appears empty.'); return; }
+      skippedEtsyImportRows = [];
 
       const header = rows[0].map(h => String(h).trim().toLowerCase());
       const idxDate = header.indexOf('date');
@@ -3775,6 +3778,30 @@
         }
         return null;
       };
+      const normalizeImportNote = (value) => String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const expenseDedupeKey = (row) => [
+        row.date || '',
+        row.category || '',
+        Math.round(Number(row.amount || 0) * 100),
+        normalizeImportNote(row.notes || '')
+      ].join('|');
+      const existingSaleOrderIds = new Set();
+      const existingRefundOrderIds = new Set();
+      for (const row of (loadedTaxData.income || [])) {
+        const text = `${row.source || ''} ${row.notes || ''}`;
+        const oid = extractOrderId(text);
+        if (!oid) continue;
+        if (/refund/i.test(text)) existingRefundOrderIds.add(oid);
+        else existingSaleOrderIds.add(oid);
+      }
+      const existingExpenseKeys = new Set((loadedTaxData.expenses || [])
+        .filter(row => String(row.vendor || '').toLowerCase() === 'etsy')
+        .map(row => expenseDedupeKey({
+          date: row.expense_date || row.date,
+          category: row.category,
+          amount: Number(row.amount_cents || 0) / 100,
+          notes: row.notes || ''
+        })));
 
       const passThroughByOrder = new Map();
       const passThroughRefundByOrder = new Map();
@@ -3810,6 +3837,11 @@
           const netSale = Math.max(0, Number(p.amount || 0) - passThrough);
           const listingTitle = oid ? (titleByOrder.get(oid) || null) : null;
           return { ...p, orderId: oid, passThroughAmount: passThrough, netAmount: netSale, listingTitle, importKind: 'sale' };
+        })
+        .filter(row => {
+          if (!row.orderId || !existingSaleOrderIds.has(row.orderId)) return true;
+          skippedEtsyImportRows.push(`SALE ${row.isoDate} Order #${row.orderId}`);
+          return false;
         });
       const refundRows = parsed
         .filter(p => p.type === 'Refund' && p.amount < 0)
@@ -3819,21 +3851,45 @@
           const netRefund = -Math.max(0, Math.abs(Number(p.amount || 0)) - passThrough);
           const listingTitle = oid ? (titleByOrder.get(oid) || null) : null;
           return { ...p, orderId: oid, passThroughAmount: passThrough, netAmount: netRefund, listingTitle, importKind: 'refund' };
+        })
+        .filter(row => {
+          if (!row.orderId || !existingRefundOrderIds.has(row.orderId)) return true;
+          skippedEtsyImportRows.push(`REFUND ${row.isoDate} Order #${row.orderId}`);
+          return false;
         });
       pendingEtsyImportSales = [...saleRows, ...refundRows];
 
       pendingEtsyImportExpenses = [];
+      skippedEtsyImportRows = skippedEtsyImportRows || [];
+      const pushEtsyExpense = (p, category, amount, credit = false) => {
+        const noteBase = [p.title, p.info].filter(Boolean).join(' - ');
+        const row = {
+          date: p.isoDate,
+          vendor: 'Etsy',
+          category,
+          amount,
+          notes: noteBase + (credit ? ' (credit)' : ''),
+          paidVia: 'etsy'
+        };
+        const key = expenseDedupeKey(row);
+        if (existingExpenseKeys.has(key)) {
+          skippedEtsyImportRows.push(`EXPENSE ${row.date} ${row.category} $${Number(row.amount || 0).toFixed(2)} ${row.notes}`);
+          return;
+        }
+        existingExpenseKeys.add(key);
+        pendingEtsyImportExpenses.push(row);
+      };
       for (const p of parsed) {
-        if (p.type === 'Shipping' && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Shipping Costs', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Shipping' && p.fee > 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Shipping Costs', amount: -p.fee, notes: p.title + ' (credit)', paidVia: 'etsy' });
-        if (p.type === 'Marketing' && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Offsite Ads', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Marketing' && p.fee > 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Offsite Ads', amount: -p.fee, notes: p.title + ' (credit)', paidVia: 'etsy' });
-        if (p.type === 'Fee' && /listing fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Listing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Fee' && /listing fee/i.test(p.title) && p.fee > 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Listing Fees', amount: -p.fee, notes: p.title + ' (credit)', paidVia: 'etsy' });
-        if (p.type === 'Fee' && /transaction fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Transaction Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Fee' && /transaction fee/i.test(p.title) && p.fee > 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Transaction Fees', amount: -p.fee, notes: p.title + ' (credit)', paidVia: 'etsy' });
-        if (p.type === 'Fee' && /processing fee/i.test(p.title) && p.fee < 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Processing Fees', amount: Math.abs(p.fee), notes: p.title, paidVia: 'etsy' });
-        if (p.type === 'Fee' && /processing fee/i.test(p.title) && p.fee > 0) pendingEtsyImportExpenses.push({ date: p.isoDate, vendor: 'Etsy', category: 'Etsy Processing Fees', amount: -p.fee, notes: p.title + ' (credit)', paidVia: 'etsy' });
+        if (p.type === 'Shipping' && p.fee < 0) pushEtsyExpense(p, 'Shipping Costs', Math.abs(p.fee));
+        if (p.type === 'Shipping' && p.fee > 0) pushEtsyExpense(p, 'Shipping Costs', -p.fee, true);
+        if (p.type === 'Marketing' && p.fee < 0) pushEtsyExpense(p, 'Etsy Offsite Ads', Math.abs(p.fee));
+        if (p.type === 'Marketing' && p.fee > 0) pushEtsyExpense(p, 'Etsy Offsite Ads', -p.fee, true);
+        if (p.type === 'Fee' && /listing fee/i.test(p.title) && p.fee < 0) pushEtsyExpense(p, 'Etsy Listing Fees', Math.abs(p.fee));
+        if (p.type === 'Fee' && /listing fee/i.test(p.title) && p.fee > 0) pushEtsyExpense(p, 'Etsy Listing Fees', -p.fee, true);
+        if (p.type === 'Fee' && /transaction fee/i.test(p.title) && p.fee < 0) pushEtsyExpense(p, 'Etsy Transaction Fees', Math.abs(p.fee));
+        if (p.type === 'Fee' && /transaction fee/i.test(p.title) && p.fee > 0) pushEtsyExpense(p, 'Etsy Transaction Fees', -p.fee, true);
+        if (p.type === 'Fee' && /processing fee/i.test(p.title) && p.fee < 0) pushEtsyExpense(p, 'Etsy Processing Fees', Math.abs(p.fee));
+        if (p.type === 'Fee' && /processing fee/i.test(p.title) && p.fee > 0) pushEtsyExpense(p, 'Etsy Processing Fees', -p.fee, true);
       }
 
       const salesGross = pendingEtsyImportSales.reduce((s, r) => s + Number(r.amount || 0), 0);
@@ -3852,10 +3908,12 @@
           const label = amt < 0 ? `<span style="color:#4caf50;">CREDIT -$${Math.abs(amt).toFixed(2)}</span>` : `$${amt.toFixed(2)}`;
           return `<div>${escHtml(e.date)} | ${escHtml(e.category)} | ${label}${amt < 0 ? ' — ' + escHtml(e.notes) : ''}</div>`;
         }).join('');
+        const skippedRows = skippedEtsyImportRows.map(row => `<div>${escHtml(row)}</div>`).join('');
         taxSaleImportPreviewEl.innerHTML = `
           <div><strong>Ready to Import</strong> — Sales/Refunds: ${pendingEtsyImportSales.length} (Gross $${salesGross.toFixed(2)} | Pass-through $${salesPassThrough.toFixed(2)} | Net $${salesTotal.toFixed(2)}) | Expenses/Credits: ${pendingEtsyImportExpenses.length} ($${expTotal.toFixed(2)})</div>
           <div style="margin-top:.35rem;"><strong>Sales Transactions</strong>${allSales || '<div>None</div>'}</div>
           <div style="margin-top:.35rem;"><strong>Expense Transactions</strong>${allExp || '<div>None</div>'}</div>
+          ${skippedRows ? `<div style="margin-top:.35rem;"><strong>Skipped Existing Transactions</strong>${skippedRows}</div>` : ''}
         `;
       }
 
@@ -3896,15 +3954,17 @@
         }
         const cSales = pendingEtsyImportSales.length;
         const cExp = pendingEtsyImportExpenses.length;
+        const cSkipped = skippedEtsyImportRows.length;
         pendingEtsyImportSales = [];
         pendingEtsyImportExpenses = [];
+        skippedEtsyImportRows = [];
         if (taxSaleImportPreviewEl) taxSaleImportPreviewEl.textContent = 'Import complete. Run a new preview to import another file.';
 
         await loadTaxTransactions();
         await loadAccountsData();
         await loadStatsData();
         closeImportEtsyModal();
-        openSuccessModal(`Etsy import complete: ${cSales} sales, ${cExp} expenses.`, 'Import Complete ✅');
+        openSuccessModal(`Etsy import complete: ${cSales} sales, ${cExp} expenses, ${cSkipped} skipped existing.`, 'Import Complete ✅');
       } catch (err) {
         openErrorModal(`Etsy import failed: ${err.message || err}`);
       } finally {
