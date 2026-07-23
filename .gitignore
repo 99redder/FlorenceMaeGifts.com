@@ -2,3 +2,4 @@
 .stripe-price-map.json
 .stripe-size-price-map.json
 cloudflare/wrangler.toml
+.DS_Store
