@@ -129,7 +129,7 @@
     const forceBabySet =
       t === "crochet goku inspired costume with baby onesie and hat (multiple sizes available)" ||
       t === "shenron shenlong gohan inspired four star hat photo set (multiple sizes available)";
-    const isBabySet = t.includes("baby set") || t.includes("diaper cover") || forceBabySet;
+    const isBabySet = t.includes("baby set") || t.includes("baby photo set") || t.includes("diaper cover") || forceBabySet;
     const isHat = t.includes("hat") || t.includes("beanie");
     const excludeFromHats =
       t === "crochet baby trunks inspired beanie diaper cover photo set costume (multiple sizes available)" ||
@@ -330,6 +330,24 @@
     if (customRequest) customRequest.style.display = "block";
   }
 
+  // Stamp a "New" sticker on any shop listing added within the last 4 weeks.
+  // Mark a listing as new by adding data-added="YYYY-MM-DD" to its .shop-listing div.
+  function initNewStickers() {
+    const NEW_WINDOW_MS = 28 * 24 * 60 * 60 * 1000; // 4 weeks
+    const now = Date.now();
+    document.querySelectorAll(".shop-listing[data-added]").forEach(function(listing) {
+      const added = Date.parse(listing.getAttribute("data-added"));
+      if (isNaN(added) || (now - added) > NEW_WINDOW_MS) return;
+      if (listing.querySelector(".shop-new-sticker")) return;
+      const sticker = document.createElement("span");
+      sticker.className = "shop-new-sticker";
+      sticker.textContent = "New";
+      sticker.setAttribute("aria-label", "New item");
+      listing.appendChild(sticker);
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", initArchiveGallery);
   document.addEventListener("htmlincludesloaded", initShopListingUi);
+  document.addEventListener("htmlincludesloaded", initNewStickers);
 })();
