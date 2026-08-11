@@ -2213,22 +2213,45 @@ async function handleTaxOwnerTransfer(request, env, corsHeaders, url) {
   const cents = toCents(data.amount);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(entryDate)) return json({ ok: false, error: 'Invalid date' }, 400, corsHeaders);
-  if (!['personal_to_business','business_to_personal','personal_paid_business_card','business_paid_business_card'].includes(transferType)) return json({ ok: false, error: 'Invalid transfer type' }, 400, corsHeaders);
+  const validTransferTypes = [
+    'personal_to_business',
+    'business_to_personal',
+    'business_to_solo_401k',
+    'personal_to_solo_401k',
+    'personal_paid_business_card',
+    'business_paid_business_card'
+  ];
+  if (!validTransferTypes.includes(transferType)) return json({ ok: false, error: 'Invalid transfer type' }, 400, corsHeaders);
   if (!Number.isFinite(cents) || cents <= 0) return json({ ok: false, error: 'Invalid amount' }, 400, corsHeaders);
 
   const cashId = await getAccountIdByCode(env.DB, '1000');
   const ownerContribId = await getAccountIdByCode(env.DB, '3100');
   const ownerDrawId = await getAccountIdByCode(env.DB, '3200');
+  const ownerRetirementId = await ensureAccountByCode(env.DB, '3210', 'Owner Retirement Contributions', 'equity', 'debit');
   const ccPayableId = await getAccountIdByCode(env.DB, '2100');
-  if (!cashId || !ownerContribId || !ownerDrawId || !ccPayableId) return json({ ok: false, error: 'Required accounts not found' }, 500, corsHeaders);
+  if (!cashId || !ownerContribId || !ownerDrawId || !ownerRetirementId || !ccPayableId) return json({ ok: false, error: 'Required accounts not found' }, 500, corsHeaders);
 
-  const ins = await env.DB.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type) VALUES (?1, ?2, 'owner_transfer')`).bind(entryDate, notes || `Owner transfer: ${transferType}`).run();
+  const transferLabels = {
+    personal_to_business: 'Personal to business owner contribution',
+    business_to_personal: 'Business to personal owner draw',
+    business_to_solo_401k: 'Business cash to owner Solo 401(k)',
+    personal_to_solo_401k: 'Personal or joint funds to owner Solo 401(k)',
+    personal_paid_business_card: 'Personal funds paid business card',
+    business_paid_business_card: 'Business funds paid business card'
+  };
+  const ins = await env.DB.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, notes) VALUES (?1, ?2, 'owner_transfer', ?3)`).bind(entryDate, transferLabels[transferType], notes || null).run();
   const entryId = Number(ins.meta?.last_row_id || 0);
 
   if (transferType === 'personal_to_business') {
     await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, cashId, cents, ownerContribId).run();
   } else if (transferType === 'business_to_personal') {
     await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, ownerDrawId, cents, cashId).run();
+  } else if (transferType === 'business_to_solo_401k') {
+    // Owner-only retirement contributions are owner-level deductions, not Schedule C expenses.
+    await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, ownerRetirementId, cents, cashId).run();
+  } else if (transferType === 'personal_to_solo_401k') {
+    // Track an outside-funded contribution without changing business cash or the income statement.
+    await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, ownerRetirementId, cents, ownerContribId).run();
   } else if (transferType === 'personal_paid_business_card') {
     await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`).bind(entryId, ccPayableId, cents, ownerContribId).run();
   } else {
@@ -4461,6 +4484,7 @@ async function ensureAccountingSetup(db) {
     ['3000','Owner Equity','equity','credit'],
     ['3100','Owner Contributions','equity','credit'],
     ['3200','Owner Draw','equity','debit'],
+    ['3210','Owner Retirement Contributions','equity','debit'],
     ['4000','Sales Revenue','income','credit'],
     ['4900','Other Income','income','credit'],
     ['5000','Software Expense','expense','debit'],
