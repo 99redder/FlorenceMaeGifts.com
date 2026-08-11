@@ -13,7 +13,7 @@
 // POST /api/admin/ask-k         → handleAdminAskK()      — Admin: explain current admin page/context
 // POST /api/admin/ask-k/escalate → handleAdminAskKEscalate() — Admin: notify Eastern Shore AI staff
 // GET  /api/tax/transactions    → handleTaxTransactions() — Admin: tax entries by year/type
-// GET  /api/tax/summary         → handleTaxSummary()      — Read-only service token: annual totals only
+// GET  /api/tax/summary         → handleTaxSummary()      — Read-only service token: annual tax + owner-retirement totals only
 // POST /api/tax/expense         → handleTaxExpense()      — Admin: add expense entry
 // POST /api/tax/income          → handleTaxIncome()       — Admin: add income entry
 // POST /api/tax/expense/update  → handleTaxExpenseUpdate() — Admin: edit expense entry
@@ -1993,7 +1993,7 @@ async function handleTaxSummary(request, env, corsHeaders, url) {
   const year = (url.searchParams.get('year') || '').trim();
   if (!/^\d{4}$/.test(year)) return json({ ok: false, error: 'Missing/invalid year' }, 400, corsHeaders);
 
-  const [expenseTotal, incomeTotal] = await Promise.all([
+  const [expenseTotal, incomeTotal, ownerRetirementTotal] = await Promise.all([
     env.DB.prepare(
       `SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
        FROM tax_expenses WHERE substr(expense_date, 1, 4) = ?1`
@@ -2002,10 +2002,25 @@ async function handleTaxSummary(request, env, corsHeaders, url) {
       `SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
        FROM tax_income WHERE substr(income_date, 1, 4) = ?1`
     ).bind(year).first(),
+    env.DB.prepare(
+      `SELECT COALESCE(SUM(jl.debit_cents - jl.credit_cents), 0) AS total_cents
+       FROM journal_lines jl
+       JOIN journal_entries je ON je.id = jl.entry_id
+       JOIN accounts a ON a.id = jl.account_id
+       WHERE a.code = '3210' AND substr(je.entry_date, 1, 4) = ?1`
+    ).bind(year).first(),
   ]);
   const incomeCents = Number(incomeTotal?.total_cents || 0);
   const expenseCents = Number(expenseTotal?.total_cents || 0);
-  return json({ ok: true, year, incomeCents, expenseCents, netCents: incomeCents - expenseCents }, 200, corsHeaders);
+  const ownerRetirementContributionCents = Number(ownerRetirementTotal?.total_cents || 0);
+  return json({
+    ok: true,
+    year,
+    incomeCents,
+    expenseCents,
+    netCents: incomeCents - expenseCents,
+    ownerRetirementContributionCents,
+  }, 200, corsHeaders);
 }
 
 /**
