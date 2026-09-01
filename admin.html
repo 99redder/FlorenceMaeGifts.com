@@ -3806,14 +3806,17 @@
         if (/refund/i.test(text)) existingRefundOrderIds.add(oid);
         else existingSaleOrderIds.add(oid);
       }
-      const existingExpenseKeys = new Set((loadedTaxData.expenses || [])
-        .filter(row => String(row.vendor || '').toLowerCase() === 'etsy')
-        .map(row => expenseDedupeKey({
+      const existingExpenseCounts = new Map();
+      for (const row of (loadedTaxData.expenses || [])
+        .filter(row => String(row.vendor || '').toLowerCase() === 'etsy')) {
+        const key = expenseDedupeKey({
           date: row.expense_date || row.date,
           category: row.category,
           amount: Number(row.amount_cents || 0) / 100,
           notes: row.notes || ''
-        })));
+        });
+        existingExpenseCounts.set(key, (existingExpenseCounts.get(key) || 0) + 1);
+      }
 
       const passThroughByOrder = new Map();
       const passThroughRefundByOrder = new Map();
@@ -3873,6 +3876,7 @@
 
       pendingEtsyImportExpenses = [];
       skippedEtsyImportRows = skippedEtsyImportRows || [];
+      const statementExpenseCounts = new Map();
       const pushEtsyExpense = (p, category, amount, credit = false) => {
         const noteBase = [p.title, p.info].filter(Boolean).join(' - ');
         const row = {
@@ -3884,11 +3888,12 @@
           paidVia: 'etsy'
         };
         const key = expenseDedupeKey(row);
-        if (existingExpenseKeys.has(key)) {
+        const statementOccurrence = (statementExpenseCounts.get(key) || 0) + 1;
+        statementExpenseCounts.set(key, statementOccurrence);
+        if (statementOccurrence <= (existingExpenseCounts.get(key) || 0)) {
           skippedEtsyImportRows.push(`EXPENSE ${row.date} ${row.category} $${Number(row.amount || 0).toFixed(2)} ${row.notes}`);
           return;
         }
-        existingExpenseKeys.add(key);
         pendingEtsyImportExpenses.push(row);
       };
       for (const p of parsed) {
