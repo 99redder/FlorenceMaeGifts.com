@@ -47,6 +47,11 @@
         <label for="admin-pass">Password</label>
         <input id="admin-pass" name="password" type="password" autocomplete="current-password" required />
       </div>
+      <div>
+        <label for="admin-totp">Authenticator Code</label>
+        <input id="admin-totp" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" placeholder="123456" aria-describedby="admin-totp-help" required />
+        <div id="admin-totp-help" style="font-size:.8rem; color:#715b51; margin-top:.3rem;">Enter the 6-digit code from Microsoft Authenticator.</div>
+      </div>
       <button id="admin-login-submit" type="submit">Login</button>
       <div class="error" id="admin-login-error" role="alert"></div>
     </form>
@@ -71,7 +76,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: document.getElementById('admin-user').value,
-            password: document.getElementById('admin-pass').value
+            password: document.getElementById('admin-pass').value,
+            code: document.getElementById('admin-totp').value.replace(/\D/g, '')
           })
         });
         if (res.ok) {
@@ -79,7 +85,14 @@
           return;
         }
         const data = await res.json().catch(() => ({}));
-        errorEl.textContent = data.error || (res.status === 429 ? 'Too many failed attempts. Try again later.' : 'Invalid username or password.');
+        errorEl.textContent = data.totpRequired
+          ? 'Invalid authenticator code. Check Microsoft Authenticator and try again.'
+          : data.error || (res.status === 429 ? 'Too many failed attempts. Try again later.' : 'Invalid username or password.');
+        if (data.totpRequired) {
+          const totpEl = document.getElementById('admin-totp');
+          totpEl.value = '';
+          totpEl.focus();
+        }
       } catch (err) {
         errorEl.textContent = 'Login failed. Please try again.';
       } finally {

@@ -1615,14 +1615,19 @@ async function handleAdminLogin(request, env, corsHeaders) {
 
   const username = (data.username || '').toString().trim();
   const password = (data.password || '').toString();
+  const code = (data.code || '').toString().replace(/\s+/g, '');
   const expectedUser = (env.ADMIN_USER || 'admin').trim();
   const expectedPass = (env.ADMIN_PASS || env.ADMIN_PASSWORD || '').trim();
+  const totpSecret = (env.TOTP_SECRET || '').trim();
 
   if (!expectedPass) {
     return json({ ok: false, error: 'Admin credentials not configured' }, 500, corsHeaders);
   }
   if (!(env.ADMIN_SESSION_SECRET || '').trim()) {
     return json({ ok: false, error: 'Admin session secret not configured' }, 500, corsHeaders);
+  }
+  if (!totpSecret) {
+    return json({ ok: false, error: 'Authenticator is not configured on the server' }, 500, corsHeaders);
   }
 
   const ip = getClientIp(request);
@@ -1633,10 +1638,17 @@ async function handleAdminLogin(request, env, corsHeaders) {
     timingSafeEqual(username, expectedUser),
     timingSafeEqual(password, expectedPass)
   ]);
-  if (!userOk || !passOk) {
+  const totpOk = userOk && passOk ? await verifyTotp(totpSecret, code) : false;
+  if (!userOk || !passOk || !totpOk) {
     const current = recordFailedAdminAttempt(ip, true);
     console.log(`Failed admin login at ${new Date().toISOString()} from ${ip} for username=${username || '(blank)'}`);
-    return json({ ok: false, error: current.blocked ? 'Too many admin authentication attempts' : 'Invalid username or password' }, current.blocked ? 429 : 401, corsHeaders);
+    if (current.blocked) return json({ ok: false, error: 'Too many admin authentication attempts' }, 429, corsHeaders);
+    return json({
+      ok: false,
+      ...(userOk && passOk
+        ? { totpRequired: true, error: 'Invalid authenticator code' }
+        : { error: 'Invalid username or password' })
+    }, 401, corsHeaders);
   }
 
   _adminAuthFailures.delete(ip);
@@ -1765,6 +1777,60 @@ async function timingSafeEqual(a, b) {
   let out = 0;
   for (let i = 0; i < aBytes.length; i++) out |= aBytes[i] ^ bBytes[i];
   return out === 0;
+}
+
+// RFC 6238 TOTP settings used by Microsoft Authenticator and the rentals admin:
+// 6 digits, HMAC-SHA1, a 30-second period, and ±1 period for clock drift.
+const TOTP_DIGITS = 6;
+const TOTP_PERIOD_SECONDS = 30;
+const TOTP_SKEW_STEPS = 1;
+
+function base32Decode(input) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const clean = String(input || '').toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');
+  let bits = 0;
+  let value = 0;
+  const out = [];
+  for (const ch of clean) {
+    const index = alphabet.indexOf(ch);
+    if (index === -1) continue;
+    value = (value << 5) | index;
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      out.push((value >>> bits) & 0xff);
+    }
+  }
+  return new Uint8Array(out);
+}
+
+async function totpCodeForStep(secretBytes, step) {
+  const counter = new ArrayBuffer(8);
+  const view = new DataView(counter);
+  view.setUint32(0, Math.floor(step / 0x1_0000_0000));
+  view.setUint32(4, step >>> 0);
+  const key = await crypto.subtle.importKey('raw', secretBytes, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']);
+  const signature = new Uint8Array(await crypto.subtle.sign('HMAC', key, counter));
+  const offset = signature[signature.length - 1] & 0x0f;
+  const binary = ((signature[offset] & 0x7f) << 24)
+    | ((signature[offset + 1] & 0xff) << 16)
+    | ((signature[offset + 2] & 0xff) << 8)
+    | (signature[offset + 3] & 0xff);
+  return String(binary % (10 ** TOTP_DIGITS)).padStart(TOTP_DIGITS, '0');
+}
+
+async function verifyTotp(secret, code, now = Date.now()) {
+  const cleanCode = String(code || '').replace(/\s+/g, '');
+  if (!/^\d{6}$/.test(cleanCode)) return false;
+  const secretBytes = base32Decode(secret);
+  if (secretBytes.length === 0) return false;
+  const currentStep = Math.floor(now / 1000 / TOTP_PERIOD_SECONDS);
+  let match = false;
+  for (let offset = -TOTP_SKEW_STEPS; offset <= TOTP_SKEW_STEPS; offset++) {
+    const expected = await totpCodeForStep(secretBytes, currentStep + offset);
+    if (await timingSafeEqual(expected, cleanCode)) match = true;
+  }
+  return match;
 }
 
 /** @param {string|number} amount - Dollar amount @returns {number|null} Integer cents */
