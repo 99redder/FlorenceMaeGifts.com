@@ -3,7 +3,7 @@
 ; Title: fmg.css
 ; Author: Red
 ; Date Created: 11 Jan 2023
-; Last Updated: 5 February 2026
+; Last Updated: 10 September 2026
 ; Description: This code establishes the styling for the entire site
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
@@ -479,11 +479,11 @@ a.disclaimer-links:hover {color: #fe666f;}
   color: var(--text-color);
 }
 
-/* Footer modals (Privacy Policy, Terms of Use, Disclaimers) */
+/* Footer modals, including contact and form success, appear above shop dialogs. */
 .footer-modal {
   display: none;
   position: fixed;
-  z-index: 10;
+  z-index: 10002;
   left: 0;
   top: 0;
   width: 100%;
