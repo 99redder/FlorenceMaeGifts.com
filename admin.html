@@ -3382,6 +3382,14 @@
       closeAddSaleModal();
     }
 
+    // Cloudflare can answer with an HTML error page (worker killed mid-request, edge 5xx) instead of
+    // the worker's JSON. Surface that as a readable error rather than a JSON parse failure.
+    async function readApiJson(res) {
+      const text = await res.text();
+      try { return JSON.parse(text); }
+      catch { throw new Error(`Server returned a non-JSON response (HTTP ${res.status}). The request may or may not have been saved.`); }
+    }
+
     async function postTaxExpenseEntry({ date, vendor, category, amount, notes, paidVia = 'etsy' }) {
       if (!Number(amount) || Number(amount) === 0) return;
       const res = await fetch(TAX_EXPENSE_API_URL, {
@@ -3389,7 +3397,7 @@
         headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
         body: JSON.stringify({ date, vendor, category, amount: Number(amount).toFixed(2), paidVia, notes: notes || '' })
       });
-      const data = await res.json();
+      const data = await readApiJson(res);
       if (!res.ok) throw new Error(data.error || `Failed adding expense (${category})`);
     }
 
@@ -3399,7 +3407,7 @@
         headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
         body: JSON.stringify({ date, source, category, amount: Number(amount).toFixed(2), notes: notes || '' })
       });
-      const data = await res.json();
+      const data = await readApiJson(res);
       if (!res.ok) throw new Error(data.error || 'Failed to add sale');
     }
 
@@ -3956,6 +3964,8 @@
       if (taxPreviewEtsyCsvBtn) taxPreviewEtsyCsvBtn.disabled = true;
       if (taxSaleEtsyCsvEl) taxSaleEtsyCsvEl.disabled = true;
 
+      let savedSales = 0;
+      let savedExpenses = 0;
       try {
         for (const s of pendingEtsyImportSales) {
           await postTaxIncomeEntry({
@@ -3965,9 +3975,11 @@
             amount: s.netAmount,
             notes: `${s.orderId ? `Order #${s.orderId} — ` : ''}Imported from Etsy statement CSV${s.importKind === 'refund' ? ' refund' : ''}${s.passThroughAmount ? ` (buyer-paid pass-through removed: $${Number(s.passThroughAmount).toFixed(2)})` : ''}`
           });
+          savedSales++;
         }
         for (const e of pendingEtsyImportExpenses) {
           await postTaxExpenseEntry(e);
+          savedExpenses++;
         }
         const cSales = pendingEtsyImportSales.length;
         const cExp = pendingEtsyImportExpenses.length;
@@ -3983,7 +3995,21 @@
         closeImportEtsyModal();
         openSuccessModal(`Etsy import complete: ${cSales} sales, ${cExp} expenses, ${cSkipped} skipped existing.`, 'Import Complete ✅');
       } catch (err) {
-        openErrorModal(`Etsy import failed: ${err.message || err}`);
+        // Rows saved before the failure are already in the ledger. Reload it and rebuild the preview so the
+        // existing-transaction dedupe drops them; clicking Import again then resumes without duplicating.
+        let resumeHint = 'Reload the page and run Preview again before re-importing so saved rows are skipped.';
+        try {
+          await loadTaxTransactions();
+          await previewEtsyStatementCsv();
+          const remaining = pendingEtsyImportSales.length + pendingEtsyImportExpenses.length;
+          resumeHint = remaining
+            ? `The preview now shows only the ${remaining} remaining rows — click Import Transactions again to finish.`
+            : 'Every row from this statement is now in the ledger.';
+        } catch (_) {
+          pendingEtsyImportSales = [];
+          pendingEtsyImportExpenses = [];
+        }
+        openErrorModal(`Etsy import interrupted after saving ${savedSales} sales and ${savedExpenses} expenses: ${err.message || err} ${resumeHint} Then run Rebuild Auto Journal in the Accounts tab.`);
       } finally {
         etsyImportInProgress = false;
         if (importBtn) {
@@ -4031,6 +4057,18 @@
 
       pendingMercariImportSales = [];
       pendingMercariImportExpenses = [];
+      const skippedMercariRows = [];
+
+      // Already-imported Mercari sales: matched by item ID in notes, or by date/title/amount for
+      // rows imported before item IDs were recorded.
+      const existingMercariItemIds = new Set();
+      const existingMercariSaleKeys = new Set();
+      for (const row of (loadedTaxData.income || [])) {
+        if (!/mercari/i.test(row.notes || '')) continue;
+        const m = String(row.notes || '').match(/Mercari Item (\w+)/i);
+        if (m) existingMercariItemIds.add(m[1].toLowerCase());
+        existingMercariSaleKeys.add([row.income_date || row.date || '', String(row.source || '').trim().toLowerCase(), Number(row.amount_cents || 0)].join('|'));
+      }
 
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
@@ -4039,7 +4077,9 @@
         if (/^totals:/i.test(itemId) || /^report generated/i.test(itemId)) continue;
         const status = String(r[idxStatus] || '').trim();
         const canceledDate = idxCanceledDate >= 0 ? String(r[idxCanceledDate] || '').trim() : '';
-        if (status.toLowerCase() !== 'completed' || canceledDate) continue;
+        // Mercari only marks an order "Completed" once the buyer receives and rates it; in-transit
+        // orders (e.g. "wait_review") are still real sales. Only canceled orders are skipped.
+        if (!status || /cancel/i.test(status) || canceledDate) continue;
 
         const isoDate = mercariDateToIso(String(r[idxSoldDate] || '').trim());
         if (!isoDate) continue;
@@ -4047,7 +4087,13 @@
         const itemPrice = parseUsd(r[idxItemPrice]);
         if (itemPrice <= 0) continue;
 
-        pendingMercariImportSales.push({ isoDate, title, itemPrice });
+        if ((itemId && existingMercariItemIds.has(itemId.toLowerCase()))
+          || existingMercariSaleKeys.has([isoDate, title.toLowerCase(), Math.round(itemPrice * 100)].join('|'))) {
+          skippedMercariRows.push(`SALE ${isoDate} ${title} $${itemPrice.toFixed(2)}`);
+          continue;
+        }
+
+        pendingMercariImportSales.push({ isoDate, title, itemPrice, itemId, status });
 
         const sellerShipping = idxSellerShipping >= 0 ? parseUsd(r[idxSellerShipping]) : 0;
         const mercariFee = idxMercariFee >= 0 ? parseUsd(r[idxMercariFee]) : 0;
@@ -4066,12 +4112,14 @@
       const expTotal = pendingMercariImportExpenses.reduce((s, r) => s + Number(r.amount || 0), 0);
 
       if (taxSaleMercariImportPreviewEl) {
-        const allSales = pendingMercariImportSales.map(s => `<div>${escHtml(s.isoDate)} | SALE | ${escHtml(s.title)} | $${Number(s.itemPrice).toFixed(2)} (sales tax excluded)</div>`).join('');
+        const allSales = pendingMercariImportSales.map(s => `<div>${escHtml(s.isoDate)} | SALE | ${escHtml(s.title)} | $${Number(s.itemPrice).toFixed(2)} (sales tax excluded)${/^completed$/i.test(s.status) ? '' : ` — status: ${escHtml(s.status)}`}</div>`).join('');
+        const skippedRows = skippedMercariRows.map(row => `<div>${escHtml(row)}</div>`).join('');
         const allExp = pendingMercariImportExpenses.map(e => `<div>${escHtml(e.date)} | ${escHtml(e.category)} | $${Number(e.amount).toFixed(2)} — ${escHtml(e.notes)}</div>`).join('');
         taxSaleMercariImportPreviewEl.innerHTML = `
           <div><strong>Ready to Import</strong> — Sales: ${pendingMercariImportSales.length} ($${salesTotal.toFixed(2)}) | Expenses: ${pendingMercariImportExpenses.length} ($${expTotal.toFixed(2)})</div>
           <div style="margin-top:.35rem;"><strong>Sales Transactions</strong>${allSales || '<div>None</div>'}</div>
           <div style="margin-top:.35rem;"><strong>Expense Transactions</strong>${allExp || '<div>None</div>'}</div>
+          ${skippedRows ? `<div style="margin-top:.35rem;"><strong>Skipped Existing Transactions</strong>${skippedRows}</div>` : ''}
         `;
       }
 
@@ -4099,7 +4147,7 @@
             source: s.title,
             category: 'Product Sale',
             amount: s.itemPrice,
-            notes: 'Imported from Mercari CSV (sales tax excluded — remitted by Mercari)'
+            notes: `${s.itemId ? `Mercari Item ${s.itemId} — ` : ''}Imported from Mercari CSV (sales tax excluded — remitted by Mercari)`
           });
         }
         for (const e of pendingMercariImportExpenses) {
