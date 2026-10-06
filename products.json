@@ -31,7 +31,11 @@
         "PO Box 317",
         "Parsonsburg, MD 21849"
       ],
-      "buyerPaysReturnShipping": true
+      "buyerPaysReturnShipping": true,
+      "condition": "new",
+      "exchanges": false,
+      "restockingFee": false,
+      "refundBusinessDays": 7
     }
   },
   "safety": {

@@ -252,6 +252,10 @@ def return_policy(shop, digital=False):
         'merchantReturnDays': r['days'],
         'returnMethod': 'https://schema.org/ReturnByMail',
         'returnFees': 'https://schema.org/ReturnFeesCustomerResponsibility',
+        'returnLabelSource': 'https://schema.org/ReturnLabelCustomerResponsibility',
+        'itemCondition': 'https://schema.org/NewCondition',
+        'refundType': 'https://schema.org/FullRefund',
+        'restockingFee': {'@type': 'MonetaryAmount', 'value': 0, 'currency': 'USD'},
         'merchantReturnLink': '%s/shipping-returns.html' % shop.base,
     }
 
@@ -562,9 +566,12 @@ def product_page(shop, p):
                  'in transit) to all 50 U.S. states. International shipping is not available.</p>'
                  % (' '.join(esc(s) for s in shop.handling_sentences()), esc(ship['carrier']),
                     ship['transitMinDays'], ship['transitMaxDays']))
-        b.append('     <p>Returns are accepted within %d days. The buyer pays return shipping, and a refund is issued '
-                 'once the item is received and inspected. See the full '
-                 '<a href="shipping-returns.html">shipping &amp; returns policy</a>.</p>' % shop.site['returns']['days'])
+        ret = shop.site['returns']
+        b.append('     <p>Returns are accepted within %d days for items that are new and unused. The buyer pays return '
+                 'shipping, there is no restocking fee, and the refund is issued to your original payment method within '
+                 '%d business days of the returned item arriving. We do not offer exchanges. See the full '
+                 '<a href="shipping-returns.html">shipping &amp; returns policy</a>.</p>'
+                 % (ret['days'], ret['refundBusinessDays']))
     if p.get('safety'):
         b.append('     <h2 class="page-h2">Safety &amp; use</h2>\n     <p>%s</p>' % shop.safety[p['safety']])
     if p.get('etsyUrl'):
@@ -627,23 +634,26 @@ def shipping_returns_page(shop):
 
      <h2 class="page-h2">Returns &amp; refunds</h2>
      <ul>
-      <li>Returns are accepted within <strong>%(days)d days</strong>.</li>
-      <li>Mail the item back to the address it was shipped from:</li>
+      <li>Returns are accepted within <strong>%(days)d days</strong> of delivery.</li>
+      <li><strong>Condition:</strong> items must be returned new and unused to be eligible for a refund.</li>
+      <li>Returns are by mail. Send the item back to the address it was shipped from:</li>
      </ul>
      <address>%(address)s</address>
      <ul>
-      <li>The buyer pays return shipping.</li>
-      <li>Once the item arrives it is inspected, and then your refund is processed to your original payment method.</li>
+      <li><strong>Return shipping:</strong> the buyer pays return shipping. We do not provide a return label.</li>
+      <li><strong>Restocking fee:</strong> none.</li>
+      <li><strong>Refund timing:</strong> once the item arrives it is inspected, and your refund is issued to the original payment method within %(refund)d business days of the returned item arriving.</li>
+      <li><strong>Exchanges:</strong> we do not offer exchanges. To get a different size or item, return the original for a refund and place a new order.</li>
       <li>Digital pattern PDFs are delivered instantly and cannot be returned. If there is a problem with your file, contact us and we will make it right.</li>
      </ul>
 
      <h2 class="page-h2">Questions</h2>
      <p>Need help with an order, a size, or a return? <a href="#modal-contact" data-open-modal="modal-contact">Send us a message</a> and we will get back to you.</p>
     </article>''' % {'handling': handling, 'carrier': esc(ship['carrier']), 'tmin': ship['transitMinDays'],
-                     'tmax': ship['transitMaxDays'], 'days': ret['days'], 'address': address}
+                     'tmax': ship['transitMaxDays'], 'days': ret['days'], 'refund': ret['refundBusinessDays'], 'address': address}
     return page(shop, 'shipping-returns.html', 'Shipping & Returns | Florence Mae Gifts',
                 'Florence Mae Gifts shipping and return policy: free U.S. shipping, made-to-order processing times, '
-                'and 30-day returns.', body, 'Shipping and return policy')
+                'and 30-day returns on new, unused items.', body, 'Shipping and return policy')
 
 
 def legal_page(shop, modal_id, rel_path, title, description):
