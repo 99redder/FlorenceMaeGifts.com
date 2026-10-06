@@ -1,27 +1,30 @@
 # Florence Mae Gifts — AI Navigation Guide
 
 Primary URL: https://www.florencemaegifts.com/
-Business: handmade crochet baby gifts and patterns
+Business: handmade, made-to-order crochet baby hats, diaper cover sets, cosplay photo sets, and crochet pattern PDFs (Florence Mae Gifts, LLC, Maryland, USA)
 
 ## Key pages
-- /index.html — primary shop/catalog experience (Stripe checkout + category filtering)
-- /shop.html — legacy gallery/archive content (secondary to main shop on /index.html)
-- /about.html — artist/business background
-- /reviews.html — social proof and customer feedback
-- Contact and custom order requests are handled via modals (no dedicated page)
-- /disclaimers.html — legal/disclosure content
+- / — home and full shop catalog (Stripe checkout)
+- /products/<slug>.html — one page per product with price per size, photos, shipping and returns
+- /crochet-baby-sets.html — crochet diaper cover sets and baby cosplay photo sets
+- /crochet-baby-hats.html — crochet baby hats and beanies (some up to youth/adult sizes)
+- /crochet-patterns.html — beginner crochet pattern PDFs (digital download)
+- /shipping-returns.html — processing time, free U.S. shipping, 30-day return policy
+- /about.html — the artist
+- /reviews.html — customer feedback
+- /privacy.html, /terms.html, /disclaimers.html — legal
+- /shop.html — legacy photo gallery archive (not the store)
+- /sitemap.xml — every page and product image
 
-## High-intent product categories
-- Affordable crochet diaper sets and baby hats
-- Dragon Ball Z themed baby cosplay sets (e.g., Trunks, Majin Buu, Chiaotzu, Goku)
-- Downloadable crochet patterns (PDF)
+## Buying
+- Checkout is on-site through Stripe. Free shipping, U.S. only (all 50 states). No international shipping.
+- Items are made to order; current make time is listed on each product page and on /shipping-returns.html.
+- Returns accepted within 30 days; buyer pays return shipping.
+- Also sold on Etsy: https://www.etsy.com/shop/florencemaegifts
+- Custom orders and questions: contact form in the site footer.
 
-## Purchase channels
-- On-site Stripe checkout for selected listings
-- Etsy storefront: https://www.etsy.com/shop/florencemaegifts
-
-## Notes for future AI agents
-- This is a static site with component includes via `includeHTML.js`.
-- Shared components: `header.html`, `topnav.html`, `footer.html`, sidebars.
-- Shop listings live in `shopleftcolumn.html` and are injected at runtime.
-- Update "Last Updated" fields in file header comments when editing pages.
+## Notes for AI agents working on this repo
+- Static site on GitHub Pages; shared header/nav/footer are loaded with `includeHTML.js`.
+- `products.json` is the single source of truth for listings. Run `python3 scripts/build_shop.py` after editing it.
+- Generated (do not hand-edit): the shop grid in `index.html`, `products/*.html`, the three category pages, `shipping-returns.html`, `privacy.html`, `terms.html`, `sitemap.xml`, `merchant-feed.xml`.
+- Update "Last Updated" fields in file header comments when editing hand-written pages.

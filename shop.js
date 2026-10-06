@@ -115,7 +115,7 @@
     if (orderRow) actions.appendChild(orderRow);
     top.appendChild(actions);
 
-    const heading = scopeNode.querySelector("h3");
+    const heading = scopeNode.querySelector("h1, h3");
     if (heading) {
       heading.insertAdjacentElement("afterend", top);
     } else {
@@ -144,9 +144,39 @@
 
   function applyShopCategoryFilter(category) {
     document.querySelectorAll(".shop-listing").forEach(function(listing) {
+      // Generated listings carry data-category (from products.json); fall back to title matching.
+      const listingCategory = listing.getAttribute("data-category");
       const title = listing.querySelector(".open-listing-modal")?.textContent?.trim() || "";
-      listing.style.display = listingMatchesCategory(title, category) ? "flex" : "none";
+      const matches = listingCategory
+        ? (category === "all" || listingCategory === category)
+        : listingMatchesCategory(title, category);
+      listing.style.display = matches ? "flex" : "none";
     });
+  }
+
+  function slugifySize(text) {
+    return (text || "").replace(/\(\$[\d.]+\)/, "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+
+  // Standalone product pages (products/*.html) reuse the modal markup. A ?size= query
+  // preselects that size so each size has its own shareable, crawlable URL.
+  function initProductPage() {
+    const scope = document.querySelector(".product-detail");
+    if (!scope || scope.dataset.hydrated) return;
+    scope.dataset.hydrated = "true";
+    hydrateSizeSelector(scope);
+    layoutListingModal(scope);
+
+    const wanted = new URLSearchParams(window.location.search).get("size");
+    const select = scope.querySelector(".shop-size-select");
+    if (!wanted || !select) return;
+    const match = Array.from(select.options).find(function(option) {
+      return slugifySize(option.textContent) === wanted.toLowerCase();
+    });
+    if (match) {
+      select.value = match.value;
+      select.dispatchEvent(new Event("change"));
+    }
   }
 
   function hideModal(modal) {
@@ -165,7 +195,9 @@
     const checkoutStatusTitle = document.getElementById("checkout-status-title");
     const checkoutStatusText = document.getElementById("checkout-status-text");
 
-    if (!listingModal && !checkoutStatusModal) return;
+    const productDetail = document.querySelector(".product-detail");
+
+    if (!listingModal && !checkoutStatusModal && !productDetail) return;
 
     showCheckoutStatusFromQuery(checkoutStatusModal, checkoutStatusTitle, checkoutStatusText);
 
@@ -184,6 +216,8 @@
 
       const trigger = event.target.closest(".open-listing-modal");
       if (trigger) {
+        // Listing links point at real product pages; let modified clicks open them in a new tab.
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) return;
         event.preventDefault();
         const targetId = trigger.getAttribute("data-modal-target");
         const detailsNode = document.getElementById(targetId);
@@ -200,7 +234,8 @@
       const selectedThumb = event.target.closest(".listing-gallery-thumb");
       if (selectedThumb) {
         const fullSrc = selectedThumb.getAttribute("data-full-src") || selectedThumb.getAttribute("src");
-        const modalMainImage = listingModalBody ? listingModalBody.querySelector(".listing-main-image") : null;
+        const galleryScope = selectedThumb.closest("#shop-modal-body, .product-detail");
+        const modalMainImage = galleryScope ? galleryScope.querySelector(".listing-main-image") : null;
         if (modalMainImage && fullSrc) {
           modalMainImage.setAttribute("src", fullSrc);
         }
@@ -349,5 +384,6 @@
 
   document.addEventListener("DOMContentLoaded", initArchiveGallery);
   document.addEventListener("htmlincludesloaded", initShopListingUi);
+  document.addEventListener("htmlincludesloaded", initProductPage);
   document.addEventListener("htmlincludesloaded", initNewStickers);
 })();

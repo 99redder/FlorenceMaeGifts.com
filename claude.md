@@ -29,7 +29,7 @@
 - **HTML5** — Static pages, no framework
 - **CSS3** — Single stylesheet (`fmg.css`) with CSS variables for theming
 - **Vanilla JavaScript** — Theme toggle, HTML includes, image modal gallery
-- **No build tools** — Zero-build project, no npm/webpack/bundler
+- **No npm/webpack/bundler** — the only build step is `python3 scripts/build_shop.py`, which generates the shop pages from `products.json` (see the 2026-10-06 update at the end of this file)
 - **External services**: Google Fonts, Font Awesome v6, Formspree (contact form)
 - **Custom font**: "Jennifer Lynne" (self-hosted in `logo-font/`)
 
@@ -504,3 +504,50 @@ After final July import, verify:
 - journal entries remain balanced
 - July Stats include the final imported rows
 - cash bridge reconciles against Bluevine + Etsy + Stripe timing
+
+---
+
+## 2026-10-06 Update (Product Pages, Generated Shop, Google Merchant Readiness)
+
+### Why
+
+The February SEO pass predates the on-site shop. Listings had no URLs of their own (they lived in `shopleftcolumn.html`, loaded by XHR and shown in `href="#"` modals), so Google had nothing to list as a product and Merchant Center had nothing to accept.
+
+### How the shop works now
+
+- **`products.json` (repo root) is the single source of truth** for every listing: title, slug, `itemName` (sent to Stripe/Worker; do not change casually), category, sizes + prices + Stripe price IDs, images, description HTML, colour, plus site-wide handling times, shipping and the return policy.
+- **`python3 scripts/build_shop.py`** regenerates everything below. Never hand-edit these:
+  - the shop grid + hidden modal blocks + JSON-LD in `index.html` (between `SHOP:START/END` and `JSONLD:START/END` markers; the rest of `index.html` is hand-written)
+  - `products/<slug>.html` — one page per visible listing (uses `<base href="/">` so the shared includes resolve)
+  - `crochet-baby-sets.html`, `crochet-baby-hats.html`, `crochet-patterns.html`
+  - `shipping-returns.html`; `privacy.html` and `terms.html` (static copies of the `footer.html` modals, which stay the source)
+  - `sitemap.xml` (pages + product images) and `merchant-feed.xml` (Google Merchant Center)
+- A generated file's `Last Updated` date only changes when its content changes, so rebuilding is always safe.
+- `shopleftcolumn.html` was deleted. Shop/product styles moved from an inline `<style>` in `index.html` to `shop.css`.
+- `"hidden": true` on a product removes it from the site, sitemap and feed but keeps its price IDs in the checkout allowlist.
+- Product photos are self-hosted in `images/products/<slug>-N.jpg` (max 1500px) with `<slug>-thumb.jpg` (240px) for grids. Nothing is hotlinked from Etsy any more.
+
+### Adding or changing a listing
+
+1. Edit `products.json` (copy an existing product; add photos to `images/products/`).
+2. Run `python3 scripts/build_shop.py`.
+3. New Stripe price IDs: update `STORE_ALLOWED_PRICE_IDS` before pushing (see the `fmg-etsy-price-match` skill, which now edits `products.json`).
+4. Update the footer date, commit the JSON and all generated files together.
+
+### SEO / structured data
+
+- Each product page has its own title, meta description, canonical, Open Graph image, a single H1, and `ProductGroup` JSON-LD with one variant + `Offer` per size (price, InStock, free US shipping, handling + transit time, 30-day return policy) plus `BreadcrumbList`. Each size has its own URL: `products/<slug>.html?size=3-6-months` (preselected by `initProductPage()` in `shop.js`).
+- Homepage has `OnlineStore` + `ItemList` JSON-LD. The logo in `header.html` is no longer an `<h1>`/`<h2>` (`.site-title` / `.site-subtitle`), so each page's real heading is the only H1.
+- No star-rating markup: Google does not allow marking up Etsy reviews as the site's own.
+
+### Policies (as given by Red, 2026-10-06)
+
+- **Returns**: within 30 days, mailed back to Florence Mae Gifts, LLC, PO Box 317, Parsonsburg, MD 21849; buyer pays return shipping; refund after the item is received and inspected.
+- **Handling**: 10–15 business days for orders through 31 Oct 2026 (Halloween rush), then the standard 5–7 business days; ships USPS Ground Advantage, free, US only.
+- `site.handlingTimes` in `products.json` holds both windows. **Rebuild on or after 1 Nov 2026** so the structured data and feed switch to 5–7 days (the on-page text already states both). For future seasonal rushes, add a window with a `through` date.
+
+### Merchant Center
+
+- Only products with `"merchantFeed": true` are in `merchant-feed.xml`. Started with the non-character items (Shadow Monster hat, Monster set, Santa set, Turtles set) because trademarked character names risk disapproval or account suspension. Pattern PDFs are excluded.
+- Feed URL once deployed: `https://www.florencemaegifts.com/merchant-feed.xml`.
+- Account-side steps (Search Console verification, Merchant Center account, shipping/returns settings, scheduled feed fetch) are done by Red, not in this repo.
