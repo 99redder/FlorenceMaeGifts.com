@@ -485,10 +485,6 @@ def gallery_html(p, name, lazy, indent):
     return out
 
 
-def sizes_line(p):
-    return ', '.join('%s (%s)' % (t['label'], money(t['price'])) for t in p['sizes']) + '.'
-
-
 def modal_block_html(shop, p):
     """Hidden detail block that index.html copies into the listing modal."""
     name = shop.base_name(p)
@@ -501,8 +497,6 @@ def modal_block_html(shop, p):
     ]
     if p.get('safety'):
         parts.append(' <p>Safety &amp; Use Information: %s</p>' % shop.safety[p['safety']])
-    if p.get('sizes'):
-        parts.append(' <p><strong>Sizes &amp; Pricing:</strong> %s</p>' % sizes_line(p))
     if p.get('etsyUrl'):
         parts.append(' <p><a href="%s#reviews" target="resource window" rel="noopener noreferrer">Read Etsy reviews for this item</a></p>' % p['etsyUrl'])
     parts.append(' <p><a class="listing-full-page-link" href="%s">View full details page</a></p>' % shop.rel(p))
