@@ -444,66 +444,9 @@ The Etsy payment account statement CSV has one row per line item type per order.
 
 ---
 
-## 2026-07-14 Update (Partial July Etsy Import + Month-End Instructions)
+## 2026-07-14 Update (Partial July Etsy Import)
 
-### Partial July Etsy import already in production
-
-Red asked to import the current partial July 2026 Etsy payment account CSV before month end. Production D1 now includes Etsy statement rows dated 2026-07-01 through 2026-07-12.
-
-All rows inserted from that partial import include this marker in `tax_income.notes` / `tax_expenses.notes`:
-
-`JULY_ETSY_PARTIAL_CUTOFF_2026_07_12`
-
-Imported sale/order IDs:
-
-- `4104725172`
-- `4108443713`
-- `4109523393`
-- `4109808137`
-- `4108827788`
-- `4111597207`
-- `4111702297`
-- `4111836817`
-- `4113096921`
-- `4114624305`
-
-Imported shipping label IDs:
-
-- `309935257682`
-- `310043332980`
-- `310213016992`
-- `310329454440`
-- `310582581331`
-- `310708218271`
-- `310583438720`
-- `310692390490`
-- `310925816313`
-
-Verified import totals:
-
-- `10` tax income rows, total `$412.14`
-- `47` tax expense rows, total `$149.47`
-- Net cash effect `$262.67`
-- `57` journal entries and `114` journal lines; journal lines net to zero
-- Sales tax/VAT/buyer-paid fees were excluded from revenue/expenses
-
-### Month-end full July CSV handling
-
-Etsy only exports the full month, not custom date ranges. Red intends to provide the full July 2026 Etsy CSV at month end.
-
-Do not blindly import the full July file. The July 1-12 activity above is already in production.
-
-Use the Admin Import Etsy Sales preview first. As of commit `f1ee9b4`, `admin.html` skips existing Etsy sale order IDs, refund order IDs, and existing Etsy expense rows keyed by date/category/amount/notes. The preview displays a **Skipped Existing Transactions** section and the success modal includes skipped count.
-
-Before importing the month-end CSV, confirm the preview skips the order IDs and label IDs listed above. Then import only the remaining unrecorded rows. If doing manual/direct D1 work instead of using the Admin UI, explicitly exclude those order IDs/label IDs or rows marked `JULY_ETSY_PARTIAL_CUTOFF_2026_07_12`.
-
-After final July import, verify:
-
-- no duplicate Etsy order IDs in `tax_income`
-- no duplicate Etsy label/order/listing fee rows in `tax_expenses`
-- journal entries remain balanced
-- July Stats include the final imported rows
-- cash bridge reconciles against Bluevine + Etsy + Stripe timing
+A partial July 2026 Etsy statement (1-12 July) was imported before month end. Rows from it are marked `JULY_ETSY_PARTIAL_CUTOFF_2026_07_12` in the `notes` column of `tax_income` / `tax_expenses`. The Admin Import Etsy Sales preview skips transactions that already exist (commit `f1ee9b4`), so always import a full-month CSV through that preview rather than directly. The specific order IDs, label IDs and totals are kept out of this public repo (they are in Claude's local project memory, `july-2026-etsy-partial-import`).
 
 ---
 
@@ -551,3 +494,8 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 - Only products with `"merchantFeed": true` are in `merchant-feed.xml`. Started with the non-character items (Shadow Monster hat, Monster set, Santa set, Turtles set) because trademarked character names risk disapproval or account suspension. Pattern PDFs are excluded.
 - Feed URL once deployed: `https://www.florencemaegifts.com/merchant-feed.xml`.
 - Account-side steps (Search Console verification, Merchant Center account, shipping/returns settings, scheduled feed fetch) are done by Red, not in this repo.
+
+### Cleanup (same day)
+
+- `shop.html` (Gallery Archive) is now `noindex, follow`, retitled "Gallery of Past Creations", has its own H1 with a link back to the shop, and is no longer in `sitemap.xml`. This stops it competing with the homepage for shop keywords.
+- This repo is public and GitHub Pages serves every tracked file (`.nojekyll`), including this one. Never put order IDs, customer details, financial totals or infrastructure IDs in any tracked file; keep them in Claude's local project memory instead.

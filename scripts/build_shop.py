@@ -686,7 +686,7 @@ def build_sitemap(shop):
     urls += [entry(CATEGORIES[c]['file'], 'weekly', '0.8') for c in CATEGORY_ORDER]
     urls += [entry(shop.rel(p), 'weekly', '0.9', p['images']) for p in shop.products]
     urls += [entry('about.html', 'monthly', '0.6'), entry('reviews.html', 'monthly', '0.6'),
-             entry('shipping-returns.html', 'monthly', '0.5'), entry('shop.html', 'monthly', '0.3'),
+             entry('shipping-returns.html', 'monthly', '0.5'),
              entry('privacy.html', 'yearly', '0.2'), entry('terms.html', 'yearly', '0.2'),
              entry('disclaimers.html', 'yearly', '0.2')]
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -781,7 +781,7 @@ def main():
                                           'Florence Mae Gifts privacy policy.'))
     write_page('terms.html', legal_page(shop, 'modal-terms', 'terms.html', 'Terms of Use | Florence Mae Gifts',
                                         'Florence Mae Gifts website terms of use.'))
-    for static in ('about.html', 'reviews.html', 'shop.html', 'disclaimers.html'):
+    for static in ('about.html', 'reviews.html', 'disclaimers.html'):
         m = DATE_LINE.search((ROOT / static).read_text())
         try:
             from datetime import datetime

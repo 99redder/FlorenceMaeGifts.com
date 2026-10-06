@@ -13,7 +13,7 @@ Business: handmade, made-to-order crochet baby hats, diaper cover sets, cosplay 
 - /about.html — the artist
 - /reviews.html — customer feedback
 - /privacy.html, /terms.html, /disclaimers.html — legal
-- /shop.html — legacy photo gallery archive (not the store)
+- /shop.html — photo gallery of past creations (not the store; noindex)
 - /sitemap.xml — every page and product image
 
 ## Buying
