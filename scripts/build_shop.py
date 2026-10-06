@@ -296,6 +296,7 @@ def product_jsonld(shop, p):
                 '@type': 'Product',
                 'sku': '%s-%s' % (p['id'], size_slug(tier['label'])),
                 'name': '%s - %s' % (shop.seo_name(p), tier['label']),
+                'description': '%s Size: %s.' % (shop.plain_description(p), tier['label']),
                 'size': tier['label'],
                 'image': images[0],
                 'offers': offer(shop, p, tier),
@@ -758,8 +759,16 @@ def build_feed(shop):
     return len(items)
 
 
+# Google Search Console verifies ownership with this file, and the Merchant Center
+# website claim depends on it. It must stay at the site root, unchanged.
+GOOGLE_VERIFICATION_FILE = 'google3d348162492de5b6.html'
+
+
 def main():
     shop = Shop(json.loads((ROOT / 'products.json').read_text()))
+    if not (ROOT / GOOGLE_VERIFICATION_FILE).exists():
+        sys.exit('%s is missing from the repo root. Restore it (git checkout) before deploying: without it '
+                 'Search Console ownership and the Merchant Center claim are lost.' % GOOGLE_VERIFICATION_FILE)
     build_index(shop)
     for p in shop.products:
         write_page(shop.rel(p), product_page(shop, p))
