@@ -501,3 +501,10 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 - This repo is public and GitHub Pages serves every tracked file (`.nojekyll`), including this one. Never put order IDs, customer details, financial totals or infrastructure IDs in any tracked file; keep them in Claude's local project memory instead.
 - **Never delete, rename, redirect or edit `google3d348162492de5b6.html`** (repo root). It is the Google Search Console ownership verification file (method "HTML file", confirmed in the console on 2026-10-06), and the Merchant Center website claim depends on it. It has no header comment on purpose: Google needs its contents unchanged. `scripts/build_shop.py` refuses to run if it is missing.
 - Google setup done 2026-10-06 by Red: Search Console URL-prefix property verified, `sitemap.xml` submitted (Success, 34 pages at the time); Merchant Center account "Florence Mae Gifts" claims the site and fetches `merchant-feed.xml` daily for free listings. Its return policy settings mirror `site.returns` in `products.json` (30 days, by mail, customer pays, no restocking fee, new condition only, no exchanges, refund within 7 business days); change both together.
+
+## 2026-10-07 Update (Search Console structured data emails)
+
+- Two Search Console emails arrived for this site; neither needed a code change.
+- **Merchant listings, "Missing field description" (8 items):** from a crawl before commit `c404b38`, which added a description to every size variant. Checked live on 2026-10-07: all 23 product pages have a description on the `ProductGroup` and on each variant. "Validate fix" was started in Search Console that day (passed the quick initial check; Google emails the result).
+- **Product snippets, "Missing field aggregateRating" / "Missing field review":** optional fields, left out on purpose (see "No star-rating markup" above). Do not add them and do not press "Validate fix" on them; it would fail.
+- If `scripts/build_shop.py` changes, keep the variant-level `description` in the generated JSON-LD or the first warning comes back.
