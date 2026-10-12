@@ -1420,7 +1420,16 @@ async function handleCheckoutSessionDetails(request, env, corsHeaders, url) {
     ok: true,
     isDigital,
     paymentStatus: session.payment_status || session.status || null,
-    downloadUrl
+    downloadUrl,
+    // Order totals for the purchase event the shop page sends to Google (no customer details).
+    purchase: isPaid ? {
+      transactionId: session.id,
+      value: Number(session.amount_subtotal ?? session.amount_total ?? 0) / 100,
+      tax: Number(session.total_details?.amount_tax ?? 0) / 100,
+      currency: (session.currency || 'usd').toUpperCase(),
+      itemName,
+      priceId
+    } : null
   }, 200, corsHeaders);
 }
 

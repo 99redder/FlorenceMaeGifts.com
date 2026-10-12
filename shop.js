@@ -293,6 +293,7 @@
         fetch(`/api/checkout-session-details?session_id=${encodeURIComponent(sessionId)}`)
           .then((res) => res.json().then((details) => ({ ok: res.ok, details })))
           .then(({ ok, details }) => {
+            if (ok) sendPurchaseEvent(details?.purchase);
             if (ok && details?.isDigital) {
               checkoutStatusText.innerHTML += "<br><br><strong>A download link for your pattern will be sent to your email.</strong>";
               if (details?.downloadUrl) {
@@ -317,6 +318,46 @@
       params.delete("checkout");
       window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`);
     }
+  }
+
+  // Reports a completed order to Google (Merchant Center conversion measurement) once per order.
+  // The item id matches the <g:id> in merchant-feed.xml: "<product id>-<size slug>".
+  function sendPurchaseEvent(purchase) {
+    if (!purchase || !purchase.transactionId || typeof window.gtag !== "function") return;
+    const sentKey = "fmg_purchase_sent_" + purchase.transactionId;
+    try {
+      if (localStorage.getItem(sentKey)) return;
+      localStorage.setItem(sentKey, "1");
+    } catch (e) {}
+
+    const send = function(itemId) {
+      window.gtag("event", "purchase", {
+        transaction_id: purchase.transactionId,
+        value: purchase.value,
+        tax: purchase.tax,
+        shipping: 0,
+        currency: purchase.currency,
+        items: [{
+          item_id: itemId,
+          item_name: purchase.itemName,
+          price: purchase.value,
+          quantity: 1
+        }]
+      });
+    };
+
+    fetch("/products.json")
+      .then((res) => res.json())
+      .then(function(data) {
+        let itemId = purchase.priceId;
+        (data.products || []).forEach(function(product) {
+          (product.sizes || []).forEach(function(size) {
+            if (size.priceId === purchase.priceId) itemId = product.id + "-" + slugifySize(size.label);
+          });
+        });
+        send(itemId);
+      })
+      .catch(function() { send(purchase.priceId); });
   }
 
   function handleStripeOrderButton(stripeOrderButton) {
