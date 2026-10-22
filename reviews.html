@@ -3,8 +3,8 @@
 ; Title: reviews.html 
 ; Author: Red
 ; Date Created: 11 January 2023
-; Last Updated: 12 October 2026
-; Description: The code for the Florence Mae Gifts Reviews Page (reviews.html)
+; Last Updated: 22 October 2026
+; Description: The code for the Florence Mae Gifts Reviews Page (reviews.html). The review cards between the REVIEWS markers are generated from reviews.json by scripts/build_shop.py
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
 ----->
@@ -17,7 +17,7 @@
     
   <title>Customer Reviews | Florence Mae Gifts Crochet Baby Sets & Hats</title>
   
-  <meta name="description" content="Read customer reviews for Florence Mae Gifts handmade crochet baby sets, hats, cosplay pieces, and patterns from Etsy and other marketplaces.">
+  <meta name="description" content="Real Etsy reviews and customer photos for Florence Mae Gifts handmade crochet baby hats, cosplay baby sets and patterns. Rated 5.0 by Etsy buyers, each review linked back to Etsy.">
   <meta http-equiv="author" content ="Red">
   <meta name="robots" content="index, follow, max-image-preview:large">
   <link rel="canonical" href="https://www.florencemaegifts.com/reviews.html">
@@ -38,6 +38,8 @@
 
   <!--Style Sheets-->
   <link href="fmg.css" type="text/css" rel="stylesheet">
+  <link href="shop.css?v=20261012" type="text/css" rel="stylesheet">
+  <link href="reviews.css" type="text/css" rel="stylesheet">
   <link href="logo-font/logo-font.css" type="text/css" rel="stylesheet">
   <link href="fontawesome-fallback.css" type="text/css" rel="stylesheet">
 
@@ -61,7 +63,294 @@
 <main id="main-content" role="main">
 <div class="row">
 
-  <div w3-include-html="reviewsleftcolumn.html" class="leftcolumn"></div>
+  <div class="leftcolumn reviews-page">
+    <!-- REVIEWS:START (generated from reviews.json by scripts/build_shop.py - do not hand-edit) -->
+    <h1 class="page-title">Customer Reviews</h1>
+    <section class="reviews-summary" aria-label="Etsy rating">
+     <div class="reviews-score">
+      <span class="reviews-score-number">5.0</span>
+      <span class="review-stars" role="img" aria-label="5.0 out of 5 stars">★★★★★</span>
+      <span class="reviews-score-count">367 reviews on Etsy</span>
+     </div>
+     <div class="reviews-summary-text">
+      <p><span class="reviews-badge">&#9733; Etsy Star Seller</span></p>
+      <p>Every review on this page is copied word for word from our Etsy shop, along with the photos buyers posted. Only people who bought from us can leave an Etsy review. Each one links back to Etsy so you can read it there yourself.</p>
+      <p><a class="reviews-etsy-button" href="https://www.etsy.com/shop/FlorenceMaeGifts/reviews" target="_blank" rel="noopener">Read all 367 reviews on Etsy &#8599;</a></p>
+     </div>
+    </section>
+
+    <figure class="reviews-highlight">
+     <blockquote><p>quality and craftsmanship is so perfect, i can’t believe its handmade!! she responded to my messages quickly and kindly as well! i love it so much. i am going to keep it for my next baby hehe. thank you!!</p></blockquote>
+     <figcaption>Grace, September 11, 2026. <a href="https://www.etsy.com/listing/4461511893#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a></figcaption>
+    </figure>
+
+    <div class="reviews-grid">
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4257424435.jpg" width="640" height="640" loading="lazy" alt="The crochet Goku inspired baby hat, and the child wearing it for Halloween">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">Absolutely perfect! The seller was super nice and helpful, and the hat is sooo adorable! It kept its shape all day - the spikes stayed up really well, and I never had to worry about them falling or drooping. My sensory-sensitive son kept it on all day, so it must be comfortable, too!</p>
+    <p class="review-meta"><strong>Abbey</strong> <span>October 31, 2024</span></p>
+    <p class="review-item"><a href="products/goku-inspired-crochet-baby-hat.html">Goku Inspired Baby Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1502171000#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4271864830.jpg" width="640" height="640" loading="lazy" alt="Smiling baby in a Gohan costume wearing the crochet four-star hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">This was for my son’s first Halloween costume. I love that it was handmade and fit perfectly. Everyone loved it! This will be a keepsake.</p>
+    <p class="review-meta"><strong>Yesenia</strong> <span>December 7, 2024</span></p>
+    <p class="review-item"><a href="products/gohan-inspired-crochet-hat.html">Gohan Inspired Crochet Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1362238271#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4670993093.jpg" width="640" height="640" loading="lazy" alt="Gift box with the crochet Luffy inspired straw hat, a onesie and Megan&#x27;s hand-drawn thank-you card">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">So adorable! Plus she wrote and drew a handmade thank you letter!! The picture was so cute!! It was the biggest hit out of the whole gift box for the future dad! :)</p>
+    <p class="review-meta"><strong>Laura</strong> <span>July 26, 2025</span></p>
+    <p class="review-item"><a href="products/crochet-luffy-inspired-baby-straw-hat.html">Luffy Inspired Baby Straw Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1545236670#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4767520936.jpg" width="640" height="640" loading="lazy" alt="Mom dressed as Bulma holding her smiling baby in the crochet Trunks inspired set">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">This was such a cute costume idea and the quality of the product was amazing. Seller was very kind and helped when I accidentally ordered the wrong size and was very prompt with all communications. Very helpful! ☺️</p>
+    <p class="review-meta"><strong>Sasha</strong> <span>November 13, 2025</span></p>
+    <p class="review-item"><a href="products/trunks-inspired-crochet-beanie-diaper-cover-set.html">Trunks Inspired Beanie &amp; Diaper Cover Photo Set Costume</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1393719259#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">Great quality and artistry. This was for our 3 month old, shipping was expedited to help us have a memorable 1st Halloween together. Appreciated the kind gesture.</p>
+    <p class="review-meta"><strong>Yoni</strong> <span>October 22, 2026</span></p>
+    <p class="review-item"><a href="products/gohan-inspired-crochet-hat.html">Gohan Inspired Crochet Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1362238271#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/3656917011.jpg" width="640" height="640" loading="lazy" alt="Baby wearing the crochet Gohan inspired four-star hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">My husband is a huuuuge DB fan, so when he saw this lovely hat, he said: BUY IT! and OMG, the quality of this item is beyond amazing. My baby looks adorable!!!! I got to confess that we had a minor issue with my baby&#x27;s head being a little bigger for the 0-3M (lol), but Megan was so very kind and helped me get to the correct size! Very few owners tend to have that type of great service, but you definitely went above and beyond with it and I truly appreciate it soooooo MUCH! Highly recommended, definitely a 5 star business! ⭐️⭐️⭐️⭐️⭐️✨️</p>
+    <p class="review-meta"><strong>Paulina</strong> <span>August 10, 2023</span></p>
+    <p class="review-item"><a href="products/gohan-inspired-crochet-hat.html">Gohan Inspired Crochet Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1362238271#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/3870068827.jpg" width="640" height="640" loading="lazy" alt="A small dog modelling the crochet Gohan inspired four-star hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">The quality of this hat has exceeded my expectations. It’s sturdy, it’s identical to gohans hat, and it’s sooo adorable! My fiancé and I are dragon ball z lovers, and I’m beyond excited to have our baby wear this when the time comes!<br>Megan made the BEST card, and it is something I’m going to hold onto forever since it made me giggle so much! Thank you thank you!!!</p>
+    <p class="review-meta"><strong>Michelle</strong> <span>December 19, 2023</span></p>
+    <p class="review-item"><a href="products/gohan-inspired-crochet-hat.html">Gohan Inspired Crochet Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1362238271#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4173902660.jpg" width="640" height="640" loading="lazy" alt="Parents in Dragon Ball cosplay at an anime convention with their baby in the crochet Trunks inspired set">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">I was planning my baby&#x27;s first anime convention and desperately wanted to dress him up as Baby Trunks! There was a bit of a SNAFU with the sizing on the first set I received but the seller was awesome at communicating and meeting my needs. This outfit will definitely go in his memory box.</p>
+    <p class="review-meta"><strong>Celicia</strong> <span>July 28, 2024</span></p>
+    <p class="review-item"><a href="products/trunks-inspired-crochet-beanie-diaper-cover-set.html">Trunks Inspired Beanie &amp; Diaper Cover Photo Set Costume</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1393719259#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4796067226.jpg" width="640" height="640" loading="lazy" alt="The crochet Luffy inspired baby straw hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">Exactly as pictured!! So so cute and can’t wait to give it away as a baby shower gift! That dad will LOVE this !!</p>
+    <p class="review-meta"><strong>Chloe</strong> <span>November 8, 2025</span></p>
+    <p class="review-item"><a href="products/crochet-luffy-inspired-baby-straw-hat.html">Luffy Inspired Baby Straw Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1545236670#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4025162527.jpg" width="640" height="640" loading="lazy" alt="Baby in a Gohan costume wearing the crochet four-star hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">This is really well made and we loved it. There were so many compliments for the hat and his costume.<br>The seller was also super understanding and helpful with getting it to us on time. Absolutely the best! I highly recommend this hat and shop. Thanks so much!</p>
+    <p class="review-meta"><strong>Zee</strong> <span>April 1, 2024</span></p>
+    <p class="review-item"><a href="products/gohan-inspired-crochet-hat.html">Gohan Inspired Crochet Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1362238271#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4992310364.jpg" width="640" height="640" loading="lazy" alt="Newborn photo in the crochet monster diaper cover set">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">bought it for my new baby.<br>it was amazing.i love it so much.<br>thank you for making this.</p>
+    <p class="review-meta"><strong>yuki</strong> <span>April 30, 2026</span></p>
+    <p class="review-item"><a href="products/crochet-monster-diaper-cover-baby-set.html">Monster Diaper Cover Baby Set Costume</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1333420803#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/5197765040.jpg" width="640" height="640" loading="lazy" alt="The crochet egg baby photo set laid out flat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">The item is exactly as described! Excited for my newborn to wear this for Halloween.</p>
+    <p class="review-meta"><strong>Carina</strong> <span>September 13, 2026</span></p>
+    <p class="review-item"><a href="products/crochet-togepi-inspired-baby-photo-set.html">Togepi Inspired Baby Photo Set</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/4461511893#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+    </div>
+    <details class="reviews-more">
+     <summary>Show 13 more reviews</summary>
+     <div class="reviews-grid">
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/3993341866.jpg" width="640" height="640" loading="lazy" alt="Child in a stroller wearing the crochet Luffy inspired straw hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">Wonderful item! It shipped in a timely manner and looks gorgeous. It actually helped my kiddo win his first cosplay contest. :) Only recommendation would be for a strap on the bottom of the hat to help keep it on, like the anime. Other than that it’s great!</p>
+    <p class="review-meta"><strong>Andrea</strong> <span>March 26, 2024</span></p>
+    <p class="review-item"><a href="products/crochet-luffy-inspired-baby-straw-hat.html">Luffy Inspired Baby Straw Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1545236670#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4275434305.jpg" width="640" height="640" loading="lazy" alt="Baby wearing a custom crochet beanie made to look like dark hair">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">I asked her to make a totally random custom order for me and she delivered 100%. Quality item &amp; came before Halloween 🎃🖤</p>
+    <p class="review-meta"><strong>Jordan</strong> <span>November 11, 2024</span></p>
+    <p class="review-item">Custom baby beanie (custom order)</p>
+    <a class="review-verify" href="https://www.etsy.com/shop/FlorenceMaeGifts/reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4786817887.jpg" width="640" height="640" loading="lazy" alt="Mom holding her baby, who is wearing the crochet four-star hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">My most favorite to ever order in etsy! This was so beautifully woven. It was well crafted, arrived before Halloween, and fits my 8 month old perfectly</p>
+    <p class="review-meta"><strong>Leodith</strong> <span>November 18, 2025</span></p>
+    <p class="review-item"><a href="products/gohan-inspired-crochet-hat.html">Gohan Inspired Crochet Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1362238271#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/5242234448.jpg" width="640" height="640" loading="lazy" alt="Close-up of the crochet four-star hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">My item arrived on time and is so cute! I’m in love of how great it came out. Would definitely recommend this seller and would purchase more of her stuff in the future. Thank you!</p>
+    <p class="review-meta"><strong>izabel</strong> <span>October 19, 2026</span></p>
+    <p class="review-item"><a href="products/gohan-inspired-crochet-hat.html">Gohan Inspired Crochet Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1362238271#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4060538104.jpg" width="640" height="640" loading="lazy" alt="The crochet Luffy inspired straw hat with Megan&#x27;s handwritten care card">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">I received the One Piece straw hat this morning, and it came out beautifully! It&#x27;s a gift for my niece, and I know she&#x27;s gonna love it! I&#x27;m so happy to impart my love of anime with her. Even though her parents know nothing about anime (tragic, I know). Myself, along with other extended aunts and uncles, will fix this lol<br>And before anyone asks, yes, her parents are cool with this 😂</p>
+    <p class="review-meta"><strong>Joseph</strong> <span>April 27, 2024</span></p>
+    <p class="review-item"><a href="products/crochet-luffy-inspired-baby-straw-hat.html">Luffy Inspired Baby Straw Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1545236670#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/4035201332.jpg" width="640" height="640" loading="lazy" alt="Child wearing the custom crochet Trunks hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">FlorenceMaeGifts went above and beyond with making my son his trunks hat since he out grew his baby one she made a while back! She worked with our crazy schedule when it came to shipping too!! Definitely will order again whenever we have our 2nd baby ! 🤗 the card was also a sweet touch as well !</p>
+    <p class="review-meta"><strong>Jessica</strong> <span>April 29, 2024</span></p>
+    <p class="review-item">Custom Trunks hat (custom order)</p>
+    <a class="review-verify" href="https://www.etsy.com/shop/FlorenceMaeGifts/reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/3949643403.jpg" width="640" height="640" loading="lazy" alt="The crochet Luffy inspired straw hat">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">This looks better than what I thought it was going to be. Very very well made. I bought this for my granddaughter who will be born in April. To top it all off I was given a thank you note that gave it a great personal touch. I will buy from this place again!!!</p>
+    <p class="review-meta"><strong>Duane</strong> <span>February 1, 2024</span></p>
+    <p class="review-item"><a href="products/crochet-luffy-inspired-baby-straw-hat.html">Luffy Inspired Baby Straw Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1545236670#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <img class="review-photo" src="images/reviews/3621526309.jpg" width="640" height="640" loading="lazy" alt="Baby in the crochet Majin Buu inspired diaper cover set">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">She loved it, my mini majin buu</p>
+    <p class="review-meta"><strong>Elvis</strong> <span>July 25, 2023</span></p>
+    <p class="review-item"><a href="products/majin-buu-inspired-crochet-diaper-cover-set.html">Majin Buu Inspired Diaper Cover Baby Set Costume</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1333363927#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">Amazing hat!! It fits my 5 year old perfectly. Just in time for Halloween, he’s gonna be Gohan. Amazing quality and fast shipping. Great communication as well!</p>
+    <p class="review-meta"><strong>David</strong> <span>October 13, 2026</span></p>
+    <p class="review-item"><a href="products/gohan-inspired-crochet-hat.html">Gohan Inspired Crochet Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1362238271#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">This was one of the best experience I&#x27;ve had on Etsy. The seller was super kind and sent me new sizes for my son after the original set I ordered didn&#x27;t fit. I appreciate the kindness and the high quality of her work. This really made my nerd heart happy. Thank you so so much</p>
+    <p class="review-meta"><strong>Stephanie</strong> <span>July 9, 2023</span></p>
+    <p class="review-item"><a href="products/trunks-inspired-crochet-beanie-diaper-cover-set.html">Trunks Inspired Beanie &amp; Diaper Cover Photo Set Costume</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1393719259#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">The hat is high quality and our baby loves wearing it. It fits him perfectly. It is even cutter then in the pictures :)<br>Megan helped us overcome issues with our local post and made sure the delivery arrives. All with a lot of kindness and patience.<br>Highly recommended !!</p>
+    <p class="review-meta"><strong>Shir</strong> <span>March 28, 2025</span></p>
+    <p class="review-item"><a href="products/crochet-luffy-inspired-baby-straw-hat.html">Luffy Inspired Baby Straw Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1545236670#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">This pattern was easy to follow for me as a first project! The seller was also incredibly helpful and responsive to messages when I needed assistance at two separate instances. 100% recommend purchasing this pattern!</p>
+    <p class="review-meta"><strong>Morgan</strong> <span>October 22, 2024</span></p>
+    <p class="review-item"><a href="crochet-patterns.html">Crochet hat pattern (PDF)</a></p>
+    <a class="review-verify" href="https://www.etsy.com/shop/FlorenceMaeGifts/reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+  <article class="review-card">
+   <div class="review-body">
+    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>
+    <p class="review-text">Adorable! My husband loved it as a surprise that we were expecting. Hoping to take some pictures once they arrive. Thank you for making my announcement extra special and meaningful.</p>
+    <p class="review-meta"><strong>Stacey</strong> <span>May 20, 2023</span></p>
+    <p class="review-item"><a href="products/gohan-inspired-crochet-hat.html">Gohan Inspired Crochet Hat</a></p>
+    <a class="review-verify" href="https://www.etsy.com/listing/1362238271#reviews" target="_blank" rel="noopener">See it on Etsy &#8599;</a>
+   </div>
+  </article>
+     </div>
+    </details>
+
+    <h2 class="page-h2">More kind words</h2>
+    <div class="reviews-elsewhere">
+     <blockquote class="review-quote"><p>Everyone should order something from this gal.  She does amazing work.  Everything she makes is top notch quality.  She made me a doll of me and the guy is still in great condition.  I highly recommend her for any occasion.</p><footer>Jeremy C, Facebook Marketplace</footer></blockquote>
+     <blockquote class="review-quote"><p>I recommend you all make an order of your choosing.  You want a present unlike all those store bought gifts? This is the unforgettable gift of a lifetime.  Very well crafted, unique, and hand-made pieces of art.  Please like, share, and support.</p><footer>Travis D, Facebook Marketplace</footer></blockquote>
+     <blockquote class="review-quote"><p>Beautiful work by a beautiful soul.</p><footer>Brenna H, Facebook Marketplace</footer></blockquote>
+     <figure class="review-quote review-quote-image">
+      <img src="images/review.png" width="453" height="275" loading="lazy" alt="Text message from a custom order customer: I gave her the Cthulhu and she LOVVVVVVVVVVED it! Gonna post a picture and tag you if that is ok? I was blown away by it!">
+      <figcaption>A text from a custom order customer</figcaption>
+     </figure>
+    </div>
+
+    <p class="reviews-cta"><a class="reviews-etsy-button" href="./#shop">Shop handmade crochet</a></p>
+    <p class="reviews-asof">Reviews copied from Etsy on October 22, 2026.</p>
+    <!-- REVIEWS:END -->
+  </div>
                   
   <div w3-include-html="rightcolumn.html" class="rightcolumn hidden-mobile"></div>
 

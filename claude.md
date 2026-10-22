@@ -42,7 +42,7 @@ The site uses a **client-side HTML include pattern** via `includeHTML.js`. Commo
 ```
 ├── index.html              # Home/landing page with product gallery
 ├── about.html              # About the artist
-├── reviews.html            # Customer testimonials
+├── reviews.html            # Customer reviews (review section generated from reviews.json)
 ├── request.html            # Custom order request page
 ├── disclaimers.html        # Legal/terms
 ├── header.html             # Shared site header (logo + flowers)
@@ -50,7 +50,8 @@ The site uses a **client-side HTML include pattern** via `includeHTML.js`. Commo
 ├── footer.html             # Shared footer (copyright, social links, last update)
 ├── rightcolumn.html        # Shared right sidebar (latest creations + contact form)
 ├── aboutleftcolumn.html    # About page content component
-├── reviewsleftcolumn.html  # Reviews page content component
+├── reviews.json            # Etsy reviews shown on reviews.html (copied word for word)
+├── reviews.css             # Reviews page styles
 ├── disclaimersleftcolumn.html # Disclaimers page content component
 ├── fmg.css                 # Main stylesheet (all styles)
 ├── theme.js                # Light/dark mode toggle with localStorage
@@ -465,6 +466,7 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
   - `crochet-baby-sets.html`, `crochet-baby-hats.html`, `crochet-patterns.html`
   - `shipping-returns.html`; `privacy.html` and `terms.html` (static copies of the `footer.html` modals, which stay the source)
   - `sitemap.xml` (pages + product images) and `merchant-feed.xml` (Google Merchant Center)
+  - the review section of `reviews.html` (between `REVIEWS:START/END` markers), from `reviews.json`
 - A generated file's `Last Updated` date only changes when its content changes, so rebuilding is always safe.
 - `shopleftcolumn.html` was deleted. Shop/product styles moved from an inline `<style>` in `index.html` to `shop.css`.
 - `"hidden": true` on a product removes it from the site, sitemap and feed but keeps its price IDs in the checkout allowlist.
@@ -515,3 +517,14 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 - Every public page loads the tag in `<head>`: the async `googletagmanager.com/gtag/js` script plus `gtag-init.js` (the config call lives in a file because the page CSP blocks inline scripts). The CSP `script-src` now also allows `https://www.googletagmanager.com` and `https://static.cloudflareinsights.com` (Cloudflare Web Analytics beacon, injected by Cloudflare at the edge; also disclosed in the privacy policy). Generated pages get both from the head template in `scripts/build_shop.py`; `index.html`, `about.html`, `reviews.html`, `disclaimers.html` and `shop.html` carry them by hand. Any new hand-written page needs the same three lines. Admin and invoice pages are deliberately untagged.
 - Purchase event: after Stripe redirects back with `?checkout=success&session_id=...`, `shop.js` (`sendPurchaseEvent`) reads `purchase` from `/api/checkout-session-details` (subtotal, tax, currency, item name, price ID; no customer details) and sends a `purchase` event once per session. The item ID is `<product id>-<size slug>`, matching `<g:id>` in `merchant-feed.xml`; keep the two in step.
 - The privacy policy (footer modal, copied to `privacy.html` by the build) discloses the Google tag. If tracking is ever removed or extended (ads, Analytics), change that paragraph in the same commit.
+
+## 2026-10-22 Update (Reviews page built from Etsy reviews)
+
+- `reviews.html` now shows Etsy's rating summary (5.0, review count, Star Seller), a pull quote, 26 Etsy reviews (19 with the buyer's own photo) with a "Show more" toggle after the first `visible` cards, then the Facebook Marketplace quotes and the custom-order text screenshot.
+- **`reviews.json` is the source.** `scripts/build_shop.py` writes the section between `REVIEWS:START/END` in `reviews.html` (the head and layout around it stay hand-written). `reviewsleftcolumn.html` was deleted; styles are in `reviews.css`.
+- Review text is copied word for word from the Etsy shop. Never edit, trim or correct it; the page tells visitors it is verbatim.
+- Etsy has no link to a single review. `etsyUrl` is the listing's `#reviews` section while the listing is live, otherwise `https://www.etsy.com/shop/FlorenceMaeGifts/reviews` (removed custom-order listings, pattern reviews with no listing). `etsyListingId` matches `etsyId` in `products.json` to link the on-site product page; without a match the card shows `item` (and `itemUrl` if given).
+- Buyer photos are saved in `images/reviews/<review id>.jpg` at Etsy's 640px size (`iap_640x640` in place of `iap_300x300` in the photo URL), not hotlinked. Several show customers' or their children's faces; Megan may choose to ask those buyers or swap the photos for item-only ones.
+- To refresh: read `https://www.etsy.com/shop/FlorenceMaeGifts/reviews?page=N` in the built-in browser (14 reviews per page; each `li[data-review-region]` holds the review ID, text, date, listing link and photo). Etsy returns HTTP 429 after about 24 quick page loads, so pause between pages. Update `etsy.count` and `etsy.asOf`, then rebuild.
+- Reviews from buyers named Megan are left out so they are not mistaken for Megan the artist.
+- No `Review` or `AggregateRating` structured data on this page either (see "No star-rating markup" above).

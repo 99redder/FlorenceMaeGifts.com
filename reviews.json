@@ -1,0 +1,278 @@
+{
+  "_readme": "Reviews shown on reviews.html, copied word for word from the Etsy shop (never edit a review's text). Edit this file, then run: python3 scripts/build_shop.py. Photos are the buyer's own review photos, saved to images/reviews/<id>.jpg (640px). etsyListingId links the review to its product page when the listing is on the site; otherwise 'item' (and optional 'itemUrl') names the item. etsyUrl is where a visitor can read the review on Etsy: the listing's reviews, or the shop's reviews page when the listing is gone. Reviews after the first 'visible' are behind a 'Show more' toggle.",
+  "etsy": {
+    "rating": "5.0",
+    "count": 367,
+    "asOf": "2026-10-22",
+    "reviewsUrl": "https://www.etsy.com/shop/FlorenceMaeGifts/reviews"
+  },
+  "visible": 12,
+  "highlight": {
+    "id": "5192762189",
+    "name": "Grace",
+    "date": "2026-09-11",
+    "etsyListingId": "4461511893",
+    "etsyUrl": "https://www.etsy.com/listing/4461511893#reviews",
+    "text": "quality and craftsmanship is so perfect, i can’t believe its handmade!! she responded to my messages quickly and kindly as well! i love it so much. i am going to keep it for my next baby hehe. thank you!!"
+  },
+  "reviews": [
+    {
+      "id": "4257424435",
+      "name": "Abbey",
+      "date": "2024-10-31",
+      "etsyListingId": "1502171000",
+      "etsyUrl": "https://www.etsy.com/listing/1502171000#reviews",
+      "photo": "images/reviews/4257424435.jpg",
+      "photoAlt": "The crochet Goku inspired baby hat, and the child wearing it for Halloween",
+      "text": "Absolutely perfect! The seller was super nice and helpful, and the hat is sooo adorable! It kept its shape all day - the spikes stayed up really well, and I never had to worry about them falling or drooping. My sensory-sensitive son kept it on all day, so it must be comfortable, too!"
+    },
+    {
+      "id": "4271864830",
+      "name": "Yesenia",
+      "date": "2024-12-07",
+      "etsyListingId": "1362238271",
+      "etsyUrl": "https://www.etsy.com/listing/1362238271#reviews",
+      "photo": "images/reviews/4271864830.jpg",
+      "photoAlt": "Smiling baby in a Gohan costume wearing the crochet four-star hat",
+      "text": "This was for my son’s first Halloween costume. I love that it was handmade and fit perfectly. Everyone loved it! This will be a keepsake."
+    },
+    {
+      "id": "4670993093",
+      "name": "Laura",
+      "date": "2025-07-26",
+      "etsyListingId": "1545236670",
+      "etsyUrl": "https://www.etsy.com/listing/1545236670#reviews",
+      "photo": "images/reviews/4670993093.jpg",
+      "photoAlt": "Gift box with the crochet Luffy inspired straw hat, a onesie and Megan's hand-drawn thank-you card",
+      "text": "So adorable! Plus she wrote and drew a handmade thank you letter!! The picture was so cute!! It was the biggest hit out of the whole gift box for the future dad! :)"
+    },
+    {
+      "id": "4767520936",
+      "name": "Sasha",
+      "date": "2025-11-13",
+      "etsyListingId": "1393719259",
+      "etsyUrl": "https://www.etsy.com/listing/1393719259#reviews",
+      "photo": "images/reviews/4767520936.jpg",
+      "photoAlt": "Mom dressed as Bulma holding her smiling baby in the crochet Trunks inspired set",
+      "text": "This was such a cute costume idea and the quality of the product was amazing. Seller was very kind and helped when I accidentally ordered the wrong size and was very prompt with all communications. Very helpful! ☺️"
+    },
+    {
+      "id": "5258284510",
+      "name": "Yoni",
+      "date": "2026-10-22",
+      "etsyListingId": "1362238271",
+      "etsyUrl": "https://www.etsy.com/listing/1362238271#reviews",
+      "text": "Great quality and artistry. This was for our 3 month old, shipping was expedited to help us have a memorable 1st Halloween together. Appreciated the kind gesture."
+    },
+    {
+      "id": "3656917011",
+      "name": "Paulina",
+      "date": "2023-08-10",
+      "etsyListingId": "1362238271",
+      "etsyUrl": "https://www.etsy.com/listing/1362238271#reviews",
+      "photo": "images/reviews/3656917011.jpg",
+      "photoAlt": "Baby wearing the crochet Gohan inspired four-star hat",
+      "text": "My husband is a huuuuge DB fan, so when he saw this lovely hat, he said: BUY IT! and OMG, the quality of this item is beyond amazing. My baby looks adorable!!!! I got to confess that we had a minor issue with my baby's head being a little bigger for the 0-3M (lol), but Megan was so very kind and helped me get to the correct size! Very few owners tend to have that type of great service, but you definitely went above and beyond with it and I truly appreciate it soooooo MUCH! Highly recommended, definitely a 5 star business! ⭐️⭐️⭐️⭐️⭐️✨️"
+    },
+    {
+      "id": "3870068827",
+      "name": "Michelle",
+      "date": "2023-12-19",
+      "etsyListingId": "1362238271",
+      "etsyUrl": "https://www.etsy.com/listing/1362238271#reviews",
+      "photo": "images/reviews/3870068827.jpg",
+      "photoAlt": "A small dog modelling the crochet Gohan inspired four-star hat",
+      "text": "The quality of this hat has exceeded my expectations. It’s sturdy, it’s identical to gohans hat, and it’s sooo adorable! My fiancé and I are dragon ball z lovers, and I’m beyond excited to have our baby wear this when the time comes! \nMegan made the BEST card, and it is something I’m going to hold onto forever since it made me giggle so much! Thank you thank you!!!"
+    },
+    {
+      "id": "4173902660",
+      "name": "Celicia",
+      "date": "2024-07-28",
+      "etsyListingId": "1393719259",
+      "etsyUrl": "https://www.etsy.com/listing/1393719259#reviews",
+      "photo": "images/reviews/4173902660.jpg",
+      "photoAlt": "Parents in Dragon Ball cosplay at an anime convention with their baby in the crochet Trunks inspired set",
+      "text": "I was planning my baby's first anime convention and desperately wanted to dress him up as Baby Trunks! There was a bit of a SNAFU with the sizing on the first set I received but the seller was awesome at communicating and meeting my needs. This outfit will definitely go in his memory box."
+    },
+    {
+      "id": "4796067226",
+      "name": "Chloe",
+      "date": "2025-11-08",
+      "etsyListingId": "1545236670",
+      "etsyUrl": "https://www.etsy.com/listing/1545236670#reviews",
+      "photo": "images/reviews/4796067226.jpg",
+      "photoAlt": "The crochet Luffy inspired baby straw hat",
+      "text": "Exactly as pictured!! So so cute and can’t wait to give it away as a baby shower gift! That dad will LOVE this !!"
+    },
+    {
+      "id": "4025162527",
+      "name": "Zee",
+      "date": "2024-04-01",
+      "etsyListingId": "1362238271",
+      "etsyUrl": "https://www.etsy.com/listing/1362238271#reviews",
+      "photo": "images/reviews/4025162527.jpg",
+      "photoAlt": "Baby in a Gohan costume wearing the crochet four-star hat",
+      "text": "This is really well made and we loved it. There were so many compliments for the hat and his costume. \nThe seller was also super understanding and helpful with getting it to us on time. Absolutely the best! I highly recommend this hat and shop. Thanks so much!"
+    },
+    {
+      "id": "4992310364",
+      "name": "yuki",
+      "date": "2026-04-30",
+      "etsyListingId": "1333420803",
+      "etsyUrl": "https://www.etsy.com/listing/1333420803#reviews",
+      "photo": "images/reviews/4992310364.jpg",
+      "photoAlt": "Newborn photo in the crochet monster diaper cover set",
+      "text": "bought it for my new baby. \nit was amazing.i love it so much.\nthank you for making this."
+    },
+    {
+      "id": "5197765040",
+      "name": "Carina",
+      "date": "2026-09-13",
+      "etsyListingId": "4461511893",
+      "etsyUrl": "https://www.etsy.com/listing/4461511893#reviews",
+      "photo": "images/reviews/5197765040.jpg",
+      "photoAlt": "The crochet egg baby photo set laid out flat",
+      "text": "The item is exactly as described! Excited for my newborn to wear this for Halloween."
+    },
+    {
+      "id": "3993341866",
+      "name": "Andrea",
+      "date": "2024-03-26",
+      "etsyListingId": "1545236670",
+      "etsyUrl": "https://www.etsy.com/listing/1545236670#reviews",
+      "photo": "images/reviews/3993341866.jpg",
+      "photoAlt": "Child in a stroller wearing the crochet Luffy inspired straw hat",
+      "text": "Wonderful item! It shipped in a timely manner and looks gorgeous. It actually helped my kiddo win his first cosplay contest. :) Only recommendation would be for a strap on the bottom of the hat to help keep it on, like the anime. Other than that it’s great!"
+    },
+    {
+      "id": "4275434305",
+      "name": "Jordan",
+      "date": "2024-11-11",
+      "etsyListingId": "1789255544",
+      "etsyUrl": "https://www.etsy.com/shop/FlorenceMaeGifts/reviews",
+      "item": "Custom baby beanie (custom order)",
+      "photo": "images/reviews/4275434305.jpg",
+      "photoAlt": "Baby wearing a custom crochet beanie made to look like dark hair",
+      "text": "I asked her to make a totally random custom order for me and she delivered 100%. Quality item & came before Halloween 🎃🖤"
+    },
+    {
+      "id": "4786817887",
+      "name": "Leodith",
+      "date": "2025-11-18",
+      "etsyListingId": "1362238271",
+      "etsyUrl": "https://www.etsy.com/listing/1362238271#reviews",
+      "photo": "images/reviews/4786817887.jpg",
+      "photoAlt": "Mom holding her baby, who is wearing the crochet four-star hat",
+      "text": "My most favorite to ever order in etsy! This was so beautifully woven. It was well crafted, arrived before Halloween, and fits my 8 month old perfectly"
+    },
+    {
+      "id": "5242234448",
+      "name": "izabel",
+      "date": "2026-10-19",
+      "etsyListingId": "1362238271",
+      "etsyUrl": "https://www.etsy.com/listing/1362238271#reviews",
+      "photo": "images/reviews/5242234448.jpg",
+      "photoAlt": "Close-up of the crochet four-star hat",
+      "text": "My item arrived on time and is so cute! I’m in love of how great it came out. Would definitely recommend this seller and would purchase more of her stuff in the future. Thank you!"
+    },
+    {
+      "id": "4060538104",
+      "name": "Joseph",
+      "date": "2024-04-27",
+      "etsyListingId": "1545236670",
+      "etsyUrl": "https://www.etsy.com/listing/1545236670#reviews",
+      "photo": "images/reviews/4060538104.jpg",
+      "photoAlt": "The crochet Luffy inspired straw hat with Megan's handwritten care card",
+      "text": "I received the One Piece straw hat this morning, and it came out beautifully! It's a gift for my niece, and I know she's gonna love it! I'm so happy to impart my love of anime with her. Even though her parents know nothing about anime (tragic, I know). Myself, along with other extended aunts and uncles, will fix this lol\nAnd before anyone asks, yes, her parents are cool with this 😂"
+    },
+    {
+      "id": "4035201332",
+      "name": "Jessica",
+      "date": "2024-04-29",
+      "etsyListingId": "1691963672",
+      "etsyUrl": "https://www.etsy.com/shop/FlorenceMaeGifts/reviews",
+      "item": "Custom Trunks hat (custom order)",
+      "photo": "images/reviews/4035201332.jpg",
+      "photoAlt": "Child wearing the custom crochet Trunks hat",
+      "text": "FlorenceMaeGifts went above and beyond with making my son his trunks hat since he out grew his baby one she made a while back! She worked with our crazy schedule when it came to shipping too!! Definitely will order again whenever we have our 2nd baby ! 🤗 the card was also a sweet touch as well !"
+    },
+    {
+      "id": "3949643403",
+      "name": "Duane",
+      "date": "2024-02-01",
+      "etsyListingId": "1545236670",
+      "etsyUrl": "https://www.etsy.com/listing/1545236670#reviews",
+      "photo": "images/reviews/3949643403.jpg",
+      "photoAlt": "The crochet Luffy inspired straw hat",
+      "text": "This looks better than what I thought it was going to be. Very very well made. I bought this for my granddaughter who will be born in April. To top it all off I was given a thank you note that gave it a great personal touch. I will buy from this place again!!!"
+    },
+    {
+      "id": "3621526309",
+      "name": "Elvis",
+      "date": "2023-07-25",
+      "etsyListingId": "1333363927",
+      "etsyUrl": "https://www.etsy.com/listing/1333363927#reviews",
+      "photo": "images/reviews/3621526309.jpg",
+      "photoAlt": "Baby in the crochet Majin Buu inspired diaper cover set",
+      "text": "She loved it, my mini majin buu"
+    },
+    {
+      "id": "5229050026",
+      "name": "David",
+      "date": "2026-10-13",
+      "etsyListingId": "1362238271",
+      "etsyUrl": "https://www.etsy.com/listing/1362238271#reviews",
+      "text": "Amazing hat!! It fits my 5 year old perfectly. Just in time for Halloween, he’s gonna be Gohan. Amazing quality and fast shipping. Great communication as well!"
+    },
+    {
+      "id": "3607058362",
+      "name": "Stephanie",
+      "date": "2023-07-09",
+      "etsyListingId": "1393719259",
+      "etsyUrl": "https://www.etsy.com/listing/1393719259#reviews",
+      "text": "This was one of the best experience I've had on Etsy. The seller was super kind and sent me new sizes for my son after the original set I ordered didn't fit. I appreciate the kindness and the high quality of her work. This really made my nerd heart happy. Thank you so so much"
+    },
+    {
+      "id": "4474707936",
+      "name": "Shir",
+      "date": "2025-03-28",
+      "etsyListingId": "1545236670",
+      "etsyUrl": "https://www.etsy.com/listing/1545236670#reviews",
+      "text": "The hat is high quality and our baby loves wearing it. It fits him perfectly. It is even cutter then in the pictures :)\nMegan helped us overcome issues with our local post and made sure the delivery arrives. All with a lot of kindness and patience.\nHighly recommended !!"
+    },
+    {
+      "id": "4274296893",
+      "name": "Morgan",
+      "date": "2024-10-22",
+      "etsyUrl": "https://www.etsy.com/shop/FlorenceMaeGifts/reviews",
+      "item": "Crochet hat pattern (PDF)",
+      "itemUrl": "crochet-patterns.html",
+      "text": "This pattern was easy to follow for me as a first project! The seller was also incredibly helpful and responsive to messages when I needed assistance at two separate instances. 100% recommend purchasing this pattern!"
+    },
+    {
+      "id": "3539973851",
+      "name": "Stacey",
+      "date": "2023-05-20",
+      "etsyListingId": "1362238271",
+      "etsyUrl": "https://www.etsy.com/listing/1362238271#reviews",
+      "text": "Adorable! My husband loved it as a surprise that we were expecting. Hoping to take some pictures once they arrive. Thank you for making my announcement extra special and meaningful."
+    }
+  ],
+  "elsewhere": [
+    {
+      "source": "Facebook Marketplace",
+      "name": "Jeremy C",
+      "text": "Everyone should order something from this gal.  She does amazing work.  Everything she makes is top notch quality.  She made me a doll of me and the guy is still in great condition.  I highly recommend her for any occasion."
+    },
+    {
+      "source": "Facebook Marketplace",
+      "name": "Travis D",
+      "text": "I recommend you all make an order of your choosing.  You want a present unlike all those store bought gifts? This is the unforgettable gift of a lifetime.  Very well crafted, unique, and hand-made pieces of art.  Please like, share, and support."
+    },
+    {
+      "source": "Facebook Marketplace",
+      "name": "Brenna H",
+      "text": "Beautiful work by a beautiful soul."
+    }
+  ]
+}

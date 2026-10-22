@@ -11,6 +11,7 @@ IDs, images, handling time and the return policy. This script regenerates:
   crochet-baby-hats.html, crochet-baby-sets.html, crochet-patterns.html
   shipping-returns.html   shipping + return policy
   privacy.html, terms.html  static copies of the footer modals (footer.html stays the source)
+  reviews.html            review cards from reviews.json (between markers)
   sitemap.xml             pages + product images
   merchant-feed.xml       Google Merchant Center feed (products with "merchantFeed": true)
 
@@ -99,6 +100,14 @@ def strip_tags(markup):
 def jsonld(data):
     body = json.dumps(data, indent=2, ensure_ascii=False).replace('</', '<\\/')
     return '<script type="application/ld+json">\n%s\n</script>' % body
+
+
+def fill(text, name, payload, rel_path):
+    """Replace what sits between <!-- NAME:START --> and <!-- NAME:END --> in a hand-written page."""
+    pattern = re.compile(r'(<!-- %s:START[^>]*-->).*?([ \t]*<!-- %s:END -->)' % (name, name), re.S)
+    if not pattern.search(text):
+        sys.exit('%s is missing the %s:START / %s:END markers' % (rel_path, name, name))
+    return pattern.sub(lambda m: m.group(1) + '\n' + payload + '\n' + m.group(2), text)
 
 
 DATE_LINE = re.compile(r'(; Last Updated: )[^\n]*')
@@ -527,14 +536,106 @@ def build_index(shop):
     ld = '\n'.join('  ' + jsonld(b).replace('\n', '\n  ') for b in (
         store_jsonld(shop), itemlist_jsonld(shop, shop.products, 'Florence Mae Gifts shop')))
 
-    def fill(text, name, payload):
-        pattern = re.compile(r'(<!-- %s:START[^>]*-->).*?([ \t]*<!-- %s:END -->)' % (name, name), re.S)
-        if not pattern.search(text):
-            sys.exit('index.html is missing the %s:START / %s:END markers' % (name, name))
-        return pattern.sub(lambda m: m.group(1) + '\n' + payload + '\n' + m.group(2), text)
-
-    out = fill(fill(src, 'SHOP', grid), 'JSONLD', ld)
+    out = fill(fill(src, 'SHOP', grid, 'index.html'), 'JSONLD', ld, 'index.html')
     write_page('index.html', out)
+
+
+# ---------- reviews ----------
+
+def us_date(iso):
+    d = date.fromisoformat(iso)
+    return '%s %d, %d' % (d.strftime('%B'), d.day, d.year)
+
+
+def review_text_html(text):
+    return '<br>'.join(esc(line.rstrip()) for line in text.split('\n'))
+
+
+def review_card_html(shop, r, by_etsy):
+    p = by_etsy.get(r.get('etsyListingId'))
+    if p:
+        item = '<a href="%s">%s</a>' % (shop.rel(p), esc(shop.base_name(p)))
+    elif r.get('item'):
+        item = '<a href="%s">%s</a>' % (r['itemUrl'], esc(r['item'])) if r.get('itemUrl') else esc(r['item'])
+    else:
+        sys.exit('reviews.json: review %s needs an "item" (its Etsy listing is not on the site)' % r['id'])
+    lines = ['  <article class="review-card">']
+    if r.get('photo'):
+        if not (ROOT / r['photo']).exists():
+            sys.exit('reviews.json: review %s photo %s is missing' % (r['id'], r['photo']))
+        lines.append('   <img class="review-photo" src="%s" width="640" height="640" loading="lazy" alt="%s">'
+                     % (r['photo'], esc(r['photoAlt'])))
+    lines += ['   <div class="review-body">',
+              '    <p class="review-stars" role="img" aria-label="5 out of 5 stars">★★★★★</p>',
+              '    <p class="review-text">%s</p>' % review_text_html(r['text']),
+              '    <p class="review-meta"><strong>%s</strong> <span>%s</span></p>' % (esc(r['name']), us_date(r['date'])),
+              '    <p class="review-item">%s</p>' % item,
+              '    <a class="review-verify" href="%s" target="_blank" rel="noopener">See it on Etsy &#8599;</a>'
+              % esc(r['etsyUrl']),
+              '   </div>',
+              '  </article>']
+    return '\n'.join(lines)
+
+
+def build_reviews(shop):
+    data = json.loads((ROOT / 'reviews.json').read_text())
+    etsy = data['etsy']
+    by_etsy = {p.get('etsyId'): p for p in shop.products}
+    hl = data['highlight']
+    cards = [review_card_html(shop, r, by_etsy) for r in data['reviews']]
+    shown, more = cards[:data['visible']], cards[data['visible']:]
+    out = [
+        '    <h1 class="page-title">Customer Reviews</h1>',
+        '    <section class="reviews-summary" aria-label="Etsy rating">',
+        '     <div class="reviews-score">',
+        '      <span class="reviews-score-number">%s</span>' % esc(etsy['rating']),
+        '      <span class="review-stars" role="img" aria-label="%s out of 5 stars">★★★★★</span>' % esc(etsy['rating']),
+        '      <span class="reviews-score-count">%d reviews on Etsy</span>' % etsy['count'],
+        '     </div>',
+        '     <div class="reviews-summary-text">',
+        '      <p><span class="reviews-badge">&#9733; Etsy Star Seller</span></p>',
+        '      <p>Every review on this page is copied word for word from our Etsy shop, along with the photos buyers '
+        'posted. Only people who bought from us can leave an Etsy review. Each one links back to Etsy so you can '
+        'read it there yourself.</p>',
+        '      <p><a class="reviews-etsy-button" href="%s" target="_blank" rel="noopener">Read all %d reviews on Etsy '
+        '&#8599;</a></p>' % (esc(etsy['reviewsUrl']), etsy['count']),
+        '     </div>',
+        '    </section>',
+        '',
+        '    <figure class="reviews-highlight">',
+        '     <blockquote><p>%s</p></blockquote>' % review_text_html(hl['text']),
+        '     <figcaption>%s, %s. <a href="%s" target="_blank" rel="noopener">See it on Etsy &#8599;</a></figcaption>'
+        % (esc(hl['name']), us_date(hl['date']), esc(hl['etsyUrl'])),
+        '    </figure>',
+        '',
+        '    <div class="reviews-grid">',
+        '\n'.join(shown),
+        '    </div>',
+    ]
+    if more:
+        out += ['    <details class="reviews-more">',
+                '     <summary>Show %d more reviews</summary>' % len(more),
+                '     <div class="reviews-grid">',
+                '\n'.join(more),
+                '     </div>',
+                '    </details>']
+    out += ['',
+            '    <h2 class="page-h2">More kind words</h2>',
+            '    <div class="reviews-elsewhere">']
+    out += ['     <blockquote class="review-quote"><p>%s</p><footer>%s, %s</footer></blockquote>'
+            % (esc(q['text']), esc(q['name']), esc(q['source'])) for q in data['elsewhere']]
+    out += ['     <figure class="review-quote review-quote-image">',
+            '      <img src="images/review.png" width="453" height="275" loading="lazy" alt="Text message from a custom order '
+            'customer: I gave her the Cthulhu and she LOVVVVVVVVVVED it! Gonna post a picture and tag you if that is ok? '
+            'I was blown away by it!">',
+            '      <figcaption>A text from a custom order customer</figcaption>',
+            '     </figure>',
+            '    </div>',
+            '',
+            '    <p class="reviews-cta"><a class="reviews-etsy-button" href="./#shop">Shop handmade crochet</a></p>',
+            '    <p class="reviews-asof">Reviews copied from Etsy on %s.</p>' % us_date(etsy['asOf'])]
+    path = ROOT / 'reviews.html'
+    write_page('reviews.html', fill(path.read_text(), 'REVIEWS', '\n'.join(out), 'reviews.html'))
 
 
 def product_page(shop, p):
@@ -788,7 +889,8 @@ def main():
                                           'Florence Mae Gifts privacy policy.'))
     write_page('terms.html', legal_page(shop, 'modal-terms', 'terms.html', 'Terms of Use | Florence Mae Gifts',
                                         'Florence Mae Gifts website terms of use.'))
-    for static in ('about.html', 'reviews.html', 'disclaimers.html'):
+    build_reviews(shop)
+    for static in ('about.html', 'disclaimers.html'):
         m = DATE_LINE.search((ROOT / static).read_text())
         try:
             from datetime import datetime
