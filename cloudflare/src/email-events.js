@@ -8,16 +8,19 @@
 // This file is shared word for word by eastern-shore-ai/worker and
 // FlorenceMaeGifts.com/cloudflare. Change both together.
 
+// Keyed by the short event name; the queue body's `type` may carry the
+// `cf.email.sending.` prefix (as in Cloudflare's docs) or not.
 const ALERT_TYPES = {
-  'cf.email.sending.message.bounced': 'bounced',
-  'cf.email.sending.message.failed': 'failed to send',
-  'cf.email.sending.message.rejected': 'was rejected before sending',
-  'cf.email.sending.message.complained': 'was marked as spam by the recipient'
+  'message.bounced': 'bounced',
+  'message.failed': 'failed to send',
+  'message.rejected': 'was rejected before sending',
+  'message.complained': 'was marked as spam by the recipient'
 };
 
 // Returns { subject, text } for an alertable event, or null to ignore it.
 export function describeEmailEvent(event, { internalAddresses = [] } = {}) {
-  const what = ALERT_TYPES[event?.type];
+  const type = String(event?.type || '').replace(/^cf\.email\.sending\./, '');
+  const what = ALERT_TYPES[type];
   if (!what) return null;
   const p = event.payload || {};
   const recipient = String(p.recipient || '').trim();
@@ -28,7 +31,7 @@ export function describeEmailEvent(event, { internalAddresses = [] } = {}) {
     || p.delivery?.smtpResponse || (p.complaint ? `complaint: ${p.complaint.type || 'spam'}` : '') || 'no reason given';
   const when = event.metadata?.eventTimestamp ? new Date(event.metadata.eventTimestamp) : new Date();
   const whenText = when.toLocaleString('en-US', { timeZone: 'America/New_York', dateStyle: 'medium', timeStyle: 'short' }) + ' ET';
-  const complained = event.type === 'cf.email.sending.message.complained';
+  const complained = type === 'message.complained';
 
   return {
     subject: complained

@@ -51,6 +51,13 @@ test('failed, rejected and complained events are described; delivered and deferr
   assert.equal(describeEmailEvent(null), null);
 });
 
+test('short event names (as configured on the subscription) are handled too', () => {
+  const alert = describeEmailEvent({ ...bounced(), type: 'message.bounced' });
+  assert.equal(alert.subject, '[ACTION NEEDED] Email to buyer@example.net bounced');
+  assert.equal(describeEmailEvent({ ...bounced(), type: 'message.complained' }).subject, 'Email to buyer@example.net was marked as spam');
+  assert.equal(describeEmailEvent({ ...bounced(), type: 'message.delivered' }), null);
+});
+
 test('events about our own addresses are skipped (no alert loops)', () => {
   assert.equal(describeEmailEvent(bounced('Owner@Shop.example'), { internalAddresses: ['owner@shop.example', undefined, ''] }), null);
 });
