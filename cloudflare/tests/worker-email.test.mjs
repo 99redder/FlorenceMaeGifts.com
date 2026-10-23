@@ -202,7 +202,7 @@ test('when Cloudflare fails, the buyer still gets the download email through Res
   assert.equal(JSON.parse(env.DOWNLOAD_TOKENS.map.get('order-confirmation-sent:cs_test_dl_3')).status, 'sent');
 });
 
-test('when no provider can send, the order is marked failed (and retried by Stripe)', async (t) => {
+test('when no provider can send, the order is marked failed (Stripe is not retried; the success page still shows the link)', async (t) => {
   quietConsole(t);
   guardNetwork(t, stripeStubs);
   const env = baseEnv({ EMAIL: fakeEmail({ fail: true }) });
