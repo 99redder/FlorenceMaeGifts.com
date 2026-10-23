@@ -219,7 +219,7 @@ Important rule:
 - Preview Email shows the exact customer email before sending.
 - Nothing is sent until the user clicks a Send button.
 - The "What's in your package" section comes from the invoice Description/Notes field, not from the line-item category. This avoids sending generic text like "Services" when the notes describe the actual package.
-- Shipped emails are sent by the worker through Resend.
+- Shipped emails are sent by the worker through Cloudflare Email Sending (Resend is the automatic backup).
 - Shipped emails automatically BCC `florencemaegifts@outlook.com` for the internal store copy, unless the customer email is already that address.
 - After a shipped email sends successfully, the invoice row shows a green "Shipped email sent" marker with timestamp and tracking details when available.
 - The worker stores shipped email state on the invoice using shipped/tracking fields such as `shipped_at`, `tracking_carrier`, `tracking_number`, and `tracking_url`.
@@ -343,8 +343,7 @@ These are grounded system facts Ask K should use confidently when users ask how 
 - The browser may temporarily hold UI state during upload, but the real stored file lives in Cloudflare R2.
 
 ### Email delivery
-- Invoice and quote emails are sent through **Resend**.
-- Shipped notification emails are also sent through **Resend**.
+- Invoice, quote and shipped notification emails are sent through **Cloudflare Email Sending**, with **Resend** as an automatic backup if Cloudflare can't send.
 - Shipped notification emails BCC `florencemaegifts@outlook.com` for an internal copy.
 - Ask K should not say emails are sent directly from the browser.
 - The browser triggers worker/API actions, and the worker handles the actual email send.

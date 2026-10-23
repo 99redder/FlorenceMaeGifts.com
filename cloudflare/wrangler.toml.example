@@ -2,6 +2,14 @@ name = "fmg-stripe-api"
 main = "src/worker.js"
 compatibility_date = "2026-02-12"
 
+# Workers Logs (Workers Paid: kept 7 days) and crash alerts by email from the
+# worker-error-alerts Tail Worker.
+[observability]
+enabled = true
+
+[[tail_consumers]]
+service = "worker-error-alerts"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "florence-mae-gifts-admin"
@@ -21,11 +29,27 @@ DOWNLOAD_FILE_MAP = '{"Four Star Ball Crochet Baby Hat Pattern - Beginner Level 
 DOWNLOAD_BASE_URL = "https://www.florencemaegifts.com/api/download"
 DOWNLOAD_TOKEN_TTL_SECONDS = "86400"
 DOWNLOAD_TOKEN_MAX_USES = "3"
-# Sender email must be a verified Resend domain/sender.
+# Outgoing email (src/email.js) goes through Cloudflare Email Sending on
+# florencemaegifts.com (the EMAIL binding below); if that fails, the
+# RESEND_API_KEY secret (Resend) sends it instead, so the sender must stay
+# verified in Resend too.
 # Optional: set ORDER_EMAIL_ALERT_TO to route failed order-email/download alerts separately; defaults to CONTACT_TO_EMAIL.
 RESEND_FROM_EMAIL = "Florence Mae Gifts <orders@florencemaegifts.com>"
 SUPPORT_EMAIL = "florencemaegifts@outlook.com"
 CONTACT_TO_EMAIL = "contact@florencemaegifts.com"
+
+[[send_email]]
+name = "EMAIL"
+allowed_sender_addresses = ["orders@florencemaegifts.com"]
+
+# Email Sending delivery events for florencemaegifts.com (bounced / failed /
+# rejected / spam complaint), delivered by an event subscription on this
+# queue. Each one becomes an alert email to CONTACT_TO_EMAIL (src/email-events.js).
+[[queues.consumers]]
+queue = "florencemaegifts-email-events"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 10
 
 [[r2_buckets]]
 binding = "DOWNLOADS_BUCKET"

@@ -13,7 +13,7 @@ Copy `cloudflare/wrangler.toml.example` to `cloudflare/wrangler.toml` and fill i
 
 - `wrangler secret put STRIPE_SECRET_KEY`
 - `wrangler secret put STRIPE_WEBHOOK_SECRET`
-- `wrangler secret put RESEND_API_KEY`
+- `wrangler secret put RESEND_API_KEY` (email fallback; Cloudflare Email Sending is primary)
 - `wrangler secret put ADMIN_USER` (optional; defaults to `admin`)
 - `wrangler secret put ADMIN_PASS`
 - `wrangler secret put ADMIN_SESSION_SECRET`
@@ -44,11 +44,12 @@ Set webhook endpoint in Stripe to:
 
 ## 7) Digital download email receipts (optional but recommended)
 
-When a checkout completes for an item in `DOWNLOAD_FILE_MAP`, the webhook sends a limited-use download link email using Resend (currently 24 hours, up to 3 downloads).
+When a checkout completes for an item in `DOWNLOAD_FILE_MAP`, the webhook sends a limited-use download link email (currently 24 hours, up to 3 downloads). Email goes through Cloudflare Email Sending (`EMAIL` binding) and falls back to Resend; see `src/email.js`.
 
 Required:
-- `RESEND_API_KEY` secret (set with Wrangler)
-- `RESEND_FROM_EMAIL` var in `wrangler.toml` (must be a verified sender/domain in Resend)
+- `[[send_email]]` binding named `EMAIL` (florencemaegifts.com onboarded with `npx wrangler email sending enable florencemaegifts.com`)
+- `RESEND_API_KEY` secret (fallback)
+- `RESEND_FROM_EMAIL` var in `wrangler.toml` (must be on the onboarded domain and verified in Resend)
 
 ## 8) Test endpoint
 

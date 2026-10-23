@@ -366,7 +366,7 @@ Booking Controls were intentionally removed from the Florence admin codebase.
 - Do not use raw SQL `BEGIN/COMMIT/ROLLBACK` in D1 request flow.
 - Keep SQL placeholder/bind counts exactly aligned for every statement.
 - Preserve idempotency for invoice payment posting to prevent duplicate accounting rows.
-- Keep Stripe/Resend configuration environment-driven (`STRIPE_*`, `RESEND_*`, `FROM_EMAIL`, `TO_EMAIL`, optional `CC_EMAIL`).
+- Keep Stripe/email configuration environment-driven (`STRIPE_*`, `RESEND_*`, `FROM_EMAIL`, `TO_EMAIL`, optional `CC_EMAIL`). Send email only through `sendEmail` in `cloudflare/src/email.js`, never by calling a provider directly.
 
 ---
 
@@ -528,3 +528,12 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 - To refresh: read `https://www.etsy.com/shop/FlorenceMaeGifts/reviews?page=N` in the built-in browser (14 reviews per page; each `li[data-review-region]` holds the review ID, text, date, listing link and photo). Etsy returns HTTP 429 after about 24 quick page loads, so pause between pages. Update `etsy.count` and `etsy.asOf`, then rebuild.
 - Reviews from buyers named Megan are left out so they are not mistaken for Megan the artist.
 - No `Review` or `AggregateRating` structured data on this page either (see "No star-rating markup" above).
+
+## 2026-10-23 Update (Email through Cloudflare Email Sending, Resend as backup)
+
+- The account moved to Workers Paid, which includes Cloudflare Email Sending (3,000 emails a month included). Every email the worker sends — download links, invoices, quotes, shipped emails, contact form, alerts — now goes through `sendEmail(env, payload)` in `cloudflare/src/email.js`: the `EMAIL` binding first (`[[send_email]]`, sender `orders@florencemaegifts.com` only), then Resend (`RESEND_API_KEY`) if Cloudflare throws. Payloads keep Resend's shape; the helper converts them. `email.js` is shared word for word with eastern-shore-ai and just-in-case.
+- florencemaegifts.com is onboarded to Email Sending (records on `cf-bounce.` and `cf-bounce._domainkey.`); Resend's `send.` and `resend._domainkey` records stay so the fallback keeps working.
+- **Bounce alerts**: an Email Sending event subscription puts bounced / failed / rejected / complained events on the `florencemaegifts-email-events` queue. The worker's `queue()` handler (`src/email-events.js`) emails `CONTACT_TO_EMAIL` about each one — e.g. a buyer who mistyped their address and never got the download link — and skips the shop's own addresses.
+- **Logs and crash alerts**: Workers Logs is on (`[observability]`, 7 days), and uncaught errors are emailed by the `worker-error-alerts` Tail Worker (`[[tail_consumers]]`).
+- The real `cloudflare/wrangler.toml` is git-ignored; `wrangler.toml.example` mirrors it (minus IDs). Change both.
+- **Tests**: from `cloudflare/`, `node --test tests/*.test.mjs`. `tests/worker-email.test.mjs` runs a digital-download purchase (signed Stripe webhook, fake KV/R2, the download link itself), the Resend fallback, contact form, an admin sign-in with a real authenticator code, invoice + shipped emails, quote send/accept and the bounce queue through `src/worker.js`, with every migration applied to a SQLite D1 double (`tests/d1.mjs`). The order confirmation email is HTML-only today.

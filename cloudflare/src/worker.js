@@ -1,5 +1,5 @@
 // ===== ROUTE HANDLER INDEX =====
-// POST /api/contact                 → handleContact()        — Form submissions (domain offers, questions) + Resend email
+// POST /api/contact                 → handleContact()        — Form submissions (domain offers, questions) + email (email.js)
 // POST /api/checkout-session        → handleCheckoutSession() — Create Stripe checkout with conflict + past-time checks
 // POST /api/create-checkout-session → handleStoreCheckoutSession() — Create Stripe checkout session for shop items (priceId)
 // POST /api/stripe-webhook      → handleStripeWebhook()   — Stripe payment confirmation, records booking in D1, auto-inserts tax income
@@ -34,6 +34,9 @@
 // csvEscape(s)                         — Escape string for CSV output
 // verifyStripeSignature(payload, sig, secret) — HMAC-SHA256 Stripe webhook verification
 // json(data, status, headers)          — Build JSON Response
+
+import { sendEmail, emailConfigured } from './email.js';
+import { handleEmailEventBatch } from './email-events.js';
 
 // Module-level caches — safe because account IDs and setup state are stable within a Worker isolate.
 const _acctIdCache = new Map();
@@ -395,13 +398,24 @@ export default {
       };
       return json({ ok: false, error: String(err?.message || err) }, 500, corsHeaders);
     }
+  },
+
+  // Bounced / failed / rejected / spam-flagged emails, from the Email Sending
+  // event subscription on the florencemaegifts-email-events queue.
+  async queue(batch, env) {
+    const alertTo = (env.ORDER_EMAIL_ALERT_TO || env.CONTACT_TO_EMAIL || env.TO_EMAIL || '').toString().trim();
+    const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
+    return handleEmailEventBatch(batch, {
+      notify: ({ subject, text }) => sendEmail(env, { from: fromEmail, to: [alertTo], subject, text }),
+      internalAddresses: [alertTo, fromEmail.match(/<([^>]+)>/)?.[1] || fromEmail, env.SUPPORT_EMAIL, env.CONTACT_TO_EMAIL, env.ORDER_EMAIL_BCC]
+    });
   }
 };
 
 /**
- * POST /api/contact — Process contact form submissions and send via Resend
+ * POST /api/contact — Process contact form submissions and email them (email.js)
  * @param {Request} request - JSON body: {name, email, message, mode, offer?, honey?}
- * @param {Object} env - Worker env (RESEND_API_KEY, TO_EMAIL, FROM_EMAIL)
+ * @param {Object} env - Worker env (EMAIL binding or RESEND_API_KEY, TO_EMAIL, FROM_EMAIL)
  * @param {Object} corsHeaders
  * @returns {Response} {ok: true} or {ok: false, error: string}
  */
@@ -435,7 +449,7 @@ async function handleContact(request, env, corsHeaders) {
     return json({ ok: false, error: 'Invalid email address' }, 400, corsHeaders);
   }
 
-  if (!env.RESEND_API_KEY || (!env.CONTACT_TO_EMAIL && !env.TO_EMAIL) || (!env.RESEND_FROM_EMAIL && !env.FROM_EMAIL)) {
+  if (!emailConfigured(env) || (!env.CONTACT_TO_EMAIL && !env.TO_EMAIL) || (!env.RESEND_FROM_EMAIL && !env.FROM_EMAIL)) {
     return json({ ok: false, error: 'Email provider not configured' }, 500, corsHeaders);
   }
 
@@ -465,14 +479,7 @@ async function handleContact(request, env, corsHeaders) {
     emailPayload.cc = [env.CC_EMAIL];
   }
 
-  const resendRes = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(emailPayload)
-  });
+  const resendRes = await sendEmail(env, emailPayload);
 
   if (!resendRes.ok) {
     const errText = await resendRes.text();
@@ -1497,8 +1504,8 @@ async function handleDownload(request, env, corsHeaders) {
 }
 
 async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl, itemName }) {
-  if (!env.RESEND_API_KEY) {
-    console.error('Order confirmation email skipped: missing Resend API key');
+  if (!emailConfigured(env)) {
+    console.error('Order confirmation email skipped: no email provider configured');
     return false;
   }
   if (!customerEmail) {
@@ -1544,11 +1551,7 @@ ${downloadSection}
   }
 
   try {
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(emailBody)
-    });
+    const resendRes = await sendEmail(env, emailBody);
     if (!resendRes.ok) {
       const detail = await resendRes.text();
       console.error('Order confirmation email failed', detail);
@@ -1567,24 +1570,20 @@ ${downloadSection}
 async function alertOrderEmailFailure(env, { customerEmail, detail }) {
   const alertTo = (env.ORDER_EMAIL_ALERT_TO || env.CONTACT_TO_EMAIL || env.TO_EMAIL || '').toString().trim();
   const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
-  if (!env.RESEND_API_KEY || !alertTo || !fromEmail) return;
+  if (!emailConfigured(env) || !alertTo || !fromEmail) return;
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: fromEmail,
-      to: [alertTo],
-      subject: 'FMG order confirmation email failed',
-      html: `<p>An order confirmation email failed.</p><p><strong>Customer:</strong> ${escapeHtml(customerEmail || '(missing)')}</p><p><strong>Error:</strong> ${escapeHtml(detail || 'Unknown error')}</p>`
-    })
+  await sendEmail(env, {
+    from: fromEmail,
+    to: [alertTo],
+    subject: 'FMG order confirmation email failed',
+    html: `<p>An order confirmation email failed.</p><p><strong>Customer:</strong> ${escapeHtml(customerEmail || '(missing)')}</p><p><strong>Error:</strong> ${escapeHtml(detail || 'Unknown error')}</p>`
   }).catch((e) => console.error('Order confirmation failure alert failed', e));
 }
 
 async function alertFmgOperationalFailure(env, { subject, detail, session }) {
   const alertTo = (env.ORDER_EMAIL_ALERT_TO || env.CONTACT_TO_EMAIL || env.TO_EMAIL || '').toString().trim();
   const fromEmail = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
-  if (!env.RESEND_API_KEY || !alertTo || !fromEmail) return;
+  if (!emailConfigured(env) || !alertTo || !fromEmail) return;
 
   const metadata = session?.metadata || {};
   const customerEmail = session?.customer_details?.email || session?.customer_email || '';
@@ -1601,15 +1600,11 @@ async function alertFmgOperationalFailure(env, { subject, detail, session }) {
     `Amount: ${formatUsd(Number(session?.amount_total || 0))}`
   ];
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from: fromEmail,
-      to: [alertTo],
-      subject: subject || '[ACTION NEEDED] FMG worker alert',
-      text: lines.join('\n')
-    })
+  await sendEmail(env, {
+    from: fromEmail,
+    to: [alertTo],
+    subject: subject || '[ACTION NEEDED] FMG worker alert',
+    text: lines.join('\n')
   }).catch((e) => console.error('FMG operational alert failed', e));
 }
 
@@ -3602,7 +3597,7 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
   const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const fromEmailEnv = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
-  if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
+  if (!emailConfigured(env) || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
 
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -3733,14 +3728,7 @@ async function handleInvoiceSend(request, env, corsHeaders, url) {
   };
   if (env.CC_EMAIL) emailPayload.cc = [env.CC_EMAIL];
 
-  const sendRes = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(emailPayload)
-  });
+  const sendRes = await sendEmail(env, emailPayload);
   const sendJson = await sendRes.json().catch(() => ({}));
   if (!sendRes.ok) {
     return json({ ok: false, error: sendJson?.message || sendJson?.error || 'Failed to send invoice email' }, 502, corsHeaders);
@@ -3861,7 +3849,7 @@ async function handleInvoiceShippedEmail(request, env, corsHeaders, url) {
   const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const fromEmailEnv = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
-  if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
+  if (!emailConfigured(env) || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
 
   const ctx = await resolveShippedEmailContext(request, env);
   if (ctx.error) return json({ ok: false, error: ctx.error }, ctx.status, corsHeaders);
@@ -3888,14 +3876,7 @@ async function handleInvoiceShippedEmail(request, env, corsHeaders, url) {
   const shippedEmailBcc = 'florencemaegifts@outlook.com';
   if (customerEmail.toLowerCase() !== shippedEmailBcc) emailPayload.bcc = [shippedEmailBcc];
 
-  const sendRes = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(emailPayload)
-  });
+  const sendRes = await sendEmail(env, emailPayload);
   const sendJson = await sendRes.json().catch(() => ({}));
   if (!sendRes.ok) {
     return json({ ok: false, error: sendJson?.message || sendJson?.error || 'Failed to send shipping email' }, 502, corsHeaders);
@@ -4129,7 +4110,7 @@ async function handleQuoteSend(request, env, corsHeaders, url) {
   const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const fromEmailEnv = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
-  if (!env.RESEND_API_KEY || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
+  if (!emailConfigured(env) || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
 
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
@@ -4197,14 +4178,7 @@ async function handleQuoteSend(request, env, corsHeaders, url) {
   };
   if (env.CC_EMAIL) emailPayload.cc = [env.CC_EMAIL];
 
-  const sendRes = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(emailPayload)
-  });
+  const sendRes = await sendEmail(env, emailPayload);
   const sendJson = await sendRes.json().catch(() => ({}));
   if (!sendRes.ok) {
     return json({ ok: false, error: sendJson?.message || sendJson?.error || 'Failed to send quote email' }, 502, corsHeaders);
@@ -4385,7 +4359,7 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
     const successBase = (env.INVOICE_PAYMENT_SUCCESS_URL || `${requestBase}/invoice/payment-success`).replace(/\/$/, '');
     const cancelBase = (env.INVOICE_PAYMENT_CANCEL_URL || `${requestBase}/invoice/payment-cancelled`).replace(/\/$/, '');
     const balanceDueCents = Math.max(0, Number(total || 0));
-    if (!env.RESEND_API_KEY || !fromEmail || !customerEmail) {
+    if (!emailConfigured(env) || !fromEmail || !customerEmail) {
       throw new Error('Invoice email is not configured');
     }
     if (balanceDueCents > 0 && !env.STRIPE_SECRET_KEY) {
@@ -4473,11 +4447,7 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
         text: invoiceText
       };
       if (env.CC_EMAIL) sendPayload.cc = [env.CC_EMAIL];
-      const resendRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(sendPayload)
-      });
+      const resendRes = await sendEmail(env, sendPayload);
       if (!resendRes.ok) {
         const resendText = await resendRes.text().catch(() => '');
         throw new Error(`Invoice email failed: ${resendRes.status} ${resendText}`.trim());
@@ -4490,7 +4460,7 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
   // Send notification email to Chris
   const notifyTo = (env.TO_EMAIL || env.CONTACT_TO_EMAIL || '').toString().trim();
   const notifyFrom = (env.FROM_EMAIL || env.RESEND_FROM_EMAIL || '').toString().trim();
-  if (env.RESEND_API_KEY && notifyTo && notifyFrom) {
+  if (emailConfigured(env) && notifyTo && notifyFrom) {
     const notifyHtml = `<div style="font-family:Arial,sans-serif;padding:20px;"><h2 style="color:#059669;">Quote Accepted!</h2><p><strong>Quote:</strong> ${escapeHtml(quote.quote_number || `Q-${quote.id}`)}</p><p><strong>Customer:</strong> ${escapeHtml(quote.customer_name)} (${escapeHtml(quote.customer_email)})</p><p><strong>Total:</strong> ${formatUsd(total)}</p><p><strong>Invoice Created:</strong> ${invoiceNumber}</p>${acceptDeliveryError ? `<p style="color:#dc2626;"><strong>Customer invoice delivery failed:</strong> ${escapeHtml(acceptDeliveryError.message || String(acceptDeliveryError))}</p>` : '<p>Invoice email/payment link sent when configured.</p>'}<p>Log in to the admin panel to review the invoice.</p></div>`;
 
     const notifyPayload = {
@@ -4502,11 +4472,7 @@ async function handleQuoteAccept(request, env, corsHeaders, url) {
     };
     if (env.CC_EMAIL) notifyPayload.cc = [env.CC_EMAIL];
 
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(notifyPayload)
-    }).catch(() => {});
+    await sendEmail(env, notifyPayload).catch(() => {});
   }
 
   if (acceptDeliveryError) {
@@ -5140,7 +5106,7 @@ Here is the step-by-step process to send a shipped email:
 7. Send only when the preview looks right.
 8. After it sends, the invoice row shows **Shipped email sent** with the timestamp and tracking details.
 
-The package description comes from the invoice description/notes field, not the generic line item category. Shipped emails are sent by the worker through Resend and BCC florencemaegifts@outlook.com for the store copy.
+The package description comes from the invoice description/notes field, not the generic line item category. Shipped emails are sent by the worker through Cloudflare Email Sending (Resend is the automatic backup) and BCC florencemaegifts@outlook.com for the store copy.
 
 In simple terms: Preview Shipped Email lets you review the tracking email before sending, then marks the row so you know it was already sent.`;
   }
@@ -5204,7 +5170,7 @@ In simple terms: an audit package is a bundled export of business records for re
   return `${parts.join(' ')} I can explain fields, tell you what this section is for, or walk you through a task step by step.${labelHelp}${inputHelp}${buttonHelp}${nextStepHelp}`;
 }
 
-const ASKK_KNOWLEDGE_BASE = "# Ask K Knowledge Base — FlorenceMaeGifts.com\n\nThis file is the grounded operating context for Ask K inside the Florence Mae Gifts admin panel.\nAsk K should use these facts confidently when they match the user’s question.\nIf the visible UI conflicts with this file, prefer the real visible UI and current code behavior.\n\n## Scope\n\nAsk K is an explain-only assistant for the Florence Mae Gifts admin panel.\nIt helps users understand the site admin, bookkeeping, tax tracking, invoices, quotes, reconciliation, year-end close, and audit package features.\nIt does not perform actions itself.\n\n## Admin tabs\n\n### Stats\n- Purpose: dashboard snapshot and quick business overview.\n- This is not the main place to enter bookkeeping data.\n- If a user asks a tax, invoice, quote, or accounting question while on Stats, answer the real question directly instead of focusing on Stats.\n\n### Tax Ledger\n- Purpose: track business money movement and tax-supporting records.\n- Main actions include:\n  - Add Expense\n  - Add Sale\n  - Import Etsy Sales\n  - Add Income\n  - Add Owner Transfer\n  - Export CSV\n- Use Tax Ledger for day-to-day recordkeeping of money in and money out.\n\n### Accounts\n- Purpose: accounting overview and account-level bookkeeping.\n- Includes balances, account lists, journal entries, statements, invoices, and quotes support.\n- This is where invoice and quote workflows connect to formal accounting records.\n\n### Reconciliation\n- Purpose: compare bookkeeping records to real-world payment/bank/platform activity.\n- Use this after recording transactions to check for missing, duplicated, or mismatched data.\n\n### Quotes\n- Purpose: create, edit, send, review, and convert quotes.\n- Main visible actions include:\n  - Add New Quote\n  - Refresh Quotes\n  - View Quote\n  - Send Quote Email\n  - Edit\n  - Convert to Invoice\n  - Delete\n\n### Invoices\n- Purpose: create, edit, send, track, and collect payment for invoices.\n- Main visible actions include:\n  - Add New Invoice\n  - Refresh Invoices\n  - View Invoice\n  - Send Invoice Email\n  - Edit\n  - Mark Paid\n  - Record Payment\n  - Mark Sent\n  - Copy Payment Link\n  - Refresh Payment Link\n  - Preview Shipped Email\n  - Delete\n\n### Year-End Close\n- Purpose: run formal closing workflow after reconciliation is complete for the year.\n- Main action:\n  - Open Year-End Close Wizard\n- Use once per year after books are reviewed and reconciled.\n\n### Audit Package\n- Purpose: create a downloadable ZIP of supporting business/accounting records.\n- Main action:\n  - Open Audit Package Builder\n- Use for accountant handoff, review, or record packaging.\n\n## Tax Ledger workflows\n\n### Add Expense\nExpected use:\n- business money going out\n- supplies, software, fees, shipping costs, tools, subscriptions, etc.\n\nTypical field meaning:\n- Date: when the money was actually spent\n- Vendor: who was paid\n- Category: expense type\n- Amount (USD): amount paid\n- Paid via: payment method\n- Notes: optional extra context\n- Receipt: optional upload, useful for support/documentation\n\n### Add Sale\nExpected use:\n- record a sale and related fees\n- especially useful when tracking channel-level sales activity\n\nTypical field meaning:\n- Date: sale date\n- Item Name: what was sold\n- Channel: Etsy, Website, In Person, or other sales source\n- Sale Amount (USD): gross sale amount\n- Fees: related sale fees such as processing/listing/shipping/marketing\n- Notes: optional details\n\n### Import Etsy Sales\nExpected use:\n- bulk import Etsy sales instead of entering them one by one\n- best when user already has Etsy export data\n\n### Add Income\nExpected use:\n- record money coming into the business that should be tracked as income\n- can include Stripe-linked income or other sources\n\nTypical field meaning:\n- Date: when money was received\n- Source: where income came from\n- Category: income type\n- Amount (USD): amount received\n- Stripe session field: fill when applicable, otherwise may be blank\n- Notes: optional context\n- Owner-funded option: use when owner money is entering business and should not be treated like customer revenue\n\n### Add Owner Transfer\nExpected use:\n- owner money moving into or out of the business\n- not normal customer revenue\n- not normal business operating expense\n\nSimple rule:\n- owner transfer = owner money\n- sale/income = customer/business revenue\n\n### Export CSV\nExpected use:\n- export tax ledger records for reporting, backup, analysis, or accountant review\n\n## Quotes workflow\n\n### Create quote\nQuote creation modal includes:\n- Customer Name (required)\n- Customer Email (required)\n- Customer Phone (optional)\n- Valid Until (defaults to 30 days)\n- Description of work / scope\n- Line items\n\nQuote line items include:\n- item description\n- quantity\n- unit amount\n- line total\n\nQuote actions:\n- create quote\n- view quote\n- send quote email\n- edit quote\n- convert quote to invoice\n- delete quote\n\nImportant rule:\n- a quote is an estimate, not a bill\n- when accepted, it can be converted into an invoice\n\n## Invoice workflow\n\n### Create invoice\nInvoice creation modal includes:\n- Customer Name (required)\n- Customer Email (required)\n- Customer Phone (optional)\n- Due Date (required)\n- Description of work\n- Line items\n\nInvoice line items include:\n- item description\n- quantity\n- unit amount\n- line total\n\nInvoice actions:\n- create invoice\n- view invoice\n- send invoice email\n- edit invoice\n- mark paid\n- record payment\n- mark sent\n- copy payment link\n- refresh payment link\n- preview and send shipped email\n- delete invoice\n\nImportant rule:\n- an invoice is a bill for payment\n- unlike a quote, it is intended for payment collection\n\n### Invoice list sorting and filters\n- The Invoices list defaults to **Sort By: Newest**, so newly created invoices appear at the top.\n- The invoice filter supports All, Open, and Paid.\n- The invoice sort menu supports Newest, Customer Last Name, and Status.\n- If the user wants newest invoices on top, tell them to use Sort By: Newest.\n\n### Payment links\n- invoices can generate or refresh Stripe payment links\n- Copy Payment Link is only available when a payment link exists\n- Refresh Payment Link creates or refreshes the Stripe checkout link for invoice payment\n\n### Shipped email workflow\n- Use **Preview Shipped Email** from an invoice row to open the shipping email modal.\n- The modal asks for carrier, tracking number, ship date, optional tracking URL, intro message, personal note, and closing message.\n- Tracking number is required.\n- Preview Email shows the exact customer email before sending.\n- Nothing is sent until the user clicks a Send button.\n- The \"What's in your package\" section comes from the invoice Description/Notes field, not from the line-item category. This avoids sending generic text like \"Services\" when the notes describe the actual package.\n- Shipped emails are sent by the worker through Resend.\n- Shipped emails automatically BCC `florencemaegifts@outlook.com` for the internal store copy, unless the customer email is already that address.\n- After a shipped email sends successfully, the invoice row shows a green \"Shipped email sent\" marker with timestamp and tracking details when available.\n- The worker stores shipped email state on the invoice using shipped/tracking fields such as `shipped_at`, `tracking_carrier`, `tracking_number`, and `tracking_url`.\n\n### Record Payment vs Mark Paid\n- Record Payment: use when recording an actual payment amount received\n- Mark Paid: use when invoice is fully paid and should be treated as settled\n- Mark Sent: use when invoice has been sent to the customer\n\n## Quote to invoice conversion\n\nGrounded behavior from worker logic:\n- converting a quote creates a new invoice from quote data\n- quote line items are copied into invoice line items\n- quote status becomes accepted\n- converted invoice id is stored\n- if a stale converted invoice pointer exists, worker attempts recovery and allows fresh conversion\n\nSimple explanation:\n- convert quote = turn approved estimate into real invoice\n\n## Reconciliation\n\nDefinition:\n- reconciliation means checking that business records match actual money activity\n\nUse it to:\n- compare Stripe/bank/platform activity with ledger records\n- spot missing entries\n- spot duplicates\n- spot mismatches\n- clean up books before year-end close\n\n## Year-End Close\n\nGrounded behavior:\n- there is a Year-End Close Wizard modal\n- user opens it from the Year-End Close section\n- workflow is intended to be used once per year after final reconciliation\n- it creates formal closing entries\n\nPlain-English explanation:\n- year-end close wraps up one accounting year so the next one starts cleanly\n\n## Audit Package\n\nGrounded behavior:\n- there is an Audit Package modal/builder\n- it builds a downloadable ZIP package\n- intended for grouped business/accounting records\n\nUse it for:\n- accountant handoff\n- document packaging\n- business record review\n- backup/export support\n\n## Worker/API grounding\n\nThe admin worker supports these real endpoint families:\n- `/api/tax/*`\n- `/api/accounts/*`\n- `/api/admin/ask-k`\n- `/api/admin/ask-k/escalate`\n- `/api/quote/accept`\n- `/api/quote/deny`\n- invoice payment success/cancel pages\n\nThis means Ask K can speak confidently about these workflows existing in the system:\n- expense/income/owner-transfer CRUD\n- receipt upload\n- CSV export\n- chart of accounts / balances / journal entries / statements\n- invoices create/update/status/payment/payment-link/send/delete\n- quotes create/update/send/convert/delete\n- year-end close\n- public quote accept/deny\n\n## Confidence rules for Ask K\n\nWhen these facts are covered in this file or visible in the UI, avoid weak phrases like:\n- “it should be”\n- “you may see”\n- “probably”\n- “something like”\n\nPrefer grounded phrasing like:\n- “Use the Tax Ledger tab to…”\n- “The Invoices area includes…”\n- “The Quote screen lets you…”\n- “Use Convert to Invoice when…”\n- “The Year-End Close section is for…”\n\n## Answer style rules\n\n- Question intent beats current tab.\n- Use current tab/UI as helper context, not the boss.\n- If user asks a tax/accounting/invoice/quote question from another tab, answer the actual question first.\n- Be detailed, step-by-step, and beginner-friendly.\n- Define jargon simply.\n- If relevant, end with “In simple terms” or “What to do next.”\n\n## Technical architecture grounding\n\nThese are grounded system facts Ask K should use confidently when users ask how the admin works behind the scenes.\n\n### Hosting / app shape\n- The main Florence Mae Gifts site is a static frontend.\n- Runtime API behavior is handled by a Cloudflare Worker.\n- Ask K itself runs through the worker via `/api/admin/ask-k`.\n\n### Data storage\n- Tax/accounting/admin records are stored in **Cloudflare D1**.\n- This includes records related to tax entries, invoices, quotes, and supporting accounting data.\n\n### Receipt storage\n- Uploaded receipts are **not just stored locally in the browser**.\n- Receipts are uploaded through the worker endpoint `/api/tax/receipt/upload`.\n- Receipt files are stored in **Cloudflare R2**.\n- Receipt retrieval is handled through `/api/tax/receipt`.\n- The browser may temporarily hold UI state during upload, but the real stored file lives in Cloudflare R2.\n\n### Email delivery\n- Invoice and quote emails are sent through **Resend**.\n- Shipped notification emails are also sent through **Resend**.\n- Shipped notification emails BCC `florencemaegifts@outlook.com` for an internal copy.\n- Ask K should not say emails are sent directly from the browser.\n- The browser triggers worker/API actions, and the worker handles the actual email send.\n\n### Payments\n- Invoice payment links come from **Stripe**.\n- The worker can create or refresh Stripe checkout/payment links for invoices.\n- Invoice payment success/cancel flows route back through invoice payment pages/endpoints.\n\n### Quotes\n- Quotes have public accept/deny links handled by worker endpoints.\n- Quote acceptance/denial is token-based, not something the browser handles entirely on its own.\n\n### Receipts question example\nIf user asks \"Where are receipts stored once I upload them?\"\nGrounded answer:\n- Receipts are uploaded through the Florence Mae Gifts worker and stored in **Cloudflare R2**.\n- They are not only stored locally in the browser.\n- The browser is just the upload interface.\n\n### Confidence rule for infrastructure questions\nFor questions about storage, uploads, email sending, payment links, quote acceptance, or where data lives:\n- prefer grounded system facts from this file\n- do not guess\n- do not say \"probably local\" or \"maybe in the browser\" when worker/storage facts are known\n";
+const ASKK_KNOWLEDGE_BASE = "# Ask K Knowledge Base — FlorenceMaeGifts.com\n\nThis file is the grounded operating context for Ask K inside the Florence Mae Gifts admin panel.\nAsk K should use these facts confidently when they match the user’s question.\nIf the visible UI conflicts with this file, prefer the real visible UI and current code behavior.\n\n## Scope\n\nAsk K is an explain-only assistant for the Florence Mae Gifts admin panel.\nIt helps users understand the site admin, bookkeeping, tax tracking, invoices, quotes, reconciliation, year-end close, and audit package features.\nIt does not perform actions itself.\n\n## Admin tabs\n\n### Stats\n- Purpose: dashboard snapshot and quick business overview.\n- This is not the main place to enter bookkeeping data.\n- If a user asks a tax, invoice, quote, or accounting question while on Stats, answer the real question directly instead of focusing on Stats.\n\n### Tax Ledger\n- Purpose: track business money movement and tax-supporting records.\n- Main actions include:\n  - Add Expense\n  - Add Sale\n  - Import Etsy Sales\n  - Add Income\n  - Add Owner Transfer\n  - Export CSV\n- Use Tax Ledger for day-to-day recordkeeping of money in and money out.\n\n### Accounts\n- Purpose: accounting overview and account-level bookkeeping.\n- Includes balances, account lists, journal entries, statements, invoices, and quotes support.\n- This is where invoice and quote workflows connect to formal accounting records.\n\n### Reconciliation\n- Purpose: compare bookkeeping records to real-world payment/bank/platform activity.\n- Use this after recording transactions to check for missing, duplicated, or mismatched data.\n\n### Quotes\n- Purpose: create, edit, send, review, and convert quotes.\n- Main visible actions include:\n  - Add New Quote\n  - Refresh Quotes\n  - View Quote\n  - Send Quote Email\n  - Edit\n  - Convert to Invoice\n  - Delete\n\n### Invoices\n- Purpose: create, edit, send, track, and collect payment for invoices.\n- Main visible actions include:\n  - Add New Invoice\n  - Refresh Invoices\n  - View Invoice\n  - Send Invoice Email\n  - Edit\n  - Mark Paid\n  - Record Payment\n  - Mark Sent\n  - Copy Payment Link\n  - Refresh Payment Link\n  - Preview Shipped Email\n  - Delete\n\n### Year-End Close\n- Purpose: run formal closing workflow after reconciliation is complete for the year.\n- Main action:\n  - Open Year-End Close Wizard\n- Use once per year after books are reviewed and reconciled.\n\n### Audit Package\n- Purpose: create a downloadable ZIP of supporting business/accounting records.\n- Main action:\n  - Open Audit Package Builder\n- Use for accountant handoff, review, or record packaging.\n\n## Tax Ledger workflows\n\n### Add Expense\nExpected use:\n- business money going out\n- supplies, software, fees, shipping costs, tools, subscriptions, etc.\n\nTypical field meaning:\n- Date: when the money was actually spent\n- Vendor: who was paid\n- Category: expense type\n- Amount (USD): amount paid\n- Paid via: payment method\n- Notes: optional extra context\n- Receipt: optional upload, useful for support/documentation\n\n### Add Sale\nExpected use:\n- record a sale and related fees\n- especially useful when tracking channel-level sales activity\n\nTypical field meaning:\n- Date: sale date\n- Item Name: what was sold\n- Channel: Etsy, Website, In Person, or other sales source\n- Sale Amount (USD): gross sale amount\n- Fees: related sale fees such as processing/listing/shipping/marketing\n- Notes: optional details\n\n### Import Etsy Sales\nExpected use:\n- bulk import Etsy sales instead of entering them one by one\n- best when user already has Etsy export data\n\n### Add Income\nExpected use:\n- record money coming into the business that should be tracked as income\n- can include Stripe-linked income or other sources\n\nTypical field meaning:\n- Date: when money was received\n- Source: where income came from\n- Category: income type\n- Amount (USD): amount received\n- Stripe session field: fill when applicable, otherwise may be blank\n- Notes: optional context\n- Owner-funded option: use when owner money is entering business and should not be treated like customer revenue\n\n### Add Owner Transfer\nExpected use:\n- owner money moving into or out of the business\n- not normal customer revenue\n- not normal business operating expense\n\nSimple rule:\n- owner transfer = owner money\n- sale/income = customer/business revenue\n\n### Export CSV\nExpected use:\n- export tax ledger records for reporting, backup, analysis, or accountant review\n\n## Quotes workflow\n\n### Create quote\nQuote creation modal includes:\n- Customer Name (required)\n- Customer Email (required)\n- Customer Phone (optional)\n- Valid Until (defaults to 30 days)\n- Description of work / scope\n- Line items\n\nQuote line items include:\n- item description\n- quantity\n- unit amount\n- line total\n\nQuote actions:\n- create quote\n- view quote\n- send quote email\n- edit quote\n- convert quote to invoice\n- delete quote\n\nImportant rule:\n- a quote is an estimate, not a bill\n- when accepted, it can be converted into an invoice\n\n## Invoice workflow\n\n### Create invoice\nInvoice creation modal includes:\n- Customer Name (required)\n- Customer Email (required)\n- Customer Phone (optional)\n- Due Date (required)\n- Description of work\n- Line items\n\nInvoice line items include:\n- item description\n- quantity\n- unit amount\n- line total\n\nInvoice actions:\n- create invoice\n- view invoice\n- send invoice email\n- edit invoice\n- mark paid\n- record payment\n- mark sent\n- copy payment link\n- refresh payment link\n- preview and send shipped email\n- delete invoice\n\nImportant rule:\n- an invoice is a bill for payment\n- unlike a quote, it is intended for payment collection\n\n### Invoice list sorting and filters\n- The Invoices list defaults to **Sort By: Newest**, so newly created invoices appear at the top.\n- The invoice filter supports All, Open, and Paid.\n- The invoice sort menu supports Newest, Customer Last Name, and Status.\n- If the user wants newest invoices on top, tell them to use Sort By: Newest.\n\n### Payment links\n- invoices can generate or refresh Stripe payment links\n- Copy Payment Link is only available when a payment link exists\n- Refresh Payment Link creates or refreshes the Stripe checkout link for invoice payment\n\n### Shipped email workflow\n- Use **Preview Shipped Email** from an invoice row to open the shipping email modal.\n- The modal asks for carrier, tracking number, ship date, optional tracking URL, intro message, personal note, and closing message.\n- Tracking number is required.\n- Preview Email shows the exact customer email before sending.\n- Nothing is sent until the user clicks a Send button.\n- The \"What's in your package\" section comes from the invoice Description/Notes field, not from the line-item category. This avoids sending generic text like \"Services\" when the notes describe the actual package.\n- Shipped emails are sent by the worker through Cloudflare Email Sending (Resend is the automatic backup).\n- Shipped emails automatically BCC `florencemaegifts@outlook.com` for the internal store copy, unless the customer email is already that address.\n- After a shipped email sends successfully, the invoice row shows a green \"Shipped email sent\" marker with timestamp and tracking details when available.\n- The worker stores shipped email state on the invoice using shipped/tracking fields such as `shipped_at`, `tracking_carrier`, `tracking_number`, and `tracking_url`.\n\n### Record Payment vs Mark Paid\n- Record Payment: use when recording an actual payment amount received\n- Mark Paid: use when invoice is fully paid and should be treated as settled\n- Mark Sent: use when invoice has been sent to the customer\n\n## Quote to invoice conversion\n\nGrounded behavior from worker logic:\n- converting a quote creates a new invoice from quote data\n- quote line items are copied into invoice line items\n- quote status becomes accepted\n- converted invoice id is stored\n- if a stale converted invoice pointer exists, worker attempts recovery and allows fresh conversion\n\nSimple explanation:\n- convert quote = turn approved estimate into real invoice\n\n## Reconciliation\n\nDefinition:\n- reconciliation means checking that business records match actual money activity\n\nUse it to:\n- compare Stripe/bank/platform activity with ledger records\n- spot missing entries\n- spot duplicates\n- spot mismatches\n- clean up books before year-end close\n\n## Year-End Close\n\nGrounded behavior:\n- there is a Year-End Close Wizard modal\n- user opens it from the Year-End Close section\n- workflow is intended to be used once per year after final reconciliation\n- it creates formal closing entries\n\nPlain-English explanation:\n- year-end close wraps up one accounting year so the next one starts cleanly\n\n## Audit Package\n\nGrounded behavior:\n- there is an Audit Package modal/builder\n- it builds a downloadable ZIP package\n- intended for grouped business/accounting records\n\nUse it for:\n- accountant handoff\n- document packaging\n- business record review\n- backup/export support\n\n## Worker/API grounding\n\nThe admin worker supports these real endpoint families:\n- `/api/tax/*`\n- `/api/accounts/*`\n- `/api/admin/ask-k`\n- `/api/admin/ask-k/escalate`\n- `/api/quote/accept`\n- `/api/quote/deny`\n- invoice payment success/cancel pages\n\nThis means Ask K can speak confidently about these workflows existing in the system:\n- expense/income/owner-transfer CRUD\n- receipt upload\n- CSV export\n- chart of accounts / balances / journal entries / statements\n- invoices create/update/status/payment/payment-link/send/delete\n- quotes create/update/send/convert/delete\n- year-end close\n- public quote accept/deny\n\n## Confidence rules for Ask K\n\nWhen these facts are covered in this file or visible in the UI, avoid weak phrases like:\n- “it should be”\n- “you may see”\n- “probably”\n- “something like”\n\nPrefer grounded phrasing like:\n- “Use the Tax Ledger tab to…”\n- “The Invoices area includes…”\n- “The Quote screen lets you…”\n- “Use Convert to Invoice when…”\n- “The Year-End Close section is for…”\n\n## Answer style rules\n\n- Question intent beats current tab.\n- Use current tab/UI as helper context, not the boss.\n- If user asks a tax/accounting/invoice/quote question from another tab, answer the actual question first.\n- Be detailed, step-by-step, and beginner-friendly.\n- Define jargon simply.\n- If relevant, end with “In simple terms” or “What to do next.”\n\n## Technical architecture grounding\n\nThese are grounded system facts Ask K should use confidently when users ask how the admin works behind the scenes.\n\n### Hosting / app shape\n- The main Florence Mae Gifts site is a static frontend.\n- Runtime API behavior is handled by a Cloudflare Worker.\n- Ask K itself runs through the worker via `/api/admin/ask-k`.\n\n### Data storage\n- Tax/accounting/admin records are stored in **Cloudflare D1**.\n- This includes records related to tax entries, invoices, quotes, and supporting accounting data.\n\n### Receipt storage\n- Uploaded receipts are **not just stored locally in the browser**.\n- Receipts are uploaded through the worker endpoint `/api/tax/receipt/upload`.\n- Receipt files are stored in **Cloudflare R2**.\n- Receipt retrieval is handled through `/api/tax/receipt`.\n- The browser may temporarily hold UI state during upload, but the real stored file lives in Cloudflare R2.\n\n### Email delivery\n- Invoice, quote and shipped notification emails are sent through **Cloudflare Email Sending**, with **Resend** as an automatic backup if Cloudflare can't send.\n- Shipped notification emails BCC `florencemaegifts@outlook.com` for an internal copy.\n- Ask K should not say emails are sent directly from the browser.\n- The browser triggers worker/API actions, and the worker handles the actual email send.\n\n### Payments\n- Invoice payment links come from **Stripe**.\n- The worker can create or refresh Stripe checkout/payment links for invoices.\n- Invoice payment success/cancel flows route back through invoice payment pages/endpoints.\n\n### Quotes\n- Quotes have public accept/deny links handled by worker endpoints.\n- Quote acceptance/denial is token-based, not something the browser handles entirely on its own.\n\n### Receipts question example\nIf user asks \"Where are receipts stored once I upload them?\"\nGrounded answer:\n- Receipts are uploaded through the Florence Mae Gifts worker and stored in **Cloudflare R2**.\n- They are not only stored locally in the browser.\n- The browser is just the upload interface.\n\n### Confidence rule for infrastructure questions\nFor questions about storage, uploads, email sending, payment links, quote acceptance, or where data lives:\n- prefer grounded system facts from this file\n- do not guess\n- do not say \"probably local\" or \"maybe in the browser\" when worker/storage facts are known\n";
 
 function checkContactRateLimit(request, corsHeaders) {
   const ip = (request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'unknown')
