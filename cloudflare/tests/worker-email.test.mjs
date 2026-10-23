@@ -167,6 +167,14 @@ test('digital pattern purchase emails the buyer a download link, once', async (t
   assert.equal(mail.replyTo, 'florencemaegifts@outlook.com');
   assert.deepEqual(mail.bcc, ['contact@florencemaegifts.com']);
   assert.match(mail.html, /https:\/\/www\.florencemaegifts\.com\/api\/download\?token=[A-Za-z0-9_-]+/);
+  // The plain-text copy carries the same link and terms, with no HTML in it.
+  const htmlLink = mail.html.match(/https:\/\/www\.florencemaegifts\.com\/api\/download\?token=[A-Za-z0-9_-]+/)[0];
+  assert.ok(mail.text.includes(htmlLink), 'plain-text copy has the same download link');
+  assert.match(mail.text, /^Hi Casey Crafter,/);
+  assert.match(mail.text, /Your payment for Four Star Ball Crochet Baby Hat Pattern - Beginner Level \(PDF Download Only\) was successful\./);
+  assert.match(mail.text, /link valid for 24 hours, up to 3 downloads/);
+  assert.match(mail.text, /contact us at florencemaegifts@outlook\.com/);
+  assert.doesNotMatch(mail.text, /<[a-z]/i);
   const status = JSON.parse(env.DOWNLOAD_TOKENS.map.get('order-confirmation-sent:cs_test_dl_1'));
   assert.equal(status.status, 'sent');
 
@@ -174,6 +182,19 @@ test('digital pattern purchase emails the buyer a download link, once', async (t
   res = await worker.fetch(await signedWebhook(downloadPurchase('cs_test_dl_1')), env, ctx);
   assert.equal(res.status, 200);
   assert.equal(env.EMAIL.sent.length, 1);
+});
+
+test('if the download link cannot be made, both versions tell the buyer how to get the file', async (t) => {
+  quietConsole(t);
+  guardNetwork(t, stripeStubs);
+  const env = baseEnv({ DOWNLOADS_BUCKET: fakeBucket([]) }); // the PDF is missing from R2
+  await worker.fetch(await signedWebhook(downloadPurchase('cs_test_dl_nolink')), env, ctx);
+  const toBuyer = env.EMAIL.sent.find((m) => m.to.includes('crafter@example.net'));
+  assert.ok(toBuyer, 'buyer email still sent');
+  assert.match(toBuyer.html, /could not be generated automatically/);
+  assert.match(toBuyer.text, /could not be generated automatically/);
+  assert.doesNotMatch(toBuyer.text, /api\/download/);
+  assert.ok(env.EMAIL.sent.some((m) => m.subject === 'FMG order confirmation email failed'), 'shop is alerted');
 });
 
 test('download link in the email works', async (t) => {

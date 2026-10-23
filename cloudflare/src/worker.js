@@ -1527,13 +1527,18 @@ async function sendOrderConfirmationEmail(env, { customerEmail, customerName, do
   const maxUses = parseInt(env.DOWNLOAD_TOKEN_MAX_USES || '3', 10) || 3;
   const validHours = Math.max(1, Math.round(ttlSeconds / 3600));
   const supportEmail = env.SUPPORT_EMAIL || env.CONTACT_TO_EMAIL || env.TO_EMAIL || 'contact@florencemaegifts.com';
-  const safeName = escapeHtml(customerName || 'there');
+  const displayName = (customerName || 'there').toString().replace(/[\r\n]+/g, ' ').trim() || 'there';
+  const safeName = escapeHtml(displayName);
   const displayItemName = (itemName || 'your item').toString().replace(/[\r\n]+/g, ' ').trim() || 'your item';
   const safeItemName = escapeHtml(displayItemName);
   const safeDownloadUrl = downloadUrl ? escapeHtml(downloadUrl) : '';
   const downloadSection = safeDownloadUrl
     ? `<p>Download your file here (link valid for ${validHours} hours, up to ${maxUses} downloads):<br><a href="${safeDownloadUrl}">${safeDownloadUrl}</a></p>`
     : `<p>We received your payment, but your download link could not be generated automatically. Please reply to this email or contact us at ${escapeHtml(supportEmail)} and we’ll send the file manually.</p>`;
+  // Plain-text copy of the same message, for text-only mail apps and spam filters.
+  const downloadText = downloadUrl
+    ? `Download your file here (link valid for ${validHours} hours, up to ${maxUses} downloads):\n${downloadUrl}`
+    : `We received your payment, but your download link could not be generated automatically. Please reply to this email or contact us at ${supportEmail} and we’ll send the file manually.`;
   const emailBody = {
     from: fromEmail,
     to: [customerEmail],
@@ -1543,7 +1548,18 @@ async function sendOrderConfirmationEmail(env, { customerEmail, customerName, do
 <p>Thank you for your order! Your payment for <strong>${safeItemName}</strong> was successful.</p>
 ${downloadSection}
 <p>Questions? Reply to this email or contact us at ${escapeHtml(supportEmail)}.</p>
-<p>— Florence Mae Gifts</p>`
+<p>— Florence Mae Gifts</p>`,
+    text: [
+      `Hi ${displayName},`,
+      '',
+      `Thank you for your order! Your payment for ${displayItemName} was successful.`,
+      '',
+      downloadText,
+      '',
+      `Questions? Reply to this email or contact us at ${supportEmail}.`,
+      '',
+      '— Florence Mae Gifts'
+    ].join('\n')
   };
   const adminBcc = (env.ORDER_EMAIL_BCC || env.ORDER_EMAIL_ALERT_TO || env.CONTACT_TO_EMAIL || env.TO_EMAIL || '').toString().trim();
   if (adminBcc && adminBcc.toLowerCase() !== customerEmail.toLowerCase()) {
