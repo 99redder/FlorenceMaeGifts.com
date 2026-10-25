@@ -320,3 +320,56 @@ test('email events queue: a bounced download email alerts the shop', async (t) =
   assert.equal(alert.subject, '[ACTION NEEDED] Email to crafter@gmial.com bounced');
   assert.ok(messages.every((m) => m.acked));
 });
+
+test('emergency access: emailed code sets up Megan\'s password, then password + code signs her in', async (t) => {
+  quietConsole(t);
+  guardNetwork(t);
+  const env = baseEnv({ EMERGENCY_ADMIN_EMAIL: 'megan@family.example', EMERGENCY_NOTIFY_EMAIL: 'chris@family.example' });
+  const codeFrom = (msg) => msg.text.match(/\b(\d{6})\b/)[1];
+  const toMegan = () => env.EMAIL.sent.filter((m) => m.to.includes('megan@family.example'));
+  const toChris = () => env.EMAIL.sent.filter((m) => m.to.includes('chris@family.example'));
+
+  let status = await (await worker.fetch(new Request('https://worker.example/api/admin/emergency/status', { headers: { Origin: SITE } }), env, ctx)).json();
+  assert.deepEqual(status, { ok: true, configured: true, hasAccount: false, sentTo: 'me•••@family.example' });
+
+  let res = await worker.fetch(post('/api/admin/emergency/request', {}), env, ctx);
+  assert.equal((await res.json()).purpose, 'setup');
+  assert.equal(toMegan().length, 1);
+  assert.equal(toChris().length, 1, 'Chris is told a setup code went out');
+  const setupCode = codeFrom(toMegan()[0]);
+
+  res = await worker.fetch(post('/api/admin/emergency/verify', { code: '000000' === setupCode ? '111111' : '000000', newPassword: 'yarn and coffee forever' }), env, ctx);
+  assert.equal(res.status, 401);
+  res = await worker.fetch(post('/api/admin/emergency/verify', { code: setupCode, newPassword: 'short' }), env, ctx);
+  assert.equal(res.status, 400);
+  res = await worker.fetch(post('/api/admin/emergency/verify', { code: setupCode, newPassword: 'yarn and coffee forever' }), env, ctx);
+  assert.equal(res.status, 200);
+  const cookie = (res.headers.get('Set-Cookie') || '').split(';')[0];
+  const verify = await worker.fetch(new Request('https://worker.example/api/admin/verify-session', { headers: { Origin: SITE, Cookie: cookie } }), env, ctx);
+  assert.equal(verify.status, 200, 'emergency sign-in gives a working admin session');
+  res = await worker.fetch(post('/api/admin/emergency/verify', { code: setupCode, newPassword: 'another long password' }), env, ctx);
+  assert.equal(res.status, 401, 'a code works once');
+
+  status = await (await worker.fetch(new Request('https://worker.example/api/admin/emergency/status', { headers: { Origin: SITE } }), env, ctx)).json();
+  assert.equal(status.hasAccount, true);
+
+  res = await worker.fetch(post('/api/admin/emergency/request', { password: 'wrong password here' }), env, ctx);
+  assert.equal(res.status, 401);
+  assert.equal(toMegan().length, 1, 'no code without the password');
+  res = await worker.fetch(post('/api/admin/emergency/request', { password: 'yarn and coffee forever' }), env, ctx);
+  assert.equal((await res.json()).purpose, 'login');
+  res = await worker.fetch(post('/api/admin/emergency/verify', { code: codeFrom(toMegan().at(-1)) }), env, ctx);
+  assert.equal(res.status, 200);
+  assert.match(toChris().at(-1).subject, /Megan signed in/);
+});
+
+test('emergency access is off without EMERGENCY_ADMIN_EMAIL', async (t) => {
+  quietConsole(t);
+  guardNetwork(t);
+  const env = baseEnv();
+  const status = await (await worker.fetch(new Request('https://worker.example/api/admin/emergency/status', { headers: { Origin: SITE } }), env, ctx)).json();
+  assert.equal(status.configured, false);
+  const res = await worker.fetch(post('/api/admin/emergency/request', {}), env, ctx);
+  assert.equal(res.status, 500);
+  assert.equal(env.EMAIL.sent.length, 0);
+});

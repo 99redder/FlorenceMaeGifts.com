@@ -116,7 +116,9 @@ export default {
       const isPostRoute = ['/api/contact', '/api/checkout-session', '/api/create-checkout-session'].includes(url.pathname) && request.method === 'POST';
       const isAdminSessionRoute = (url.pathname === '/api/admin/verify-session' && request.method === 'GET')
         || (url.pathname === '/api/admin/login' && request.method === 'POST')
-        || (url.pathname === '/api/admin/logout' && request.method === 'POST');
+        || (url.pathname === '/api/admin/logout' && request.method === 'POST')
+        || (url.pathname === '/api/admin/emergency/status' && request.method === 'GET')
+        || (['/api/admin/emergency/request', '/api/admin/emergency/verify'].includes(url.pathname) && request.method === 'POST');
       if (!isBookingsRead && !isAvailabilityRead && !isAdminBlockWrite && !isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead && !isAdminSessionRoute && !isHealthRead) {
         return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
       }
@@ -147,6 +149,18 @@ export default {
 
     if (url.pathname === '/api/admin/logout' && request.method === 'POST') {
       return handleAdminLogout(corsHeaders);
+    }
+
+    if (url.pathname === '/api/admin/emergency/status' && request.method === 'GET') {
+      return handleEmergencyStatus(env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/admin/emergency/request' && request.method === 'POST') {
+      return handleEmergencyRequest(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/admin/emergency/verify' && request.method === 'POST') {
+      return handleEmergencyVerify(request, env, corsHeaders);
     }
 
     if (url.pathname === '/api/checkout-session') {
@@ -1683,6 +1697,172 @@ function handleAdminLogout(corsHeaders) {
   return json({ ok: true }, 200, {
     ...corsHeaders,
     'Set-Cookie': `${ADMIN_SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`
+  });
+}
+
+// ===== Emergency admin access (admin-emergency.html) =====
+// For Megan if Chris can't sign in for her: the normal login needs the
+// authenticator on Chris's phone. A 6-digit code goes only to
+// EMERGENCY_ADMIN_EMAIL. Setup (or a forgotten password) is the emailed code
+// plus a new password; after that, signing in is her password plus an emailed
+// code. Every setup code, new password and sign-in is also emailed to
+// EMERGENCY_NOTIFY_EMAIL so a use nobody expected is noticed. Codes: 15
+// minutes, 5 tries, 5 an hour, stored hashed. The session is the normal admin
+// session cookie.
+const EMERGENCY_CODE_TTL_SECONDS = 15 * 60;
+const EMERGENCY_CODE_TRIES = 5;
+const EMERGENCY_CODES_PER_HOUR = 5;
+const EMERGENCY_MIN_PASSWORD = 12;
+const EMERGENCY_PBKDF2_ITERATIONS = 100000;
+
+async function ensureEmergencyTables(env) {
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_emergency_account (
+    email TEXT PRIMARY KEY,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_login_at TEXT
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS admin_emergency_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code_hash TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    used INTEGER NOT NULL DEFAULT 0
+  )`).run();
+}
+
+const emergencyEmail = (env) => (env.EMERGENCY_ADMIN_EMAIL || '').trim().toLowerCase();
+
+function maskEmail(email) {
+  const [user, domain] = String(email).split('@');
+  if (!user || !domain) return '';
+  return `${user.slice(0, 2)}${'•'.repeat(Math.max(1, user.length - 2))}@${domain}`;
+}
+
+async function sha256Hex(text) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(text)));
+  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashEmergencyPassword(password, saltHex = null) {
+  const salt = saltHex || [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode(salt), iterations: EMERGENCY_PBKDF2_ITERATIONS }, key, 256);
+  return `${salt}:${[...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, '0')).join('')}`;
+}
+
+async function verifyEmergencyPassword(password, stored) {
+  const [salt] = String(stored || '').split(':');
+  if (!salt) return false;
+  return timingSafeEqual(await hashEmergencyPassword(password, salt), stored);
+}
+
+async function emergencyAccount(env) {
+  return env.DB.prepare('SELECT email, password_hash FROM admin_emergency_account WHERE email = ?1').bind(emergencyEmail(env)).first();
+}
+
+async function notifyEmergencyUse(env, request, what) {
+  const to = (env.EMERGENCY_NOTIFY_EMAIL || '').trim();
+  if (!to) return;
+  const where = [request.cf?.city, request.cf?.region].filter(Boolean).join(', ');
+  const text = [
+    `Florence Mae Gifts admin emergency access: ${what}.`,
+    '',
+    `Time: ${new Date().toISOString()}`,
+    `From: ${getClientIp(request)}${where ? ` (${where})` : ''}`,
+    `Device: ${request.headers.get('User-Agent') || 'unknown'}`,
+    '',
+    'If this was not expected, change ADMIN_SESSION_SECRET (signs everyone out) and delete the admin_emergency_account row.',
+  ].join('\n');
+  try {
+    await sendEmail(env, { from: env.RESEND_FROM_EMAIL, to: [to], subject: `FMG admin emergency access: ${what}`, text });
+  } catch (err) {
+    console.error('emergency notify failed:', err?.message || err);
+  }
+}
+
+async function handleEmergencyStatus(env, corsHeaders) {
+  if (!emergencyEmail(env)) return json({ ok: true, configured: false }, 200, corsHeaders);
+  await ensureEmergencyTables(env);
+  const account = await emergencyAccount(env);
+  return json({ ok: true, configured: true, hasAccount: !!account, sentTo: maskEmail(emergencyEmail(env)) }, 200, corsHeaders);
+}
+
+async function handleEmergencyRequest(request, env, corsHeaders) {
+  const email = emergencyEmail(env);
+  if (!email || !(env.ADMIN_SESSION_SECRET || '').trim()) return json({ ok: false, error: 'Emergency access is not set up on the server' }, 500, corsHeaders);
+  let data;
+  try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
+  await ensureEmergencyTables(env);
+
+  const ip = getClientIp(request);
+  if (recordFailedAdminAttempt(ip, false).blocked) return json({ ok: false, error: 'Too many attempts. Try again in 15 minutes.' }, 429, corsHeaders);
+
+  const account = await emergencyAccount(env);
+  const purpose = data.reset || !account ? 'setup' : 'login';
+  if (purpose === 'login' && !(await verifyEmergencyPassword(String(data.password || ''), account.password_hash))) {
+    const current = recordFailedAdminAttempt(ip, true);
+    return json({ ok: false, error: current.blocked ? 'Too many attempts. Try again in 15 minutes.' : 'That password is not right.' }, current.blocked ? 429 : 401, corsHeaders);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM admin_emergency_codes WHERE created_at > ?1').bind(now - 3600).first();
+  if (Number(recent?.n || 0) >= EMERGENCY_CODES_PER_HOUR) return json({ ok: false, error: 'Too many codes this hour. Use the last code we sent, or try again later.' }, 429, corsHeaders);
+
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
+  await env.DB.prepare('UPDATE admin_emergency_codes SET used = 1 WHERE used = 0').run();
+  await env.DB.prepare('INSERT INTO admin_emergency_codes (code_hash, purpose, created_at, expires_at) VALUES (?1, ?2, ?3, ?4)')
+    .bind(await sha256Hex(code), purpose, now, now + EMERGENCY_CODE_TTL_SECONDS).run();
+
+  const lead = purpose === 'setup' ? 'Here is your code to set up your Florence Mae Gifts admin sign-in.' : 'Here is your code to sign in to the Florence Mae Gifts admin.';
+  const res = await sendEmail(env, {
+    from: env.RESEND_FROM_EMAIL,
+    to: [email],
+    subject: `Your Florence Mae Gifts admin code: ${code}`,
+    text: `${lead}\n\n${code}\n\nIt works for 15 minutes. If you did not ask for this, you can ignore this email.`,
+    html: `<p>${lead}</p><p style="font-size:28px;font-weight:bold;letter-spacing:4px">${code}</p><p>It works for 15 minutes. If you did not ask for this, you can ignore this email.</p>`,
+  });
+  if (!res.ok) return json({ ok: false, error: 'The code could not be emailed. Try again in a few minutes.' }, 502, corsHeaders);
+  if (purpose === 'setup') await notifyEmergencyUse(env, request, account ? 'a password-reset code was sent to Megan' : 'a setup code was sent to Megan');
+  return json({ ok: true, purpose, sentTo: maskEmail(email) }, 200, corsHeaders);
+}
+
+async function handleEmergencyVerify(request, env, corsHeaders) {
+  const email = emergencyEmail(env);
+  if (!email || !(env.ADMIN_SESSION_SECRET || '').trim()) return json({ ok: false, error: 'Emergency access is not set up on the server' }, 500, corsHeaders);
+  let data;
+  try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
+  await ensureEmergencyTables(env);
+
+  const now = Math.floor(Date.now() / 1000);
+  const row = await env.DB.prepare('SELECT id, code_hash, purpose, attempts FROM admin_emergency_codes WHERE used = 0 AND expires_at > ?1 ORDER BY id DESC LIMIT 1').bind(now).first();
+  if (!row) return json({ ok: false, error: 'That code has expired. Ask for a new one.' }, 401, corsHeaders);
+  if (row.attempts >= EMERGENCY_CODE_TRIES) return json({ ok: false, error: 'Too many wrong codes. Ask for a new one.' }, 429, corsHeaders);
+
+  const code = String(data.code || '').replace(/\D/g, '');
+  if (!(await timingSafeEqual(await sha256Hex(code), row.code_hash))) {
+    await env.DB.prepare('UPDATE admin_emergency_codes SET attempts = attempts + 1 WHERE id = ?1').bind(row.id).run();
+    return json({ ok: false, error: 'That code is not right. Check the newest email.' }, 401, corsHeaders);
+  }
+
+  if (row.purpose === 'setup') {
+    const password = String(data.newPassword || '');
+    if (password.length < EMERGENCY_MIN_PASSWORD) return json({ ok: false, error: `Choose a password of at least ${EMERGENCY_MIN_PASSWORD} characters.` }, 400, corsHeaders);
+    await env.DB.prepare(`INSERT INTO admin_emergency_account (email, password_hash) VALUES (?1, ?2)
+      ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, updated_at = datetime('now')`)
+      .bind(email, await hashEmergencyPassword(password)).run();
+  }
+  await env.DB.prepare('UPDATE admin_emergency_codes SET used = 1 WHERE id = ?1').bind(row.id).run();
+  await env.DB.prepare(`UPDATE admin_emergency_account SET last_login_at = datetime('now') WHERE email = ?1`).bind(email).run();
+  await notifyEmergencyUse(env, request, row.purpose === 'setup' ? 'Megan set a password and signed in' : 'Megan signed in');
+
+  const session = await createAdminSessionCookie(env);
+  return json({ ok: true }, 200, {
+    ...corsHeaders,
+    'Set-Cookie': `${ADMIN_SESSION_COOKIE}=${session}; Path=/; Max-Age=${ADMIN_SESSION_TTL_SECONDS}; HttpOnly; Secure; SameSite=Strict`
   });
 }
 
