@@ -68,6 +68,10 @@
     });
 
     document.addEventListener("keydown", function(event) {
+      if (event.key === "Escape") {
+        document.querySelectorAll('.footer-modal[aria-hidden="false"]').forEach(hideModal);
+        return;
+      }
       if (event.target.closest("#icon-mode") && (event.key === "Enter" || event.key === " ")) {
         event.preventDefault();
         toggleMode();

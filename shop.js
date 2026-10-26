@@ -402,8 +402,7 @@
       return;
     }
 
-    const customRequest = document.getElementById("modal-custom-request");
-    if (customRequest) customRequest.style.display = "block";
+    if (window.openContactModal) window.openContactModal("custom");
   }
 
   // Stamp a "New" sticker on any shop listing added within the last 4 weeks.

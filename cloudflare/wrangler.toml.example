@@ -35,7 +35,7 @@ DOWNLOAD_TOKEN_MAX_USES = "3"
 # verified in Resend too.
 # Optional: set ORDER_EMAIL_ALERT_TO to route failed order-email/download alerts separately; defaults to CONTACT_TO_EMAIL.
 RESEND_FROM_EMAIL = "Florence Mae Gifts <orders@florencemaegifts.com>"
-SUPPORT_EMAIL = "florencemaegifts@outlook.com"
+SUPPORT_EMAIL = "contact@florencemaegifts.com"
 # Emergency admin sign-in (admin-emergency.html): the one address codes go to,
 # and who is told every time it is used. Kept out of git (wrangler.toml is ignored).
 EMERGENCY_ADMIN_EMAIL = "megan@example.com"

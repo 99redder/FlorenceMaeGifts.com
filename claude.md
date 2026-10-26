@@ -30,7 +30,7 @@
 - **CSS3** — Single stylesheet (`fmg.css`) with CSS variables for theming
 - **Vanilla JavaScript** — Theme toggle, HTML includes, image modal gallery
 - **No npm/webpack/bundler** — the only build step is `python3 scripts/build_shop.py`, which generates the shop pages from `products.json` (see the 2026-10-06 update at the end of this file)
-- **External services**: Google Fonts, Font Awesome v6, Formspree (contact form)
+- **External services**: Google Fonts, Cloudflare Worker (`/api/contact` for the contact form). Font Awesome is not loaded: `fontawesome-fallback.css` maps a few `fa-*` classes to plain characters, so any other icon class renders as nothing
 - **Custom font**: "Jennifer Lynne" (self-hosted in `logo-font/`)
 
 ## Architecture
@@ -89,7 +89,7 @@ The site uses a **client-side HTML include pattern** via `includeHTML.js`. Commo
 - **Etsy**: florencemaegifts shop (5-star Star Seller)
 - **Instagram**: florencemaegifts
 - **Facebook Marketplace**: Secondary sales channel
-- **Formspree**: Contact form backend (endpoint: xnqrpewl)
+- **Contact form**: the contact modal in `footer.html` posts to `/api/contact` on the Cloudflare worker, which emails `CONTACT_TO_EMAIL` (contact@florencemaegifts.com). Formspree is no longer used
 
 ## Naming Conventions
 
@@ -518,6 +518,14 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 - Purchase event: after Stripe redirects back with `?checkout=success&session_id=...`, `shop.js` (`sendPurchaseEvent`) reads `purchase` from `/api/checkout-session-details` (subtotal, tax, currency, item name, price ID; no customer details) and sends a `purchase` event once per session. The item ID is `<product id>-<size slug>`, matching `<g:id>` in `merchant-feed.xml`; keep the two in step.
 - The privacy policy (footer modal, copied to `privacy.html` by the build) discloses the Google tag. If tracking is ever removed or extended (ads, Analytics), change that paragraph in the same commit.
 
+## 2026-10-22 Update (Search Console "Alternate page with proper canonical tag")
+
+- Search Console emailed about a new not-indexed reason, "Alternate page with proper canonical tag". The only URL under it is `/index.html` (first detected 2026-10-17). Its canonical points to `/`, Google picked `/` as well, and `/` is indexed. Nothing was broken; this is the canonical working as intended.
+- Google found `/index.html` through the "Home" and "Shop" links in `topnav.html` and through `404.html` (the deleted `request.html` now serves the 404 page). Those links now go to `./`, `./#shop` and `/`. Link to the homepage as `./` or `/`, never `index.html`, so Google sees a single homepage URL. `404.html` uses root-relative paths (`/...`) because GitHub Pages serves it at any depth.
+- The Stripe success/cancel return URLs in `cloudflare/src/worker.js` still use `/index.html?checkout=...`. Google can't crawl those, so they were left as they are.
+- Do not press "Validate fix" for this reason. `/index.html` will keep its canonical to `/`, so validation would fail. The row can stay in the report; it is harmless.
+- The other not-indexed reason, "Discovered – currently not indexed" (26 URLs that day), comes from Google's crawl scheduling, not from the site. It shrinks as Google crawls the sitemap.
+
 ## 2026-10-22 Update (Reviews page built from Etsy reviews)
 
 - `reviews.html` now shows Etsy's rating summary (5.0, review count, Star Seller), a pull quote, 26 Etsy reviews (19 with the buyer's own photo) with a "Show more" toggle after the first `visible` cards, then the Facebook Marketplace quotes and the custom-order text screenshot.
@@ -546,3 +554,12 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 - Both addresses live in the git-ignored `cloudflare/wrangler.toml` `[vars]` (placeholders in `wrangler.toml.example`). This repo is public: never commit them.
 - The Just In Case app's "Florence Mae Gifts" section explains this page, the admin tabs, the quarterly Form 202 and the SDAT annual report to Megan. If the admin's tabs or this sign-in change, update `business-guides.js` in the just-in-case repo too.
 - Tests: `tests/worker-email.test.mjs` covers setup, wrong code, short password, code reuse, the password-gated sign-in code and the notices, plus the feature being off without `EMERGENCY_ADMIN_EMAIL`.
+
+## 2026-10-26 Update (One contact modal; contact@ replaces the outlook address)
+
+- The separate Contact and Request Custom Piece modals were merged into one, `#modal-contact` in `footer.html`, styled in `fmg.css` (the "CONTACT MODAL" block) for light and dark mode and phone width. A topic menu (General question, Question about my order, Custom piece request, Sizing help, Pattern or download help, Return or refund) shows each topic's own fields. Order # is optional.
+- **Opening it on a topic**: any link with `data-open-modal="modal-contact" data-contact-topic="<topic>"` (`general`, `order`, `custom`, `sizing`, `pattern`, `return`). "Request Custom Piece" in `topnav.html` opens it on `custom`; the sizing links in `products.json` open it on `sizing` and prefill the item from the listing they sit in; `shop.js` calls `window.openContactModal("custom")`. `#modal-custom-request` no longer exists.
+- Topic-only sections carry `data-topics="..."` and start out `hidden` with their fields `disabled`, so the browser skips their `required` checks and `FormData` leaves them out. `footer.js` (`applyContactTopic`) turns on the ones for the chosen topic. To add a field, give its wrapper `data-topics` plus `hidden` and its input `disabled`, then add its name to `CONTACT_DETAIL_FIELDS` in `cloudflare/src/worker.js`, or the email won't include it.
+- `handleContact` emails the topic, every filled detail field and the message, with the subject `Florence Mae Gifts: <topic> from <name> (order <#>)`. It still accepts the retired custom form's `mode: 'custom'` + `requestType` payload from cached pages. The form has a `website` honeypot.
+- florencemaegifts@outlook.com is gone: `SUPPORT_EMAIL` (Reply-To and "contact us at" on order and download emails) and the shipped-email BCC are now contact@florencemaegifts.com. Change `SUPPORT_EMAIL` in both `wrangler.toml` and `wrangler.toml.example`.
+- Cloudflare tells browsers to cache CSS, JS and the HTML includes for 4 hours (`max-age=14400`). When a change to `footer.html` depends on new CSS or JS, bump `CSS_VERSION` in `scripts/build_shop.py` and the `?v=` on `fmg.css` / `footer.js` in the hand-written pages (`index`, `about`, `reviews`, `disclaimers`, `shop`), or returning visitors will see the new markup with the old stylesheet until their cache runs out.

@@ -3,7 +3,7 @@
 ; Title: fmg.css
 ; Author: Red
 ; Date Created: 11 Jan 2023
-; Last Updated: 6 October 2026
+; Last Updated: 26 October 2026
 ; Description: This code establishes the styling for the entire site
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
@@ -521,6 +521,364 @@ a.disclaimer-links:hover {color: #fe666f;}
 
 .footer-modal-close:hover {
   color: var(--link-hover);
+}
+
+/* ============================================
+   CONTACT MODAL (footer.html, footer.js)
+   One form; the topic menu shows the fields each topic needs.
+   ============================================ */
+.footer-modal .contact-card {
+  --contact-accent: #FE6666;
+  --contact-field-bg: #fff;
+  --contact-border: #e5cfcc;
+  --contact-muted: #6e5a5a;
+  --contact-soft: #fff3f1;
+  --contact-header-bg: linear-gradient(135deg, #fff4f2 0%, #fecac4 100%);
+  --contact-header-text: #2b1d1d;
+  --contact-eyebrow: #b03a4b;
+  width: 92%;
+  max-width: 620px;
+  max-height: 92vh;
+  margin: 4vh auto;
+  padding: 0;
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .footer-modal .contact-card {
+  --contact-field-bg: #3b3b3b;
+  --contact-border: #5e5354;
+  --contact-muted: #cdbfbf;
+  --contact-soft: #3f3436;
+  --contact-header-bg: linear-gradient(135deg, #4a3739 0%, #6a3f47 100%);
+  --contact-header-text: #fff;
+  --contact-eyebrow: #FEA0AE;
+}
+
+.footer-modal[aria-hidden="false"] .contact-card {
+  animation: contact-pop 0.22s ease-out;
+}
+
+@keyframes contact-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-modal[aria-hidden="false"] .contact-card { animation: none; }
+}
+
+.contact-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 1;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75);
+  color: #2b1d1d;
+  font-size: 26px;
+  line-height: 38px;
+  cursor: pointer;
+}
+
+.contact-close:hover,
+.contact-close:focus-visible {
+  background: #fff;
+  color: var(--contact-accent);
+}
+
+.dark-theme .contact-close {
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+}
+
+.contact-header {
+  position: relative;
+  overflow: hidden;
+  padding: 26px 64px 22px 28px;
+  background: var(--contact-header-bg);
+  color: var(--contact-header-text);
+}
+
+/* Same flower as the site header, tucked into the corner. */
+.contact-header::after {
+  content: "";
+  position: absolute;
+  right: -34px;
+  bottom: -46px;
+  width: 150px;
+  height: 128px;
+  background: url("/images/flower2.png") no-repeat center / contain;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.contact-eyebrow {
+  margin: 0 0 6px;
+  color: var(--contact-eyebrow);
+  font-family: 'Varela Round', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.contact-card .contact-title {
+  margin: 0;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.contact-card .contact-lede {
+  position: relative;
+  max-width: 470px;
+  margin: 8px 0 0;
+  font-size: 15.5px;
+  line-height: 1.5;
+}
+
+.contact-form {
+  padding: 22px 28px 26px;
+}
+
+/* Fields for other topics (footer.js sets hidden); beats the display rules below. */
+.contact-form [hidden] {
+  display: none !important;
+}
+
+.contact-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+
+.contact-field {
+  margin-bottom: 16px;
+}
+
+.contact-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 14.5px;
+}
+
+.contact-optional {
+  color: var(--contact-muted);
+  font-size: 13px;
+}
+
+.contact-form input,
+.contact-form select,
+.contact-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--contact-border);
+  border-radius: 10px;
+  background-color: var(--contact-field-bg);
+  color: var(--text-color);
+  font-family: 'Lora', serif;
+  font-size: 16px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dark-theme .contact-form input,
+.dark-theme .contact-form select,
+.dark-theme .contact-form textarea {
+  color-scheme: dark;
+}
+
+.contact-form select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 42px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23FE6666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 15px center;
+  cursor: pointer;
+}
+
+.contact-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.contact-form input::placeholder,
+.contact-form textarea::placeholder {
+  color: var(--contact-muted);
+  opacity: 0.8;
+}
+
+.contact-form input:focus,
+.contact-form select:focus,
+.contact-form textarea:focus {
+  outline: none;
+  border-color: var(--contact-accent);
+  box-shadow: 0 0 0 3px rgba(254, 102, 102, 0.22);
+}
+
+.contact-form p.contact-hint {
+  margin: 6px 0 0;
+  color: var(--contact-muted);
+  font-size: 13.5px;
+}
+
+.contact-form p.contact-hint-block {
+  margin: -6px 0 16px;
+}
+
+.contact-note {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-left: 4px solid var(--contact-accent);
+  border-radius: 10px;
+  background: var(--contact-soft);
+}
+
+.contact-note p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+/* Spam trap: people never see it, bots fill it in. */
+.contact-hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.contact-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.contact-form p.contact-privacy {
+  margin: 0;
+  color: var(--contact-muted);
+  font-size: 13.5px;
+}
+
+.contact-submit {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 26px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FE6666 0%, #FF6699 100%);
+  color: #fff;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 16.5px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(254, 102, 102, 0.32);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.contact-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(254, 102, 102, 0.4);
+}
+
+.contact-submit:focus-visible {
+  outline: 3px solid rgba(254, 102, 102, 0.45);
+  outline-offset: 2px;
+}
+
+.contact-submit:disabled {
+  opacity: 0.65;
+  cursor: progress;
+  transform: none;
+}
+
+.contact-form p.contact-status {
+  margin: 12px 0 0;
+  font-size: 14.5px;
+}
+
+.contact-form p.contact-status:empty {
+  display: none;
+}
+
+.contact-form p.contact-status.is-error {
+  color: #c62f45;
+}
+
+.dark-theme .contact-form p.contact-status.is-error {
+  color: #ff8b9c;
+}
+
+.footer-modal .contact-sent {
+  max-width: 440px;
+  margin-top: 12vh;
+  padding: 36px 30px 30px;
+  text-align: center;
+}
+
+.contact-sent-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: var(--contact-header-bg);
+  color: var(--contact-accent);
+  font-size: 26px;
+}
+
+.contact-sent .contact-lede {
+  margin: 10px auto 22px;
+}
+
+@media screen and (max-width: 560px) {
+  .footer-modal .contact-card {
+    width: auto;
+    max-height: none;
+    margin: 12px;
+  }
+
+  .contact-header {
+    padding: 22px 56px 18px 20px;
+  }
+
+  .contact-card .contact-title {
+    font-size: 26px;
+  }
+
+  .contact-form {
+    padding: 18px 20px 22px;
+  }
+
+  .contact-row {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-actions {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .contact-submit {
+    width: 100%;
+  }
+
+  .contact-form p.contact-status {
+    text-align: center;
+  }
 }
 
 /* About page portrait image */

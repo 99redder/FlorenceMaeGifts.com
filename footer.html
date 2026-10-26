@@ -42,13 +42,13 @@
           <div class="footer-modal-content">
             <span class="footer-modal-close" data-close-modal="modal-privacy">&times;</span>
             <h3 style="margin-top:0">Privacy Policy</h3>
-            <p><strong>Last Updated: October 12, 2026</strong></p>
+            <p><strong>Last Updated: October 26, 2026</strong></p>
 
             <p>Florence Mae Gifts, LLC ("we," "us," or "our") operates the website <a href="https://www.florencemaegifts.com">https://www.florencemaegifts.com</a> (the "Site"). This Privacy Policy describes what information we collect when you visit the Site or place an order, how we use it, and who we share it with.</p>
 
             <p><strong>Information We Collect</strong><br>
             <em>When you place an order:</em> your name, email address, billing address, shipping address, the items and sizes you ordered, and the amount paid. Payment is handled by Stripe on its own secure checkout page. We never see or store your full card number.<br>
-            <em>When you use the contact or custom request form:</em> your name, email address, phone number (if you choose to give it), and the content of your message.<br>
+            <em>When you use the contact form:</em> your name, email address, and your message, plus anything else you choose to add, such as a phone number, an order number, or your child's age and head size for sizing.<br>
             <em>Automatically:</em> like most websites, our hosting providers record basic technical information such as IP address, browser type, and the pages requested, for security and reliability.</p>
 
             <p><strong>How We Use Your Information</strong><br>
@@ -166,74 +166,127 @@
           </div>
         </div>
 
-        <!-- Contact Modal -->
-        <div id="modal-contact" class="footer-modal">
-          <div class="footer-modal-content">
-            <span class="footer-modal-close" data-close-modal="modal-contact">&times;</span>
-            <h3 style="margin-top:0"><i class="fa-solid fa-message"></i> Contact Us</h3>
-            <p>Have a question? Send me a message and I'll get back to you within 24 hours.</p>
+        <!-- Contact Modal: one form for every kind of message. The topic menu decides which
+             extra fields show (footer.js); links can open it on a topic with data-contact-topic. -->
+        <div id="modal-contact" class="footer-modal contact-modal" role="dialog" aria-modal="true" aria-labelledby="contact-title" aria-hidden="true">
+          <div class="footer-modal-content contact-card">
+            <button type="button" class="contact-close" data-close-modal="modal-contact" aria-label="Close">&times;</button>
+            <div class="contact-header">
+              <p class="contact-eyebrow"><i class="fa-solid fa-heart" aria-hidden="true"></i> Florence Mae Gifts</p>
+              <h3 id="contact-title" class="contact-title">How can we help?</h3>
+              <p class="contact-lede">Questions, custom pieces, sizing or returns. Megan reads every message and will reply by email within 24 hours.</p>
+            </div>
 
-            <form id="contact-form">
+            <form id="contact-form" class="contact-form">
+              <div class="contact-field">
+                <label for="contact-topic">What is your message about?</label>
+                <select id="contact-topic" name="topic">
+                  <option value="general" data-label="Your message" data-placeholder="How can we help?">General question</option>
+                  <option value="order" data-label="How can we help with your order?" data-placeholder="Tell us what's going on, for example a delivery question or a change you need.">Question about my order</option>
+                  <option value="custom" data-label="What would you like made?" data-placeholder="Share the character or theme, colors, and any details that matter." data-submit="Send custom request">Custom piece request</option>
+                  <option value="sizing" data-label="Your question" data-placeholder="Tell us which sizes you're deciding between, or anything else that helps.">Sizing help</option>
+                  <option value="pattern" data-label="What do you need help with?" data-placeholder="For example: my download link expired, or I'm stuck on a step.">Pattern or download help</option>
+                  <option value="return" data-label="Tell us about the return" data-placeholder="Which item you'd like to return, and why.">Return or refund</option>
+                </select>
+              </div>
 
-              <label for="contact-name">Your Name</label><br>
-              <input type="text" id="contact-name" name="name" placeholder="Your name.." required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
+              <div class="contact-row">
+                <div class="contact-field">
+                  <label for="contact-name">Your name</label>
+                  <input type="text" id="contact-name" name="name" autocomplete="name" maxlength="100" required>
+                </div>
+                <div class="contact-field">
+                  <label for="contact-email">Email address</label>
+                  <input type="email" id="contact-email" name="email" autocomplete="email" maxlength="254" required>
+                </div>
+              </div>
 
-              <label for="contact-email">Your Email</label><br>
-              <input type="email" id="contact-email" name="email" placeholder="Your email.." required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
+              <div class="contact-field" data-topics="order pattern return" hidden>
+                <label for="contact-order">Order number <span class="contact-optional">(optional)</span></label>
+                <input disabled type="text" id="contact-order" name="orderNumber" maxlength="60" autocomplete="off">
+                <p class="contact-hint">You'll find it on your order confirmation or receipt email.</p>
+              </div>
 
-              <label for="contact-message">Your Message</label><br>
-              <textarea id="contact-message" name="message" rows="5" placeholder="Write something.." required style="width:100%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;resize:vertical;"></textarea><br>
+              <div class="contact-field" data-topics="custom" hidden>
+                <label for="contact-piece">Type of piece</label>
+                <select disabled id="contact-piece" name="pieceType" required>
+                  <option value="">Choose one</option>
+                  <option>Baby hat</option>
+                  <option>Costume or photo set</option>
+                  <option>Diaper cover set</option>
+                  <option>Pattern customization</option>
+                  <option>Something else</option>
+                </select>
+              </div>
+              <div class="contact-row" data-topics="custom" hidden>
+                <div class="contact-field">
+                  <label for="contact-size">Size or age <span class="contact-optional">(optional)</span></label>
+                  <input disabled type="text" id="contact-size" name="size" maxlength="60" placeholder="e.g. 3-6 months">
+                </div>
+                <div class="contact-field">
+                  <label for="contact-needed">Needed by <span class="contact-optional">(optional)</span></label>
+                  <input disabled type="date" id="contact-needed" name="neededBy">
+                </div>
+              </div>
+              <div class="contact-field" data-topics="custom" hidden>
+                <label for="contact-phone">Phone <span class="contact-optional">(optional)</span></label>
+                <input disabled type="tel" id="contact-phone" name="phone" autocomplete="tel" maxlength="30">
+              </div>
 
-              <button type="submit" style="background:linear-gradient(135deg,#FE6666 0%,#FF6699 100%);color:#fff;border:1px solid #f35f74;border-radius:10px;padding:12px 20px;font-family:'Varela Round',sans-serif;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 3px 8px rgba(254,102,102,.24);">Send Message</button>
+              <div class="contact-field" data-topics="sizing" hidden>
+                <label for="contact-item">Which item? <span class="contact-optional">(optional)</span></label>
+                <input disabled type="text" id="contact-item" name="item" maxlength="200" placeholder="e.g. Shadow Monster Baby Hat">
+              </div>
+              <div class="contact-row" data-topics="sizing" hidden>
+                <div class="contact-field">
+                  <label for="contact-age">Child's age <span class="contact-optional">(optional)</span></label>
+                  <input disabled type="text" id="contact-age" name="childAge" maxlength="60" placeholder="e.g. 4 months">
+                </div>
+                <div class="contact-field">
+                  <label for="contact-head">Head circumference <span class="contact-optional">(optional)</span></label>
+                  <input disabled type="text" id="contact-head" name="headSize" maxlength="60" placeholder="e.g. 16 inches">
+                </div>
+              </div>
+              <p class="contact-hint contact-hint-block" data-topics="sizing" hidden>To measure, wrap a soft tape measure around the head just above the eyebrows and ears.</p>
+
+              <div class="contact-field" data-topics="pattern" hidden>
+                <label for="contact-pattern">Which pattern? <span class="contact-optional">(optional)</span></label>
+                <input disabled type="text" id="contact-pattern" name="item" maxlength="200" placeholder="e.g. Four Star Ball Baby Hat Pattern">
+              </div>
+              <div class="contact-note" data-topics="pattern" hidden>
+                <p>If your download link has expired or stopped working, we'll email the file to you again.</p>
+              </div>
+
+              <div class="contact-note" data-topics="return" hidden>
+                <p>Returns are accepted within 30 days for new, unused items, and the buyer pays return shipping. The return address and full details are on our <a href="/shipping-returns.html" target="_blank" rel="noopener">Shipping &amp; Returns</a> page.</p>
+              </div>
+
+              <div class="contact-field">
+                <label for="contact-message" id="contact-message-label">Your message</label>
+                <textarea id="contact-message" name="message" rows="5" maxlength="5000" placeholder="How can we help?" required></textarea>
+              </div>
+
+              <div class="contact-hp" aria-hidden="true">
+                <label for="contact-website">Leave this empty</label>
+                <input type="text" id="contact-website" name="website" tabindex="-1" autocomplete="off">
+              </div>
+
+              <div class="contact-actions">
+                <button type="submit" class="contact-submit" id="contact-submit"><span>Send message</span></button>
+                <p class="contact-privacy">We only use your details to reply to you. <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a></p>
+              </div>
+              <p id="contact-form-status" class="contact-status" role="status" aria-live="polite"></p>
             </form>
-
-            <p id="contact-form-status" style="margin-top:12px;"></p>
           </div>
         </div>
 
-        <!-- Request Custom Piece Modal -->
-        <div id="modal-custom-request" class="footer-modal">
-          <div class="footer-modal-content">
-            <span class="footer-modal-close" data-close-modal="modal-custom-request">&times;</span>
-            <h3 style="margin-top:0"><i class="fa-solid fa-keyboard"></i> Request a Custom Piece</h3>
-            <p>Use this form to request a custom piece. I'll review and email you back within 24 hours.</p>
-
-            <form id="custom-request-form">
-
-              <label for="custom-name">Name</label><br>
-              <input type="text" id="custom-name" name="name" required style="width:70%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
-
-              <label for="custom-email">Email</label><br>
-              <input type="email" id="custom-email" name="email" required style="width:70%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
-
-              <label for="custom-phone">Phone (optional)</label><br>
-              <input type="text" id="custom-phone" name="phone" style="width:70%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;"><br>
-
-              <label for="custom-request-type">Request Type</label><br>
-              <select id="custom-request-type" name="requestType" required style="width:70%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;">
-                <option value="">Select one</option>
-                <option>Custom baby hat</option>
-                <option>Custom costume/photo set</option>
-                <option>Pattern question/customization</option>
-                <option>Other</option>
-              </select><br>
-
-              <label for="custom-message">What would you like made?</label><br>
-              <textarea id="custom-message" name="message" rows="6" required placeholder="Share sizes, colors, character/theme, due date, and any details that matter." style="width:70%;padding:12px;border:1px solid #ccc;border-radius:4px;font-family:'Lora',serif;font-size:16px;margin-bottom:12px;resize:vertical;"></textarea><br>
-
-              <button type="submit" style="background:linear-gradient(135deg,#FE6666 0%,#FF6699 100%);color:#fff;border:1px solid #f35f74;border-radius:12px;padding:14px 22px;min-width:260px;font-family:'Varela Round',sans-serif;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 4px 10px rgba(254,102,102,.28);">Send Custom Request</button>
-            </form>
-
-            <p id="custom-request-form-status" style="margin-top:12px;"></p>
-          </div>
-        </div>
-
-        <!-- Branded Success Modal -->
-        <div id="modal-form-success" class="footer-modal">
-          <div class="footer-modal-content" style="text-align:center;max-width:560px;">
-            <span class="footer-modal-close" data-close-modal="modal-form-success">&times;</span>
-            <h3 id="form-success-title" style="margin-top:0;color:#FE6666;"><i class="fa-solid fa-heart"></i> Florence Mae Gifts</h3>
-            <p id="form-success-message" style="font-size:17px;">Thanks! Your message was sent.</p>
-            <button type="button" data-close-modal="modal-form-success" style="background:linear-gradient(135deg,#FE6666 0%,#FF6699 100%);color:#fff;border:1px solid #f35f74;border-radius:12px;padding:12px 20px;font-family:'Varela Round',sans-serif;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 10px rgba(254,102,102,.28);">Awesome, thank you</button>
+        <!-- Sent confirmation (shown by footer.js after the contact form goes through) -->
+        <div id="modal-form-success" class="footer-modal contact-modal" role="dialog" aria-modal="true" aria-labelledby="form-success-title" aria-hidden="true">
+          <div class="footer-modal-content contact-card contact-sent">
+            <button type="button" class="contact-close" data-close-modal="modal-form-success" aria-label="Close">&times;</button>
+            <div class="contact-sent-icon"><i class="fa-solid fa-heart" aria-hidden="true"></i></div>
+            <h3 id="form-success-title" class="contact-title">Message sent</h3>
+            <p id="form-success-message" class="contact-lede">Thanks! We'll get back to you soon.</p>
+            <button type="button" class="contact-submit" data-close-modal="modal-form-success">Done</button>
           </div>
         </div>

@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TODAY = date.today()
 CREATED = '6 October 2026'
-CSS_VERSION = '20261012'
+CSS_VERSION = '20261026'
 
 CATEGORIES = {
     'baby-sets': {
@@ -406,7 +406,7 @@ def page(shop, rel_path, title, description, body, header_desc, *, image=None, o
   <link rel="icon" href="images/favicon.png">
   <script src="includeHTML.js" defer></script>
   <script src="site.js" defer></script>
-  <script src="footer.js" defer></script>
+  <script src="footer.js?v=%(css)s" defer></script>
   <script src="shop.js?v=%(css)s" defer></script>
 
 %(ld)s
@@ -744,11 +744,11 @@ def shipping_returns_page(shop):
       <li><strong>Restocking fee:</strong> none.</li>
       <li><strong>Refund timing:</strong> once the item arrives it is inspected, and your refund is issued to the original payment method within %(refund)d business days of the returned item arriving.</li>
       <li><strong>Exchanges:</strong> we do not offer exchanges. To get a different size or item, return the original for a refund and place a new order.</li>
-      <li>Digital pattern PDFs are delivered instantly and cannot be returned. If there is a problem with your file, contact us and we will make it right.</li>
+      <li>Digital pattern PDFs are delivered instantly and cannot be returned. If there is a problem with your file, <a href="#modal-contact" data-open-modal="modal-contact" data-contact-topic="pattern">contact us</a> and we will make it right.</li>
      </ul>
 
      <h2 class="page-h2">Questions</h2>
-     <p>Need help with an order, a size, or a return? <a href="#modal-contact" data-open-modal="modal-contact">Send us a message</a> and we will get back to you.</p>
+     <p>Need help with an order, a size, or a return? <a href="#modal-contact" data-open-modal="modal-contact" data-contact-topic="order">Send us a message</a> and we will get back to you.</p>
     </article>''' % {'handling': handling, 'carrier': esc(ship['carrier']), 'tmin': ship['transitMinDays'],
                      'tmax': ship['transitMaxDays'], 'days': ret['days'], 'refund': ret['refundBusinessDays'], 'address': address}
     return page(shop, 'shipping-returns.html', 'Shipping & Returns | Florence Mae Gifts',

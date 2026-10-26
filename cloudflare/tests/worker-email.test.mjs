@@ -164,7 +164,7 @@ test('digital pattern purchase emails the buyer a download link, once', async (t
   const [mail] = env.EMAIL.sent;
   assert.deepEqual(mail.from, { email: 'orders@florencemaegifts.com', name: 'Florence Mae Gifts' });
   assert.deepEqual(mail.to, ['crafter@example.net']);
-  assert.equal(mail.replyTo, 'florencemaegifts@outlook.com');
+  assert.equal(mail.replyTo, 'contact@florencemaegifts.com');
   assert.deepEqual(mail.bcc, ['contact@florencemaegifts.com']);
   assert.match(mail.html, /https:\/\/www\.florencemaegifts\.com\/api\/download\?token=[A-Za-z0-9_-]+/);
   // The plain-text copy carries the same link and terms, with no HTML in it.
@@ -173,7 +173,7 @@ test('digital pattern purchase emails the buyer a download link, once', async (t
   assert.match(mail.text, /^Hi Casey Crafter,/);
   assert.match(mail.text, /Your payment for Four Star Ball Crochet Baby Hat Pattern - Beginner Level \(PDF Download Only\) was successful\./);
   assert.match(mail.text, /link valid for 24 hours, up to 3 downloads/);
-  assert.match(mail.text, /contact us at florencemaegifts@outlook\.com/);
+  assert.match(mail.text, /contact us at contact@florencemaegifts\.com/);
   assert.doesNotMatch(mail.text, /<[a-z]/i);
   const status = JSON.parse(env.DOWNLOAD_TOKENS.map.get('order-confirmation-sent:cs_test_dl_1'));
   assert.equal(status.status, 'sent');
@@ -241,6 +241,39 @@ test('contact form emails the shop with the visitor as reply-to', async (t) => {
   assert.deepEqual(mail.to, ['contact@florencemaegifts.com']);
   assert.equal(mail.replyTo, 'robin@example.org');
   assert.deepEqual(mail.from, { email: 'orders@florencemaegifts.com', name: 'Florence Mae Gifts' });
+  assert.equal(mail.subject, 'Florence Mae Gifts: General question from Robin');
+});
+
+test('contact form topics carry their extra fields into the email', async (t) => {
+  quietConsole(t);
+  guardNetwork(t);
+  const env = baseEnv();
+  let res = await worker.fetch(post('/api/contact', {
+    mode: 'contact', topic: 'order', name: 'Robin\nBcc: x@example.com', email: 'robin@example.org',
+    orderNumber: '3812345678', message: 'Has my hat shipped yet?'
+  }), env, ctx);
+  assert.equal(res.status, 200, await res.clone().text());
+  let [mail] = env.EMAIL.sent;
+  assert.equal(mail.subject, 'Florence Mae Gifts: Question about an order from Robin Bcc: x@example.com (order 3812345678)');
+  assert.match(mail.text, /^Topic: Question about an order$/m);
+  assert.match(mail.text, /^Order #: 3812345678$/m);
+  assert.doesNotMatch(mail.text, /^Phone:/m);
+
+  // The retired custom request form (still in some browsers' caches) keeps its fields.
+  res = await worker.fetch(post('/api/contact', {
+    mode: 'custom', name: 'Sam', email: 'sam@example.org', phone: '410-555-0100',
+    requestType: 'Custom baby hat', message: 'A Totoro hat, please.'
+  }), env, ctx);
+  assert.equal(res.status, 200, await res.clone().text());
+  mail = env.EMAIL.sent[1];
+  assert.equal(mail.subject, 'Florence Mae Gifts: Custom piece request from Sam');
+  assert.match(mail.text, /^Type of piece: Custom baby hat$/m);
+  assert.match(mail.text, /^Phone: 410-555-0100$/m);
+
+  // Bots that fill the hidden field get a quiet success and no email.
+  res = await worker.fetch(post('/api/contact', { name: 'Bot', email: 'bot@example.org', message: 'hi', website: 'spam.example' }), env, ctx);
+  assert.equal(res.status, 200);
+  assert.equal(env.EMAIL.sent.length, 2);
 });
 
 test('admin: invoice email and shipped email reach the customer', async (t) => {
@@ -269,7 +302,7 @@ test('admin: invoice email and shipped email reach the customer', async (t) => {
   assert.equal(env.EMAIL.sent.length, 2);
   const shipped = env.EMAIL.sent[1];
   assert.deepEqual(shipped.to, ['dana@example.com']);
-  assert.deepEqual(shipped.bcc, ['florencemaegifts@outlook.com']);
+  assert.deepEqual(shipped.bcc, ['contact@florencemaegifts.com']);
   assert.match(shipped.html, /9400111111111111111111/);
 });
 
@@ -310,7 +343,7 @@ test('email events queue: a bounced download email alerts the shop', async (t) =
     payload: { messageId: 'm1', sender: 'orders@florencemaegifts.com', recipient, subject: 'Your Florence Mae Gifts download', bounce: { type: 'hard', reason: '550 5.1.1 User unknown' } },
     metadata: { eventTimestamp: '2026-10-23T15:02:00.000Z' }
   });
-  const messages = [event('crafter@gmial.com'), event('contact@florencemaegifts.com'), event('florencemaegifts@outlook.com')]
+  const messages = [event('crafter@gmial.com'), event('contact@florencemaegifts.com'), event('orders@florencemaegifts.com')]
     .map((body) => ({ body, acked: false, ack() { this.acked = true; }, retry() { throw new Error('should not retry'); } }));
   await worker.queue({ queue: 'florencemaegifts-email-events', messages }, env);
   assert.equal(env.EMAIL.sent.length, 1, 'shop addresses must not alert');
