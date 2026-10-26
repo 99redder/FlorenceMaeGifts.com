@@ -3234,8 +3234,10 @@
         });
 
         const incomeByCategory = new Map();
+        const salesByCategory = new Map();
         const expenseByCategory = new Map();
         let incomeTotal = 0;
+        let salesTotal = 0;
         let expenseTotal = 0;
 
         for (const r of (summaryData.income || [])) {
@@ -3243,6 +3245,12 @@
           const v = Number(r.amount_cents || 0);
           incomeTotal += v;
           incomeByCategory.set(c, (incomeByCategory.get(c) || 0) + v);
+          // Percentages are shares of sales only (same rule as Stats), so
+          // owner-funded money and card bonuses get none.
+          if (Number(r.is_owner_funded || 0) !== 1 && isStatsSaleIncomeRow(r)) {
+            salesTotal += v;
+            salesByCategory.set(c, (salesByCategory.get(c) || 0) + v);
+          }
         }
         for (const r of (summaryData.expenses || [])) {
           const c = r.category || 'Uncategorized';
@@ -3256,7 +3264,8 @@
 
         const incomeRows = sortedIncome.length
           ? sortedIncome.map(([cat, cents]) => {
-            const pct = incomeTotal > 0 ? `<span class="tax-summary-pct">${(cents / incomeTotal * 100).toFixed(1)}%</span>` : '';
+            const saleCents = salesByCategory.get(cat);
+            const pct = saleCents !== undefined && salesTotal > 0 ? `<span class="tax-summary-pct">${(saleCents / salesTotal * 100).toFixed(1)}%</span>` : '';
             return `<div class="tax-summary-line"><span>${escHtml(cat)}</span><span class="tax-summary-amt">${pct}<strong>$${(cents/100).toFixed(2)}</strong></span></div>`;
           }).join('')
           : '<div class="tax-summary-line"><span>No income entries</span><strong>$0.00</strong></div>';
