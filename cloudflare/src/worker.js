@@ -1425,7 +1425,7 @@ async function handleAdminLogin(request, env, corsHeaders) {
   const password = (data.password || '').toString();
   const code = (data.code || '').toString().replace(/\s+/g, '');
   const expectedUser = (env.ADMIN_USER || 'admin').trim();
-  const expectedPass = (env.ADMIN_PASS || env.ADMIN_PASSWORD || '').trim();
+  const expectedPass = (env.ADMIN_PASS || '').trim();
   const totpSecret = (env.TOTP_SECRET || '').trim();
 
   if (!expectedPass) {
