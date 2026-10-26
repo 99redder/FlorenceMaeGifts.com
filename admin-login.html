@@ -86,14 +86,11 @@
           return;
         }
         const data = await res.json().catch(() => ({}));
-        errorEl.textContent = data.totpRequired
-          ? 'Invalid authenticator code. Check Microsoft Authenticator and try again.'
-          : data.error || (res.status === 429 ? 'Too many failed attempts. Try again later.' : 'Invalid username or password.');
-        if (data.totpRequired) {
-          const totpEl = document.getElementById('admin-totp');
-          totpEl.value = '';
-          totpEl.focus();
-        }
+        // The server gives one message for any wrong part, so a guess never confirms the password.
+        errorEl.textContent = data.error || (res.status === 429 ? 'Too many failed attempts. Try again later.' : 'Invalid username, password or authenticator code.');
+        const totpEl = document.getElementById('admin-totp');
+        totpEl.value = '';
+        totpEl.focus();
       } catch (err) {
         errorEl.textContent = 'Login failed. Please try again.';
       } finally {

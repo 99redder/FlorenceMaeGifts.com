@@ -231,6 +231,28 @@ test('when no provider can send, the order is marked failed (Stripe is not retri
   assert.equal(JSON.parse(env.DOWNLOAD_TOKENS.map.get('order-confirmation-sent:cs_test_dl_4')).status, 'failed');
 });
 
+test('order details: a paid session ID mints a download link only while the order is fresh', async (t) => {
+  quietConsole(t);
+  const sessions = {};
+  guardNetwork(t, { 'https://api.stripe.com/v1/checkout/sessions/': (url) => sessions[url.split('/').pop()] });
+  const env = baseEnv({ STRIPE_SECRET_KEY: 'sk_test_only' });
+  const paid = (id, ageSeconds) => (sessions[id] = {
+    id, payment_status: 'paid', status: 'complete', created: Math.floor(Date.now() / 1000) - ageSeconds,
+    amount_subtotal: 499, currency: 'usd', customer_details: { email: 'crafter@example.net' },
+    metadata: { checkout_type: 'fmg_shop_item', item_name: PATTERN }
+  });
+  paid('cs_test_fresh', 60);
+  paid('cs_test_old', 3 * 86400);
+  const details = async (id) => (await worker.fetch(new Request(`https://worker.example/api/checkout-session-details?session_id=${id}`), env, ctx)).json();
+
+  const fresh = await details('cs_test_fresh');
+  assert.match(fresh.downloadUrl || '', /\/api\/download\?token=/);
+  assert.equal((await details('cs_test_fresh')).downloadUrl, fresh.downloadUrl, 'a reload gets the same link');
+  const old = await details('cs_test_old');
+  assert.equal(old.downloadUrl, null, 'an old session ID must not mint a new link');
+  assert.equal(old.purchase.transactionId, 'cs_test_old');
+});
+
 test('contact form emails the shop with the visitor as reply-to', async (t) => {
   quietConsole(t);
   guardNetwork(t);
@@ -274,6 +296,28 @@ test('contact form topics carry their extra fields into the email', async (t) =>
   res = await worker.fetch(post('/api/contact', { name: 'Bot', email: 'bot@example.org', message: 'hi', website: 'spam.example' }), env, ctx);
   assert.equal(res.status, 200);
   assert.equal(env.EMAIL.sent.length, 2);
+});
+
+test('admin sign-in: one answer for any wrong part, and the lockout is kept in D1', async (t) => {
+  quietConsole(t);
+  guardNetwork(t);
+  const env = baseEnv();
+  const login = (body, ip = '203.0.113.7') => worker.fetch(post('/api/admin/login', body, { 'CF-Connecting-IP': ip }), env, ctx);
+  const goodCode = await totp(TOTP_SECRET);
+  const badCode = String((Number(goodCode) + 500000) % 1000000).padStart(6, '0');
+
+  const wrongPassword = await login({ username: 'admin', password: 'nope', code: badCode });
+  const wrongCode = await login({ username: 'admin', password: 'admin-test-password', code: badCode });
+  assert.equal(wrongPassword.status, 401);
+  assert.equal(wrongCode.status, 401);
+  assert.deepEqual(await wrongCode.json(), await wrongPassword.json(), 'a right password with a wrong code must not look different');
+
+  await login({ username: 'admin', password: 'nope', code: badCode });
+  await login({ username: 'admin', password: 'nope', code: badCode });
+  assert.equal((await login({ username: 'admin', password: 'nope', code: badCode })).status, 429, 'fifth failure locks the IP out');
+  assert.equal((await login({ username: 'admin', password: 'admin-test-password', code: goodCode })).status, 429, 'locked out even with the right details');
+  assert.equal(env.DB.sqlite.prepare('SELECT count FROM admin_auth_failures WHERE ip = ?').get('203.0.113.7').count, 5);
+  assert.equal((await login({ username: 'admin', password: 'admin-test-password', code: goodCode }, '198.51.100.9')).status, 200, 'other IPs still sign in');
 });
 
 test('admin: invoice email and shipped email reach the customer', async (t) => {
@@ -326,9 +370,26 @@ test('quote: emailed to the customer, accepted from the link, invoice sent and s
   const acceptLink = quoteMail.html.match(/https?:\/\/[^"'\s]+\/api\/quote\/accept\?token=[A-Za-z0-9_-]+/)?.[0];
   assert.ok(acceptLink, 'accept link in quote email');
 
+  const denyLink = quoteMail.html.match(/https?:\/\/[^"'\s]+\/api\/quote\/deny\?token=[A-Za-z0-9_-]+/)?.[0];
+  assert.ok(denyLink, 'decline link in quote email');
+
+  // Opening either link (as an email scanner would) only shows a confirmation page.
   const before = env.EMAIL.sent.length;
-  res = await worker.fetch(new Request(acceptLink.replace(/^https?:\/\/[^/]+/, 'https://worker.example')), env, ctx);
+  for (const link of [denyLink, acceptLink]) {
+    res = await worker.fetch(new Request(link.replace(/^https?:\/\/[^/]+/, 'https://worker.example')), env, ctx);
+    assert.equal(res.status, 200, await res.clone().text());
+    assert.match(await res.text(), /<form method="post" action="\/api\/quote\/(accept|deny)"/);
+  }
+  assert.equal(env.EMAIL.sent.length, before, 'opening a link must not send anything');
+  assert.equal(env.DB.sqlite.prepare('SELECT status FROM quotes WHERE id = ?').get(id).status, 'sent', 'opening a link must not change the quote');
+
+  // Pressing Accept posts the token back.
+  const token = new URL(acceptLink).searchParams.get('token');
+  res = await worker.fetch(new Request('https://worker.example/api/quote/accept', {
+    method: 'POST', headers: { Origin: SITE, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token })
+  }), env, ctx);
   assert.equal(res.status, 200, await res.clone().text());
+  assert.match(await res.clone().text(), /Your quote has been accepted/);
   const after = env.EMAIL.sent.slice(before);
   assert.ok(after.some((m) => m.to.includes('quinn@example.com')), `customer invoice email missing: ${after.map((m) => m.subject)}`);
   assert.ok(after.some((m) => m.to.includes('contact@florencemaegifts.com') && /Accepted/.test(m.subject)), 'shop notification missing');
