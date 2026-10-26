@@ -199,6 +199,7 @@
     .tax-summary-col h4 { margin:.1rem 0 .45rem; color:var(--cyan); font-size:1rem; }
     .tax-summary-line { display:flex; justify-content:space-between; gap:.6rem; padding:.12rem 0; color:var(--muted); }
     .tax-summary-line strong { color:var(--text); font-weight:700; }
+    .tax-summary-line.tax-summary-total { color:var(--text); font-weight:700; font-size:1.08rem; border-bottom:1px solid var(--line); padding-bottom:.35rem; margin-bottom:.3rem; }
     .tax-entry-wrap { margin-top:1rem; }
 
     .admin-section-tabs { display:flex; gap:.45rem; flex-wrap:wrap; margin-bottom:.7rem; }
@@ -3254,12 +3255,12 @@
         taxSummaryListEl.innerHTML = `
           <div class="tax-summary-col">
             <h4>Income (${summaryYear})</h4>
-            <div class="tax-summary-line"><span>Total</span><strong>$${(incomeTotal/100).toFixed(2)}</strong></div>
+            <div class="tax-summary-line tax-summary-total"><span>Total</span><strong>$${(incomeTotal/100).toFixed(2)}</strong></div>
             ${incomeRows}
           </div>
           <div class="tax-summary-col">
             <h4>Expenses (${summaryYear})</h4>
-            <div class="tax-summary-line"><span>Total</span><strong>$${(expenseTotal/100).toFixed(2)}</strong></div>
+            <div class="tax-summary-line tax-summary-total"><span>Total</span><strong>$${(expenseTotal/100).toFixed(2)}</strong></div>
             ${expenseRows}
             <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Net</span><strong class="money-blur-target">$${((incomeTotal - expenseTotal)/100).toFixed(2)}</strong></div>
           </div>
