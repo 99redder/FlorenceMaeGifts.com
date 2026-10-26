@@ -201,6 +201,8 @@
     .tax-summary-line strong { color:var(--text); font-weight:700; }
     .tax-summary-amt { display:flex; align-items:baseline; gap:.6rem; white-space:nowrap; }
     .tax-summary-pct { font-size:.85em; opacity:.75; min-width:3.4em; text-align:right; }
+    /* Fixed-width amount slot so the percentages line up in a column. */
+    .tax-summary-amt strong { min-width:5em; text-align:right; }
     .tax-summary-line.tax-summary-total { color:var(--text); font-weight:700; font-size:1.08rem; border-bottom:1px solid var(--line); padding-bottom:.35rem; margin-bottom:.3rem; }
     .tax-entry-wrap { margin-top:1rem; }
 
