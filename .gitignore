@@ -3,3 +3,7 @@
 .stripe-size-price-map.json
 cloudflare/wrangler.toml
 .DS_Store
+
+# Paid pattern PDFs: buyers get them from the Cloudflare R2 bucket "fmg" through /api/download.
+# Never commit them; GitHub Pages would serve them free.
+downloads/
