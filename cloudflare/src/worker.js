@@ -1476,10 +1476,10 @@ function handleAdminLogout(corsHeaders) {
 // plus a new password; after that, signing in is her password plus an emailed
 // code. Every setup code, new password and sign-in is also emailed to
 // EMERGENCY_NOTIFY_EMAIL so a use nobody expected is noticed. Codes: 15
-// minutes, 5 tries, 5 an hour, stored hashed. The session is the normal admin
+// minutes, 3 tries, 5 an hour, stored hashed. The session is the normal admin
 // session cookie.
 const EMERGENCY_CODE_TTL_SECONDS = 15 * 60;
-const EMERGENCY_CODE_TRIES = 5;
+const EMERGENCY_CODE_TRIES = 3;
 const EMERGENCY_CODES_PER_HOUR = 5;
 const EMERGENCY_MIN_PASSWORD = 12;
 const EMERGENCY_PBKDF2_ITERATIONS = 100000;
@@ -1609,22 +1609,33 @@ async function handleEmergencyVerify(request, env, corsHeaders) {
   const now = Math.floor(Date.now() / 1000);
   const row = await env.DB.prepare('SELECT id, code_hash, purpose, attempts FROM admin_emergency_codes WHERE used = 0 AND expires_at > ?1 ORDER BY id DESC LIMIT 1').bind(now).first();
   if (!row) return json({ ok: false, error: 'That code has expired. Ask for a new one.' }, 401, corsHeaders);
-  if (row.attempts >= EMERGENCY_CODE_TRIES) return json({ ok: false, error: 'Too many wrong codes. Ask for a new one.' }, 429, corsHeaders);
+  const tooManyWrong = () => json({ ok: false, error: 'Too many wrong codes. Ask for a new one.' }, 429, corsHeaders);
+  if (row.attempts >= EMERGENCY_CODE_TRIES) return tooManyWrong();
+
+  // Checked before a try is used, so a too-short new password doesn't cost Megan a try.
+  const password = String(data.newPassword || '');
+  if (row.purpose === 'setup' && password.length < EMERGENCY_MIN_PASSWORD) return json({ ok: false, error: `Choose a password of at least ${EMERGENCY_MIN_PASSWORD} characters.` }, 400, corsHeaders);
+
+  // Claim one of the code's tries before comparing. The UPDATE only succeeds while tries
+  // are left, so guesses sent at the same moment can't get more than EMERGENCY_CODE_TRIES.
+  const claimed = await env.DB.prepare('UPDATE admin_emergency_codes SET attempts = attempts + 1 WHERE id = ?1 AND used = 0 AND attempts < ?2')
+    .bind(row.id, EMERGENCY_CODE_TRIES).run();
+  if (!claimed.meta?.changes) return tooManyWrong();
 
   const code = String(data.code || '').replace(/\D/g, '');
   if (!(await timingSafeEqual(await sha256Hex(code), row.code_hash))) {
-    await env.DB.prepare('UPDATE admin_emergency_codes SET attempts = attempts + 1 WHERE id = ?1').bind(row.id).run();
     return json({ ok: false, error: 'That code is not right. Check the newest email.' }, 401, corsHeaders);
   }
 
+  // Mark it used in the same step that checks it is unused, so a code signs in only once.
+  const used = await env.DB.prepare('UPDATE admin_emergency_codes SET used = 1 WHERE id = ?1 AND used = 0').bind(row.id).run();
+  if (!used.meta?.changes) return json({ ok: false, error: 'That code has already been used. Ask for a new one.' }, 401, corsHeaders);
+
   if (row.purpose === 'setup') {
-    const password = String(data.newPassword || '');
-    if (password.length < EMERGENCY_MIN_PASSWORD) return json({ ok: false, error: `Choose a password of at least ${EMERGENCY_MIN_PASSWORD} characters.` }, 400, corsHeaders);
     await env.DB.prepare(`INSERT INTO admin_emergency_account (email, password_hash) VALUES (?1, ?2)
       ON CONFLICT(email) DO UPDATE SET password_hash = excluded.password_hash, updated_at = datetime('now')`)
       .bind(email, await hashEmergencyPassword(password)).run();
   }
-  await env.DB.prepare('UPDATE admin_emergency_codes SET used = 1 WHERE id = ?1').bind(row.id).run();
   await env.DB.prepare(`UPDATE admin_emergency_account SET last_login_at = datetime('now') WHERE email = ?1`).bind(email).run();
   await notifyEmergencyUse(env, request, row.purpose === 'setup' ? 'Megan set a password and signed in' : 'Megan signed in');
 

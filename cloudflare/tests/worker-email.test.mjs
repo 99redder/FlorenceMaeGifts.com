@@ -455,6 +455,21 @@ test('emergency access: emailed code sets up Megan\'s password, then password + 
   assert.match(toChris().at(-1).subject, /Megan signed in/);
 });
 
+test('emergency access: a code allows 3 tries, even for guesses sent at once', async (t) => {
+  quietConsole(t);
+  guardNetwork(t);
+  const env = baseEnv({ EMERGENCY_ADMIN_EMAIL: 'megan@family.example', EMERGENCY_NOTIFY_EMAIL: 'chris@family.example' });
+  await worker.fetch(post('/api/admin/emergency/request', {}), env, ctx);
+  const code = env.EMAIL.sent.find((m) => m.to.includes('megan@family.example')).text.match(/\b(\d{6})\b/)[1];
+  const wrong = String((Number(code) + 1) % 1000000).padStart(6, '0');
+
+  const guesses = await Promise.all(Array.from({ length: 10 }, () =>
+    worker.fetch(post('/api/admin/emergency/verify', { code: wrong, newPassword: 'yarn and coffee forever' }), env, ctx)));
+  assert.deepEqual(guesses.map((r) => r.status).sort(), [401, 401, 401, 429, 429, 429, 429, 429, 429, 429]);
+  const right = await worker.fetch(post('/api/admin/emergency/verify', { code, newPassword: 'yarn and coffee forever' }), env, ctx);
+  assert.equal(right.status, 429, 'the right code is refused once its tries are used up');
+});
+
 test('emergency access is off without EMERGENCY_ADMIN_EMAIL', async (t) => {
   quietConsole(t);
   guardNetwork(t);
