@@ -2907,7 +2907,7 @@
 
     function updateTaxIncomeCategoryAccountHint() {
       const category = String(taxIncomeCategoryEl?.value || '').trim().toLowerCase();
-      let hint = 'Posts to Service Revenue.';
+      let hint = 'Posts to Sales Revenue.';
       if (category.includes('owner funded') || category.includes('non-revenue')) {
         hint = 'Posts to Owner Contributions (non-revenue).';
       } else if (category.includes('credit card bonus') || category.includes('bank interest')) {
@@ -3011,9 +3011,21 @@
     }
 
     // ===== Tax Ledger =====
+    // Clearer names for income categories on screen only. The stored category
+    // is unchanged because Stats, Item Stats and the worker match on it.
+    const INCOME_CATEGORY_LABELS = {
+      'product sale': 'Etsy and Mercari Sales',
+      'service revenue': 'Florence Mae Gifts Custom Work'
+    };
+
+    function incomeCategoryLabel(category) {
+      return INCOME_CATEGORY_LABELS[String(category || '').trim().toLowerCase()] || category;
+    }
+
     function formatTaxRowLabel(type, r) {
       const counterparty = type === 'income' ? (r.source || '') : (r.vendor || '');
-      return `${r.date} | ${r.category || ''} | ${counterparty} | ${r.notes || ''}`;
+      const category = type === 'income' ? incomeCategoryLabel(r.category) : r.category;
+      return `${r.date} | ${category || ''} | ${counterparty} | ${r.notes || ''}`;
     }
 
     async function editTaxRecord(type, r) {
@@ -3216,7 +3228,7 @@
         let expenseTotal = 0;
 
         for (const r of (summaryData.income || [])) {
-          const c = r.category || 'Uncategorized';
+          const c = incomeCategoryLabel(r.category) || 'Uncategorized';
           const v = Number(r.amount_cents || 0);
           incomeTotal += v;
           incomeByCategory.set(c, (incomeByCategory.get(c) || 0) + v);
@@ -3232,7 +3244,7 @@
         const sortedExpense = [...expenseByCategory.entries()].sort((a,b) => b[1]-a[1]);
 
         const incomeRows = sortedIncome.length
-          ? sortedIncome.map(([cat, cents]) => `<div class="tax-summary-line"><span>${cat}</span><strong>$${(cents/100).toFixed(2)}</strong></div>`).join('')
+          ? sortedIncome.map(([cat, cents]) => `<div class="tax-summary-line"><span>${escHtml(cat)}</span><strong>$${(cents/100).toFixed(2)}</strong></div>`).join('')
           : '<div class="tax-summary-line"><span>No income entries</span><strong>$0.00</strong></div>';
 
         const expenseRows = sortedExpense.length
