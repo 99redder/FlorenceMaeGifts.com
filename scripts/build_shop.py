@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TODAY = date.today()
 CREATED = '6 October 2026'
-CSS_VERSION = '20261026'
+CSS_VERSION = '20261026b'
 
 CATEGORIES = {
     'baby-sets': {

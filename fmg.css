@@ -210,7 +210,7 @@ a:hover {
 .modal {
   display: none; /* Hidden by default */
   position: fixed; /* Stay in place */
-  z-index: 1; /* Sit on top */
+  z-index: 10000; /* Sit on top, above the floating help button */
   padding-top: 100px; /* Location of the box */
   left: 0;
   top: 0;
@@ -461,6 +461,7 @@ a.disclaimer-links:hover {color: #fe666f;}
 .footer-legal {
   text-align: center;
   padding: 10px 0;
+  margin-bottom: 72px; /* room for the floating help button */
   font-family: 'Lora', serif;
   font-size: 14px;
 }
@@ -521,6 +522,68 @@ a.disclaimer-links:hover {color: #fe666f;}
 
 .footer-modal-close:hover {
   color: var(--link-hover);
+}
+
+/* Floating "Need help with an order?" button (footer.html). Sits under every modal. */
+.order-help-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  padding: 12px 20px 12px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FE6666 0%, #FF6699 100%);
+  color: #fff;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 15.5px;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(254, 102, 102, 0.4), 0 2px 6px rgba(0, 0, 0, 0.16);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.order-help-fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(254, 102, 102, 0.46), 0 3px 8px rgba(0, 0, 0, 0.18);
+}
+
+.order-help-fab:focus-visible {
+  outline: 3px solid rgba(254, 102, 102, 0.5);
+  outline-offset: 3px;
+}
+
+.order-help-fab svg {
+  flex: none;
+}
+
+.order-help-short {
+  display: none;
+}
+
+@media screen and (max-width: 560px) {
+  .order-help-fab {
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 16px 10px 13px;
+    font-size: 14.5px;
+  }
+
+  .order-help-long {
+    display: none;
+  }
+
+  .order-help-short {
+    display: inline;
+  }
+}
+
+@media print {
+  .order-help-fab {
+    display: none;
+  }
 }
 
 /* ============================================
