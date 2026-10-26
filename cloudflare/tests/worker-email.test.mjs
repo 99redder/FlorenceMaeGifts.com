@@ -108,6 +108,30 @@ const stripeStubs = {
   'https://api.stripe.com/v1/payment_intents/': { latest_charge: { balance_transaction: { fee: 100 } } }
 };
 
+// Fake Turnstile siteverify. "pass:…" tokens pass once (a second use is a duplicate);
+// "wrong-action:…" / "wrong-host:…" pass for another page or site; anything else fails.
+function turnstileStub(seen = new Set()) {
+  return {
+    'https://challenges.cloudflare.com/turnstile/v0/siteverify': (url, init) => {
+      const form = new URLSearchParams(init.body);
+      assert.equal(form.get('secret'), 'turnstile-test-secret');
+      const token = form.get('response');
+      if (seen.has(token)) return { success: false, 'error-codes': ['timeout-or-duplicate'] };
+      seen.add(token);
+      if (token.startsWith('pass:')) return { success: true, action: 'emergency_code', hostname: 'www.florencemaegifts.com' };
+      if (token.startsWith('wrong-action:')) return { success: true, action: 'login', hostname: 'www.florencemaegifts.com' };
+      if (token.startsWith('wrong-host:')) return { success: true, action: 'emergency_code', hostname: 'localhost' };
+      return { success: false, 'error-codes': ['invalid-input-response'] };
+    }
+  };
+}
+let turnstileTokenCount = 0;
+const passToken = () => `pass:${++turnstileTokenCount}`;
+const emergencyEnv = (overrides = {}) => baseEnv({
+  EMERGENCY_ADMIN_EMAIL: 'megan@family.example', EMERGENCY_NOTIFY_EMAIL: 'chris@family.example',
+  TURNSTILE_SECRET: 'turnstile-test-secret', TURNSTILE_HOSTNAMES: tomlVar('TURNSTILE_HOSTNAMES'), ...overrides
+});
+
 async function signedWebhook(event) {
   const payload = JSON.stringify(event);
   const t = Math.floor(Date.now() / 1000);
@@ -415,8 +439,8 @@ test('email events queue: a bounced download email alerts the shop', async (t) =
 
 test('emergency access: emailed code sets up Megan\'s password, then password + code signs her in', async (t) => {
   quietConsole(t);
-  guardNetwork(t);
-  const env = baseEnv({ EMERGENCY_ADMIN_EMAIL: 'megan@family.example', EMERGENCY_NOTIFY_EMAIL: 'chris@family.example' });
+  guardNetwork(t, turnstileStub());
+  const env = emergencyEnv();
   const codeFrom = (msg) => msg.text.match(/\b(\d{6})\b/)[1];
   const toMegan = () => env.EMAIL.sent.filter((m) => m.to.includes('megan@family.example'));
   const toChris = () => env.EMAIL.sent.filter((m) => m.to.includes('chris@family.example'));
@@ -424,7 +448,7 @@ test('emergency access: emailed code sets up Megan\'s password, then password + 
   let status = await (await worker.fetch(new Request('https://worker.example/api/admin/emergency/status', { headers: { Origin: SITE } }), env, ctx)).json();
   assert.deepEqual(status, { ok: true, configured: true, hasAccount: false, sentTo: 'me•••@family.example' });
 
-  let res = await worker.fetch(post('/api/admin/emergency/request', {}), env, ctx);
+  let res = await worker.fetch(post('/api/admin/emergency/request', { turnstileToken: passToken() }), env, ctx);
   assert.equal((await res.json()).purpose, 'setup');
   assert.equal(toMegan().length, 1);
   assert.equal(toChris().length, 1, 'Chris is told a setup code went out');
@@ -445,10 +469,10 @@ test('emergency access: emailed code sets up Megan\'s password, then password + 
   status = await (await worker.fetch(new Request('https://worker.example/api/admin/emergency/status', { headers: { Origin: SITE } }), env, ctx)).json();
   assert.equal(status.hasAccount, true);
 
-  res = await worker.fetch(post('/api/admin/emergency/request', { password: 'wrong password here' }), env, ctx);
+  res = await worker.fetch(post('/api/admin/emergency/request', { password: 'wrong password here', turnstileToken: passToken() }), env, ctx);
   assert.equal(res.status, 401);
   assert.equal(toMegan().length, 1, 'no code without the password');
-  res = await worker.fetch(post('/api/admin/emergency/request', { password: 'yarn and coffee forever' }), env, ctx);
+  res = await worker.fetch(post('/api/admin/emergency/request', { password: 'yarn and coffee forever', turnstileToken: passToken() }), env, ctx);
   assert.equal((await res.json()).purpose, 'login');
   res = await worker.fetch(post('/api/admin/emergency/verify', { code: codeFrom(toMegan().at(-1)) }), env, ctx);
   assert.equal(res.status, 200);
@@ -457,9 +481,9 @@ test('emergency access: emailed code sets up Megan\'s password, then password + 
 
 test('emergency access: a code allows 3 tries, even for guesses sent at once', async (t) => {
   quietConsole(t);
-  guardNetwork(t);
-  const env = baseEnv({ EMERGENCY_ADMIN_EMAIL: 'megan@family.example', EMERGENCY_NOTIFY_EMAIL: 'chris@family.example' });
-  await worker.fetch(post('/api/admin/emergency/request', {}), env, ctx);
+  guardNetwork(t, turnstileStub());
+  const env = emergencyEnv();
+  await worker.fetch(post('/api/admin/emergency/request', { turnstileToken: passToken() }), env, ctx);
   const code = env.EMAIL.sent.find((m) => m.to.includes('megan@family.example')).text.match(/\b(\d{6})\b/)[1];
   const wrong = String((Number(code) + 1) % 1000000).padStart(6, '0');
 
@@ -468,6 +492,34 @@ test('emergency access: a code allows 3 tries, even for guesses sent at once', a
   assert.deepEqual(guesses.map((r) => r.status).sort(), [401, 401, 401, 429, 429, 429, 429, 429, 429, 429]);
   const right = await worker.fetch(post('/api/admin/emergency/verify', { code, newPassword: 'yarn and coffee forever' }), env, ctx);
   assert.equal(right.status, 429, 'the right code is refused once its tries are used up');
+});
+
+test('emergency access: no code is emailed without a passed Turnstile check', async (t) => {
+  quietConsole(t);
+  let cloudflareDown = false;
+  const siteverify = Object.values(turnstileStub())[0];
+  guardNetwork(t, { 'https://challenges.cloudflare.com/turnstile/v0/siteverify': (url, init) => {
+    if (cloudflareDown) throw new Error('siteverify unreachable');
+    return siteverify(url, init);
+  } });
+  const env = emergencyEnv();
+  const request = (body, target = env) => worker.fetch(post('/api/admin/emergency/request', body), target, ctx);
+  const codesToMegan = () => env.EMAIL.sent.filter((m) => m.to.includes('megan@family.example')).length;
+
+  for (const body of [{}, { turnstileToken: 'fail:1' }, { turnstileToken: 'wrong-action:1' }, { turnstileToken: 'wrong-host:1' }]) {
+    assert.equal((await request(body)).status, 403, JSON.stringify(body));
+  }
+  assert.equal(codesToMegan(), 0, 'no code without a passed check');
+
+  assert.equal((await request({ turnstileToken: 'pass:once' })).status, 200);
+  assert.equal(codesToMegan(), 1);
+  assert.equal((await request({ turnstileToken: 'pass:once' })).status, 403, 'a token works once');
+
+  cloudflareDown = true;
+  assert.equal((await request({ turnstileToken: 'pass:while-down' })).status, 403, 'refuses when Cloudflare cannot be reached');
+  assert.equal(codesToMegan(), 1);
+
+  assert.equal((await request({ turnstileToken: 'pass:x' }, emergencyEnv({ TURNSTILE_SECRET: '' }))).status, 500, 'off without the Turnstile secret');
 });
 
 test('emergency access is off without EMERGENCY_ADMIN_EMAIL', async (t) => {

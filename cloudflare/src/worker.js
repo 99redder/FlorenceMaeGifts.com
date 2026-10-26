@@ -1562,13 +1562,17 @@ async function handleEmergencyStatus(env, corsHeaders) {
 
 async function handleEmergencyRequest(request, env, corsHeaders) {
   const email = emergencyEmail(env);
-  if (!email || !(env.ADMIN_SESSION_SECRET || '').trim()) return json({ ok: false, error: 'Emergency access is not set up on the server' }, 500, corsHeaders);
+  if (!email || !(env.ADMIN_SESSION_SECRET || '').trim() || !turnstileConfigured(env)) return json({ ok: false, error: 'Emergency access is not set up on the server' }, 500, corsHeaders);
   let data;
   try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
   await ensureEmergencyTables(env);
 
   const ip = getClientIp(request);
   if (await adminAuthBlocked(env, ip)) return json({ ok: false, error: 'Too many attempts. Try again in 15 minutes.' }, 429, corsHeaders);
+  // Before the password check and before any email: no passed Turnstile check, no code.
+  if (!(await verifyTurnstile(env, request, data.turnstileToken, EMERGENCY_TURNSTILE_ACTION))) {
+    return json({ ok: false, error: 'The security check did not go through. Wait for it to finish, then try again.' }, 403, corsHeaders);
+  }
 
   const account = await emergencyAccount(env);
   const purpose = data.reset || !account ? 'setup' : 'login';
@@ -1597,6 +1601,44 @@ async function handleEmergencyRequest(request, env, corsHeaders) {
   if (!res.ok) return json({ ok: false, error: 'The code could not be emailed. Try again in a few minutes.' }, 502, corsHeaders);
   if (purpose === 'setup') await notifyEmergencyUse(env, request, account ? 'a password-reset code was sent to Megan' : 'a setup code was sent to Megan');
   return json({ ok: true, purpose, sentTo: maskEmail(email) }, 200, corsHeaders);
+}
+
+// Cloudflare Turnstile on the emergency page's "Email me a code" button (widget
+// "FMG emergency sign-in"). TURNSTILE_SECRET is a Worker secret; TURNSTILE_HOSTNAMES
+// lists the frontend hostnames a passed check may come from (production: www only).
+const EMERGENCY_TURNSTILE_ACTION = 'emergency_code';
+
+function turnstileHostnames(env) {
+  return new Set(String(env.TURNSTILE_HOSTNAMES || '').split(',').map((h) => h.trim()).filter(Boolean));
+}
+
+function turnstileConfigured(env) {
+  return !!(env.TURNSTILE_SECRET || '').trim() && turnstileHostnames(env).size > 0;
+}
+
+/** Siteverify a Turnstile token. Fails closed: a missing token, an unreachable or failed check, or the wrong action or hostname all return false. */
+async function verifyTurnstile(env, request, token, expectedAction) {
+  const hostnames = turnstileHostnames(env);
+  if (!turnstileConfigured(env) || typeof token !== 'string' || !token || token.length > 2048) return false;
+  const body = new URLSearchParams({ secret: env.TURNSTILE_SECRET.trim(), response: token });
+  const ip = getClientIp(request);
+  if (ip !== 'unknown') body.set('remoteip', ip);
+  try {
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      signal: AbortSignal.timeout(10000),
+      body
+    });
+    if (!res.ok) throw new Error(`siteverify ${res.status}`);
+    const result = await res.json();
+    if (result.success === true && result.action === expectedAction && hostnames.has(result.hostname)) return true;
+    console.log('Turnstile check refused', { action: result.action, hostname: result.hostname, errors: result['error-codes'] });
+    return false;
+  } catch (err) {
+    console.error('Turnstile siteverify failed', err?.message || err);
+    return false;
+  }
 }
 
 async function handleEmergencyVerify(request, env, corsHeaders) {

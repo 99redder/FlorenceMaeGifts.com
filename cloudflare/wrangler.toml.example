@@ -41,6 +41,9 @@ SUPPORT_EMAIL = "contact@florencemaegifts.com"
 EMERGENCY_ADMIN_EMAIL = "megan@example.com"
 EMERGENCY_NOTIFY_EMAIL = "chris@example.com"
 CONTACT_TO_EMAIL = "contact@florencemaegifts.com"
+# Turnstile on the emergency sign-in (admin-emergency.html): hostnames a passed check may
+# come from. The widget secret is the TURNSTILE_SECRET Worker secret.
+TURNSTILE_HOSTNAMES = "www.florencemaegifts.com"
 
 [[send_email]]
 name = "EMAIL"

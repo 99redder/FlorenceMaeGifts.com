@@ -3,7 +3,7 @@
 ; Title: admin-emergency.html
 ; Author: Red
 ; Date Created: 25 October 2026
-; Last Updated: 25 October 2026
+; Last Updated: 26 October 2026
 ; Description: Emergency admin sign-in for Megan: a code emailed to her address sets up her own password, then password + emailed code signs her in
 ; Sources Used: admin-login.html
 ;=====================================
@@ -62,6 +62,7 @@
         <input id="em-pass" type="password" autocomplete="current-password" />
       </div>
 
+      <div id="em-turnstile" hidden></div>
       <button id="send-btn" type="button" hidden>Email me a code</button>
 
       <div id="step-code" hidden>
@@ -89,6 +90,16 @@
     const errorEl = $('em-error');
     let mode = 'login'; // 'login' (password + code) or 'setup' (code + new password)
 
+    // Turnstile widget above "Email me a code". Each token works once, so the widget is
+    // reset after every request; renderTurnstile runs when the script or the form is ready.
+    const TURNSTILE_SITEKEY = '0x4AAAAAAFnNlSgwL9V46Urf';
+    let turnstileWidgetId = null;
+    function renderTurnstile() {
+      if (turnstileWidgetId !== null || !window.turnstile || $('em-turnstile').hidden) return;
+      turnstileWidgetId = window.turnstile.render('#em-turnstile', { sitekey: TURNSTILE_SITEKEY, action: 'emergency_code', theme: 'light' });
+    }
+    window.onTurnstileLoad = renderTurnstile;
+
     function show(id, on) { $(id).hidden = !on; }
     function setMode(next, hasAccount) {
       mode = next;
@@ -98,7 +109,9 @@
             : 'This sets up your own sign-in to the shop admin. We will email a code to your address, then you choose a password.')
         : 'Type your password, then we will email you a code to finish signing in.';
       show('step-password', mode === 'login');
+      show('em-turnstile', true);
       show('send-btn', true);
+      renderTurnstile();
       show('reset-btn', mode === 'login');
       show('step-code', false); show('step-new', false); show('verify-btn', false);
     }
@@ -127,9 +140,11 @@
 
     $('send-btn').addEventListener('click', async () => {
       errorEl.textContent = '';
+      const turnstileToken = turnstileWidgetId !== null ? window.turnstile.getResponse(turnstileWidgetId) : '';
+      if (!turnstileToken) { errorEl.textContent = 'Wait a moment for the security check above to finish, then try again.'; return; }
       $('send-btn').disabled = true;
       try {
-        const { res, data } = await api('/api/admin/emergency/request', mode === 'setup' ? { reset: true } : { password: $('em-pass').value });
+        const { res, data } = await api('/api/admin/emergency/request', mode === 'setup' ? { reset: true, turnstileToken } : { password: $('em-pass').value, turnstileToken });
         if (!res.ok) { errorEl.textContent = data.error || 'Something went wrong. Try again.'; return; }
         $('sent-msg').textContent = `We emailed a code to ${data.sentTo}. It works for 15 minutes.`;
         show('step-code', true);
@@ -141,6 +156,7 @@
       } catch {
         errorEl.textContent = 'Could not reach the server. Try again.';
       } finally {
+        window.turnstile.reset(turnstileWidgetId);
         $('send-btn').disabled = false;
       }
     });
@@ -166,5 +182,7 @@
       }
     });
   </script>
+  <!-- Cloudflare Turnstile (after the script above, so onTurnstileLoad exists): the worker refuses to email a code without a passed check -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" async defer></script>
 </body>
 </html>
