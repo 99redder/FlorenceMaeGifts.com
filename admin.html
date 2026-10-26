@@ -199,6 +199,8 @@
     .tax-summary-col h4 { margin:.1rem 0 .45rem; color:var(--cyan); font-size:1rem; }
     .tax-summary-line { display:flex; justify-content:space-between; gap:.6rem; padding:.12rem 0; color:var(--muted); }
     .tax-summary-line strong { color:var(--text); font-weight:700; }
+    .tax-summary-amt { display:flex; align-items:baseline; gap:.6rem; white-space:nowrap; }
+    .tax-summary-pct { font-size:.85em; opacity:.75; min-width:3.4em; text-align:right; }
     .tax-summary-line.tax-summary-total { color:var(--text); font-weight:700; font-size:1.08rem; border-bottom:1px solid var(--line); padding-bottom:.35rem; margin-bottom:.3rem; }
     .tax-entry-wrap { margin-top:1rem; }
 
@@ -3015,17 +3017,25 @@
     // Clearer names for income categories on screen only. The stored category
     // is unchanged because Stats, Item Stats and the worker match on it.
     const INCOME_CATEGORY_LABELS = {
-      'product sale': 'Etsy and Mercari Sales',
       'service revenue': 'Florence Mae Gifts Shop Custom Work'
     };
 
-    function incomeCategoryLabel(category) {
-      return INCOME_CATEGORY_LABELS[String(category || '').trim().toLowerCase()] || category;
+    // "Product Sale" holds Etsy and Mercari imports (their notes name the
+    // marketplace) plus any manual Add Sale entries, so split it by source.
+    function incomeCategoryLabel(r) {
+      const category = String(r?.category || '').trim();
+      if (category.toLowerCase() === 'product sale') {
+        const text = `${r.source || ''} ${r.notes || ''}`.toLowerCase();
+        if (text.includes('mercari')) return 'Mercari Sales';
+        if (text.includes('etsy')) return 'Etsy Sales';
+        return 'Other Product Sales';
+      }
+      return INCOME_CATEGORY_LABELS[category.toLowerCase()] || category;
     }
 
     function formatTaxRowLabel(type, r) {
       const counterparty = type === 'income' ? (r.source || '') : (r.vendor || '');
-      const category = type === 'income' ? incomeCategoryLabel(r.category) : r.category;
+      const category = type === 'income' ? incomeCategoryLabel(r) : r.category;
       return `${r.date} | ${category || ''} | ${counterparty} | ${r.notes || ''}`;
     }
 
@@ -3229,7 +3239,7 @@
         let expenseTotal = 0;
 
         for (const r of (summaryData.income || [])) {
-          const c = incomeCategoryLabel(r.category) || 'Uncategorized';
+          const c = incomeCategoryLabel(r) || 'Uncategorized';
           const v = Number(r.amount_cents || 0);
           incomeTotal += v;
           incomeByCategory.set(c, (incomeByCategory.get(c) || 0) + v);
@@ -3245,7 +3255,10 @@
         const sortedExpense = [...expenseByCategory.entries()].sort((a,b) => b[1]-a[1]);
 
         const incomeRows = sortedIncome.length
-          ? sortedIncome.map(([cat, cents]) => `<div class="tax-summary-line"><span>${escHtml(cat)}</span><strong>$${(cents/100).toFixed(2)}</strong></div>`).join('')
+          ? sortedIncome.map(([cat, cents]) => {
+            const pct = incomeTotal > 0 ? `<span class="tax-summary-pct">${(cents / incomeTotal * 100).toFixed(1)}%</span>` : '';
+            return `<div class="tax-summary-line"><span>${escHtml(cat)}</span><span class="tax-summary-amt">${pct}<strong>$${(cents/100).toFixed(2)}</strong></span></div>`;
+          }).join('')
           : '<div class="tax-summary-line"><span>No income entries</span><strong>$0.00</strong></div>';
 
         const expenseRows = sortedExpense.length
