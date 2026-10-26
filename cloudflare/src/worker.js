@@ -1649,10 +1649,10 @@ function getClientIp(request) {
     .trim() || 'unknown';
 }
 
-// Failed admin and emergency sign-ins per IP: 5 in 15 minutes, then locked out
+// Failed admin and emergency sign-ins per IP: 3 in 15 minutes, then locked out
 // for the rest of the window. Kept in D1 (not Worker memory) so the count holds
 // across Worker instances and Cloudflare data centers.
-const ADMIN_AUTH_FAILURE_LIMIT = 5;
+const ADMIN_AUTH_FAILURE_LIMIT = 3;
 const ADMIN_AUTH_WINDOW_SECONDS = 15 * 60;
 
 async function ensureAdminAuthFailuresTable(env) {

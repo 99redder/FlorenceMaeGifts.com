@@ -312,11 +312,9 @@ test('admin sign-in: one answer for any wrong part, and the lockout is kept in D
   assert.equal(wrongCode.status, 401);
   assert.deepEqual(await wrongCode.json(), await wrongPassword.json(), 'a right password with a wrong code must not look different');
 
-  await login({ username: 'admin', password: 'nope', code: badCode });
-  await login({ username: 'admin', password: 'nope', code: badCode });
-  assert.equal((await login({ username: 'admin', password: 'nope', code: badCode })).status, 429, 'fifth failure locks the IP out');
+  assert.equal((await login({ username: 'admin', password: 'nope', code: badCode })).status, 429, 'third failure locks the IP out');
   assert.equal((await login({ username: 'admin', password: 'admin-test-password', code: goodCode })).status, 429, 'locked out even with the right details');
-  assert.equal(env.DB.sqlite.prepare('SELECT count FROM admin_auth_failures WHERE ip = ?').get('203.0.113.7').count, 5);
+  assert.equal(env.DB.sqlite.prepare('SELECT count FROM admin_auth_failures WHERE ip = ?').get('203.0.113.7').count, 3);
   assert.equal((await login({ username: 'admin', password: 'admin-test-password', code: goodCode }, '198.51.100.9')).status, 200, 'other IPs still sign in');
 });
 
