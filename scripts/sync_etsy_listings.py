@@ -2,7 +2,8 @@
 """One-time Etsy listing sync helper.
 
 Pulls latest items from the shop RSS feed and prints HTML snippets
-for rightcolumn.html manual paste/update.
+for manual paste/update. (Written for the old right sidebar,
+rightcolumn.html, which was removed on 2026-10-27.)
 """
 
 from urllib.request import urlopen

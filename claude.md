@@ -48,7 +48,6 @@ The site uses a **client-side HTML include pattern** via `includeHTML.js`. Commo
 ├── header.html             # Shared site header (logo + flowers)
 ├── topnav.html             # Shared navigation bar
 ├── footer.html             # Shared footer (copyright, social links, last update)
-├── rightcolumn.html        # Shared right sidebar (latest creations + contact form)
 ├── aboutleftcolumn.html    # About page content component
 ├── reviews.json            # Etsy reviews shown on reviews.html (copied word for word)
 ├── reviews.css             # Reviews page styles
@@ -64,7 +63,7 @@ The site uses a **client-side HTML include pattern** via `includeHTML.js`. Commo
 
 ### Page Layout
 
-- **Desktop**: 70% left column (content) + 25% right column (sidebar)
+- **Desktop**: single full-width content column (`.leftcolumn`); the right sidebar was removed 2026-10-27
 - **Responsive breakpoints**: 1024px (tablet), 800px (mobile), 480px (small mobile)
 
 ## Styling & Theming
@@ -594,4 +593,8 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
   4. `python3 scripts/build_shop.py`, check the page, update the footer date, and commit `sales-map.json` with `reviews.html` and `sitemap.xml`. Re-run steps 1-4 whenever the map should be refreshed.
 - Only Etsy orders are counted (not Mercari or the site's own Stripe checkout). The intro says orders abroad came through Etsy, because the site's checkout ships to the US only.
 - Colours: one pink hue in five lightness steps (OKLCH lightness about 0.075 apart, checked with the dataviz validator) on a near-white "no orders" land colour; dark mode flips so more orders are lighter. Change the `--sm-*` variables together and keep the steps evenly spaced.
-- `reviews.css` and `sales-map.js` are loaded with `?v=20261027` in `reviews.html`; bump it when either changes (Cloudflare caches them for 4 hours).
+- `reviews.css` and `sales-map.js` are loaded with `?v=...` in `reviews.html`; bump it when either changes (Cloudflare caches them for 4 hours).
+- **Live 2026-10-27** (merged to main): 1,664 orders, Sep 2022 - Oct 2026. Etsy's Download Data now emails a link per CSV instead of downloading directly; Chris downloads each year from the email.
+- **US view: one colour per state** by total orders, no town dots (the World view keeps its dots). Hovering or tapping a state shows its total plus "Most orders: <city> (<n>)" and puts a marker on that city (`data-top`/`data-tx`/`data-ty` on the state path, `.sm-focus` circle added by `sales-map.js`). A county heat map was tried on 2026-10-27 and dropped in favour of this.
+- `CITY_FIXES` in the importer corrects buyer misspellings of a real town before counting (so it survives re-imports), e.g. Rockview -> Rockyview, QLD.
+- **Right sidebar removed site-wide (2026-10-27)**: `rightcolumn.html` deleted, its include dropped from every page and the product template in `build_shop.py`, `.leftcolumn` is now 100% wide at every size. Its last "Latest Creations" photo (Vegeta Saiyan Armor Baby Set) moved to the Gallery Archive (`shop.html`) as `images/example34.jpg`.

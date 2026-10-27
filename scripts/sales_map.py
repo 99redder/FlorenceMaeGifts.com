@@ -245,8 +245,9 @@ def home_html(x, y, indent):
             % (indent, num(x), num(y), esc(HOME['label']), esc(HOME['label']), HEART))
 
 
-def map_svg(view_id, title, desc, view_box, shapes, counts, names, dots, home, breaks):
-    """shapes: [{'id', 'd'}]; counts/names keyed by shape id; dots: [(x, y, orders, label)]."""
+def map_svg(view_id, title, desc, view_box, shapes, counts, names, dots, home, breaks, tops=None):
+    """shapes: [{'id', 'd'}]; counts/names keyed by shape id; dots: [(x, y, orders, label)];
+    tops: optional {shape id: (note, x, y)}, the busiest town, shown in the readout and marked while hovered."""
     out = ['     <svg class="sales-map-svg" viewBox="%s" role="img" aria-labelledby="%s-title %s-desc" '
            'focusable="false">' % (view_box, view_id, view_id),
            '      <title id="%s-title">%s</title>' % (view_id, esc(title)),
@@ -258,33 +259,41 @@ def map_svg(view_id, title, desc, view_box, shapes, counts, names, dots, home, b
         n = counts.get(s['id'], 0)
         if n:
             tip = '%s: %s' % (names[s['id']], orders_text(n))
-            out.append('       <path class="sm-c%d" d="%s" data-label="%s" data-orders="%d"><title>%s</title></path>'
-                       % (class_of(n, breaks), s['d'], esc(names[s['id']]), n, esc(tip)))
+            extra = ''
+            if tops and s['id'] in tops:
+                note, tx, ty = tops[s['id']]
+                tip += '. ' + note
+                extra = ' data-top="%s" data-tx="%s" data-ty="%s"' % (esc(note), num(tx), num(ty))
+            out.append('       <path class="sm-c%d" d="%s" data-label="%s" data-orders="%d"%s><title>%s</title></path>'
+                       % (class_of(n, breaks), s['d'], esc(names[s['id']]), n, extra, esc(tip)))
         else:
             out.append('       <path d="%s"/>' % s['d'])
     out.append('      </g>')
-    out.append('      <g class="sm-dots">')
+    if dots:
+        out.append('      <g class="sm-dots">')
     # Biggest first, so a small town next to a big city stays on top and reachable.
     for x, y, orders, label in sorted(dots, key=lambda d: (-d[2], d[3])):
         out.append(dot_html(x, y, orders, label, '       '))
-    out.append('      </g>')
+    if dots:
+        out.append('      </g>')
     if home:
         out.append(home_html(home[0], home[1], '      '))
     out.append('     </svg>')
     return out
 
 
-def legend_html(caption, breaks, top):
+def legend_html(caption, breaks, top, dots=True):
     out = ['     <figcaption class="sales-map-legend">',
            '      <span class="sales-map-legend-scale"><span class="sales-map-legend-title">%s</span>' % esc(caption)]
     for i, label in enumerate(class_labels(breaks, top), 1):
         out.append('       <span class="sales-map-legend-step"><span class="sales-map-swatch sm-c%d"></span>%s</span>'
                    % (i, esc(label)))
-    out += ['      </span>',
-            '      <span class="sales-map-legend-item"><svg class="sales-map-legend-icon" viewBox="-12 -12 24 24" '
-            'aria-hidden="true"><circle class="sm-dot" r="6"/></svg>'
-            'A town or city (bigger dot, more orders)</span>',
-            '      <span class="sales-map-legend-item"><svg class="sales-map-legend-icon" viewBox="-12 -12 24 24" '
+    out.append('      </span>')
+    if dots:
+        out.append('      <span class="sales-map-legend-item"><svg class="sales-map-legend-icon" viewBox="-12 -12 24 24" '
+                   'aria-hidden="true"><circle class="sm-dot" r="6"/></svg>'
+                   'A town or city (bigger dot, more orders)</span>')
+    out += ['      <span class="sales-map-legend-item"><svg class="sales-map-legend-icon" viewBox="-12 -12 24 24" '
             'aria-hidden="true"><g class="sm-home" transform="scale(1.6)"><path d="%s"/></g></svg>Our home in %s</span>'
             % (HEART, esc(HOME['label'])),
             '     </figcaption>']
@@ -308,22 +317,28 @@ def world_figure(s, basemap):
 
 
 def us_figure(s, basemap):
+    """States shaded by total orders; hovering a state names its busiest city (no dots)."""
     us = basemap['us']
     names = {code: US_STATES[code] for code in US_STATES}
-    dots = []
+    best = {}
     for p in s.mapped:
-        if p['country'] == 'US':
-            xy = us_xy(p['lon'], p['lat'], p.get('region'))
-            if xy:
-                dots.append(xy + (p['orders'], s.place_label(p)))
+        st = p.get('region')
+        if p['country'] == 'US' and st in US_STATES and p.get('city') and \
+                (st not in best or (-p['orders'], p['city']) < (-best[st]['orders'], best[st]['city'])):
+            best[st] = p
+    tops = {}
+    for st, p in best.items():
+        xy = us_xy(p['lon'], p['lat'], st)
+        if xy:
+            tops[st] = ('Most orders: %s (%s)' % (p['city'], '{:,}'.format(p['orders'])),) + xy
     breaks = class_breaks(list(s.by_state.values()))
     desc = ('States are shaded by how many orders shipped there. ' +
             '; '.join('%s: %s' % (names[c], orders_text(n))
                       for c, n in sorted(s.by_state.items(), key=lambda kv: (-kv[1], names[kv[0]]))) + '.')
     out = ['    <figure class="sales-map-figure" id="sales-map-us">']
     out += map_svg('sales-map-us', 'Map of Florence Mae Gifts orders across the United States', desc, us['viewBox'],
-                   us['states'], s.by_state, names, dots, us_xy(HOME['lon'], HOME['lat'], 'MD'), breaks)
-    out += legend_html('Orders per state', breaks, max(s.by_state.values()))
+                   us['states'], s.by_state, names, [], us_xy(HOME['lon'], HOME['lat'], 'MD'), breaks, tops)
+    out += legend_html('Orders per state', breaks, max(s.by_state.values()), dots=False)
     out.append('    </figure>')
     return out
 

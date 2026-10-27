@@ -14,6 +14,8 @@
   const MIN_DOT_PX = 3;
   // How far outside a dot (in screen px) the pointer still picks it.
   const DOT_REACH_PX = 10;
+  // Radius (screen px) of the marker on a county's busiest town.
+  const FOCUS_PX = 5;
 
   function setUp(figure) {
     const svg = figure.querySelector(".sales-map-svg");
@@ -30,11 +32,20 @@
     const tip = document.createElement("div");
     const tipValue = document.createElement("strong");
     const tipLabel = document.createElement("span");
+    const tipTop = document.createElement("span");
+    tipTop.className = "sales-map-tip-top";
     tip.className = "sales-map-tip";
     tip.hidden = true;
     tip.setAttribute("aria-hidden", "true");
-    tip.append(tipValue, tipLabel);
+    tip.append(tipValue, tipLabel, tipTop);
     figure.appendChild(tip);
+    // On the county map: a marker on the county's busiest town while the county is active.
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const focus = document.createElementNS(SVG_NS, "circle");
+    focus.setAttribute("class", "sm-focus");
+    focus.setAttribute("aria-hidden", "true");
+    focus.style.display = "none";
+    svg.appendChild(focus);
     let active = null;
 
     function screenScale() {
@@ -101,6 +112,17 @@
         tipValue.textContent = orders.toLocaleString() + (orders === 1 ? " order" : " orders");
         tipLabel.textContent = mark.dataset.label;
       }
+      tipTop.textContent = mark.dataset.top || "";
+      tipTop.hidden = !mark.dataset.top;
+      if (mark.dataset.tx) {
+        const scale = screenScale() || 1;
+        focus.setAttribute("cx", mark.dataset.tx);
+        focus.setAttribute("cy", mark.dataset.ty);
+        focus.setAttribute("r", FOCUS_PX / scale);
+        focus.style.display = "";
+      } else {
+        focus.style.display = "none";
+      }
       tip.hidden = false;
       place(event);
     }
@@ -111,6 +133,7 @@
       }
       active = null;
       tip.hidden = true;
+      focus.style.display = "none";
     }
 
     function track(event) {
