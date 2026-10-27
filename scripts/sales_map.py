@@ -263,7 +263,9 @@ def map_svg(view_id, title, desc, view_box, shapes, counts, names, dots, home, b
             if tops and s['id'] in tops:
                 note, tx, ty = tops[s['id']]
                 tip += '. ' + note
-                extra = ' data-top="%s" data-tx="%s" data-ty="%s"' % (esc(note), num(tx), num(ty))
+                extra = ' data-top="%s"' % esc(note)
+                if tx is not None:
+                    extra += ' data-tx="%s" data-ty="%s"' % (num(tx), num(ty))
             out.append('       <path class="sm-c%d" d="%s" data-label="%s" data-orders="%d"%s><title>%s</title></path>'
                        % (class_of(n, breaks), s['d'], esc(names[s['id']]), n, extra, esc(tip)))
         else:
@@ -279,6 +281,28 @@ def map_svg(view_id, title, desc, view_box, shapes, counts, names, dots, home, b
     if home:
         out.append(home_html(home[0], home[1], '      '))
     out.append('     </svg>')
+    return out
+
+
+def busiest(places, key, label, project):
+    """{area: (note, x, y)} for the readout: the area's busiest town, or how many towns when none stands out."""
+    groups = {}
+    for p in places:
+        k = key(p)
+        if k and p.get('city'):
+            groups.setdefault(k, []).append(p)
+    out = {}
+    for k, ps in groups.items():
+        top = min(ps, key=lambda p: (-p['orders'], p['city']))
+        if top['orders'] > 1 or len(ps) == 1:
+            xy = project(top)
+            if len(ps) == 1:
+                note = 'All to %s' % label(top) if top['orders'] > 1 else 'Shipped to %s' % label(top)
+            else:
+                note = 'Most orders: %s (%s)' % (label(top), '{:,}'.format(top['orders']))
+            out[k] = (note,) + (xy if xy else (None, None))
+        else:
+            out[k] = ('Shipped to %d towns and cities' % len(ps), None, None)
     return out
 
 
@@ -302,16 +326,19 @@ def legend_html(caption, breaks, top, dots=True):
 
 def world_figure(s, basemap):
     world = basemap['world']
+    """Countries shaded by total orders; hovering a country names its busiest city (no dots)."""
     names = {code: c['name'] for code, c in s.countries.items()}
-    dots = [world_xy(p['lon'], p['lat']) + (p['orders'], s.place_label(p)) for p in s.mapped]
+    tops = busiest(s.mapped, lambda p: p['country'],
+                   lambda p: s.place_label(p) if p['country'] == 'US' else p['city'],
+                   lambda p: world_xy(p['lon'], p['lat']))
     breaks = class_breaks(list(s.by_country.values()))
     desc = ('Countries are shaded by how many orders shipped there. ' +
             '; '.join('%s: %s' % (names[c], orders_text(n))
                       for c, n in sorted(s.by_country.items(), key=lambda kv: (-kv[1], names[kv[0]]))) + '.')
     out = ['    <figure class="sales-map-figure" id="sales-map-world">']
     out += map_svg('sales-map-world', 'World map of Florence Mae Gifts orders', desc, world['viewBox'],
-                   world['countries'], s.by_country, names, dots, world_xy(HOME['lon'], HOME['lat']), breaks)
-    out += legend_html('Orders per country', breaks, max(s.by_country.values()))
+                   world['countries'], s.by_country, names, [], world_xy(HOME['lon'], HOME['lat']), breaks, tops)
+    out += legend_html('Orders per country', breaks, max(s.by_country.values()), dots=False)
     out.append('    </figure>')
     return out
 
@@ -320,17 +347,8 @@ def us_figure(s, basemap):
     """States shaded by total orders; hovering a state names its busiest city (no dots)."""
     us = basemap['us']
     names = {code: US_STATES[code] for code in US_STATES}
-    best = {}
-    for p in s.mapped:
-        st = p.get('region')
-        if p['country'] == 'US' and st in US_STATES and p.get('city') and \
-                (st not in best or (-p['orders'], p['city']) < (-best[st]['orders'], best[st]['city'])):
-            best[st] = p
-    tops = {}
-    for st, p in best.items():
-        xy = us_xy(p['lon'], p['lat'], st)
-        if xy:
-            tops[st] = ('Most orders: %s (%s)' % (p['city'], '{:,}'.format(p['orders'])),) + xy
+    tops = busiest([p for p in s.mapped if p['country'] == 'US'], lambda p: p.get('region') if p.get('region') in US_STATES else None,
+                   lambda p: p['city'], lambda p: us_xy(p['lon'], p['lat'], p['region']))
     breaks = class_breaks(list(s.by_state.values()))
     desc = ('States are shaded by how many orders shipped there. ' +
             '; '.join('%s: %s' % (names[c], orders_text(n))

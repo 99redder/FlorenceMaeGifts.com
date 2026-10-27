@@ -1,0 +1,23 @@
+{
+ "_readme": "Quantity sold on Etsy per listing ID (listings in products.json only), used for the \"sold\" lines on the shop pages. Made by scripts/import_etsy_items.py from Etsy Order Items CSVs kept in private/etsy-items/ (git-ignored). No names, addresses, order IDs or money.",
+ "asOf": "2026-10-27",
+ "firstSale": "2022-09-26",
+ "lastSale": "2025-12-31",
+ "sold": {
+  "1362238271": 439,
+  "1545236670": 417,
+  "1447051809": 161,
+  "1393719259": 129,
+  "1502171000": 98,
+  "4353397327": 39,
+  "1333363927": 31,
+  "4341817780": 13,
+  "1516365699": 7,
+  "1333420803": 5,
+  "1666293099": 4,
+  "1666288759": 3,
+  "1319434578": 2,
+  "1344802029": 1,
+  "1499468907": 1
+ }
+}

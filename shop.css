@@ -189,7 +189,8 @@
 }
 
 .digital-item-badge {
-  margin-left: auto;
+  display: inline-block;
+  margin-top: 2px;
   background: #FE6666;
   color: #fff;
   border: 1px solid #e45b5b;
@@ -200,6 +201,103 @@
   white-space: nowrap;
   letter-spacing: 0.2px;
   box-shadow: 0 3px 8px rgba(254, 102, 102, 0.28);
+}
+
+/* Beside each listing: sales, a buyer's review, or the shop rating */
+.shop-listing-main {
+  flex: 0 1 38%;
+  min-width: 0;
+}
+
+.shop-listing-main p {
+  margin: 6px 0;
+}
+
+.shop-proof {
+  flex: 1 1 0;
+  min-width: 0;
+  margin-left: auto;
+  padding: 10px 14px;
+  border-left: 3px solid #FE6666;
+  border-radius: 4px;
+  background: rgba(254, 102, 102, 0.07);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.dark-theme .shop-proof {
+  background: rgba(255, 122, 131, 0.1);
+  border-left-color: #ff7a83;
+}
+
+.shop-proof p,
+.shop-proof blockquote {
+  margin: 0;
+}
+
+.shop-proof > * + * {
+  margin-top: 6px;
+}
+
+.shop-proof-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.shop-proof-tag {
+  background: #FE6666;
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.shop-proof-sold {
+  font-weight: 700;
+}
+
+.shop-proof-stars {
+  color: #e8a400;
+  letter-spacing: 1px;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.dark-theme .shop-proof-stars {
+  color: #ffc94a;
+}
+
+.shop-proof-quote {
+  font-style: italic;
+}
+
+.shop-proof-quote cite {
+  font-style: normal;
+  font-size: 13px;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.shop-proof-note {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .listing-modal-top {
@@ -437,6 +535,17 @@
 @media screen and (max-width: 800px) {
   .shop-listing {
     align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .shop-listing-main {
+    flex: 1 1 0;
+  }
+
+  .shop-proof {
+    flex: 1 1 100%;
+    margin-left: 0;
+    font-size: 13px;
   }
 
   .shop-thumb {

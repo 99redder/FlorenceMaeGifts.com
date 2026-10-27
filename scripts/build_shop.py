@@ -31,7 +31,7 @@ import sales_map
 ROOT = Path(__file__).resolve().parent.parent
 TODAY = date.today()
 CREATED = '6 October 2026'
-CSS_VERSION = '20261027'
+CSS_VERSION = '20261027b'
 
 CATEGORIES = {
     'baby-sets': {
@@ -148,6 +148,7 @@ class Shop:
         self.base = self.site['baseUrl'].rstrip('/')
         self.all_products = data['products']
         self.products = [p for p in self.all_products if not p.get('hidden')]
+        self.proof = load_proof()
         self.validate()
 
     def validate(self):
@@ -452,22 +453,104 @@ def breadcrumb_html(crumbs):
     return '<nav class="breadcrumb" aria-label="Breadcrumb"><ol>%s</ol></nav>' % ''.join(items)
 
 
+# ---------- social proof beside each listing ----------
+
+BESTSELLER_AT = 100   # items sold on Etsy for the "Bestseller" tag
+SOLD_AT = 10          # below this, a sold count isn't shown
+QUOTE_MAX = 180       # characters of review shown in the row
+
+
+def listing_id(p):
+    m = re.search(r'/listing/(\d+)', p.get('etsyUrl') or '')
+    return m.group(1) if m else None
+
+
+def load_proof():
+    """Sold counts (item-stats.json) and reviews (reviews.json) keyed by Etsy listing ID."""
+    stats_path = ROOT / 'item-stats.json'
+    sold = json.loads(stats_path.read_text())['sold'] if stats_path.exists() else {}
+    data = json.loads((ROOT / 'reviews.json').read_text())
+    reviews = {}
+    for r in data['reviews'] + ([data['highlight']] if data.get('highlight') else []):
+        if r.get('etsyListingId'):
+            lst = reviews.setdefault(r['etsyListingId'], [])
+            if all(x['id'] != r['id'] for x in lst):
+                lst.append(r)
+    return {'sold': sold, 'reviews': reviews, 'etsy': data['etsy']}
+
+
+def review_quote(text):
+    """The whole review when it is short; otherwise its opening sentences, cut at a sentence end."""
+    text = ' '.join(text.split())
+    if len(text) <= QUOTE_MAX:
+        return text
+    parts = re.split(r'(?<=[.!?])\s+', text)
+    out = ''
+    for part in parts:
+        if len(out) + len(part) + 1 > QUOTE_MAX:
+            break
+        out = (out + ' ' + part).strip()
+    return (out or text[:QUOTE_MAX].rsplit(' ', 1)[0]) + ' \u2026'
+
+
+def pick_review(p, reviews):
+    """products.json "featuredReview" (a review id) wins; else the whole review closest to 130 characters."""
+    lst = reviews.get(listing_id(p) or '', [])
+    if not lst:
+        return None
+    if p.get('featuredReview'):
+        for r in lst:
+            if r['id'] == p['featuredReview']:
+                return r
+    return min(lst, key=lambda r: (len(r['text']) > QUOTE_MAX, abs(len(r['text']) - 130), r['id']))
+
+
+def proof_html(shop, p, indent):
+    """The panel to the right of a listing row: what has sold, what buyers said, or why to trust the shop."""
+    proof = shop.proof
+    sold = proof['sold'].get(listing_id(p) or '', 0)
+    review = pick_review(p, proof['reviews'])
+    stars = '<span class="shop-proof-stars" aria-hidden="true">\u2605\u2605\u2605\u2605\u2605</span>'
+    lines = []
+    tags = []
+    if sold >= BESTSELLER_AT:
+        tags.append('<span class="shop-proof-tag">Bestseller</span>')
+    if sold >= SOLD_AT:
+        tags.append('<span class="shop-proof-sold">%s %s on Etsy</span>'
+                    % ('{:,}'.format(sold), 'downloads' if p.get('digital') else 'sold'))
+    if tags:
+        lines.append('%s <p class="shop-proof-stats">%s</p>' % (indent, ' '.join(tags)))
+    if review:
+        lines.append('%s <blockquote class="shop-proof-quote">%s<span class="sr-only">5 out of 5 stars. </span>'
+                     '\u201c%s\u201d <cite>\u2014 %s, Etsy review</cite></blockquote>'
+                     % (indent, stars, esc(review_quote(review['text'])), esc(review['name'])))
+    else:
+        etsy = proof['etsy']
+        lines.append('%s <p class="shop-proof-rating">%s <span>%s shop rating from %s Etsy reviews</span></p>'
+                     % (indent, stars, esc(etsy['rating']), '{:,}'.format(etsy['count'])))
+        if not tags:
+            lines.append('%s <p class="shop-proof-note">%s</p>' % (indent, 'Instant PDF download after checkout'
+                         if p.get('digital') else 'Handmade to order by Megan &middot; free U.S. shipping'))
+    return '%s<div class="shop-proof">\n%s\n%s</div>' % (indent, '\n'.join(lines), indent)
+
+
 def card_html(shop, p, modal=False, indent=' '):
     """One row in a listing grid. With modal=True the link also opens the index.html modal."""
     attrs = ' data-category="%s"' % p['category']
     if modal and p.get('added'):
         attrs += ' data-added="%s"' % p['added']
     link_attrs = ' class="open-listing-modal" data-modal-target="%s"' % p['id'] if modal else ''
-    badge = '\n%s<div class="digital-item-badge">Digital Item Only</div>' % indent if p.get('digital') else ''
+    badge = ' <span class="digital-item-badge">Digital Item Only</span>\n%s' % indent if p.get('digital') else ''
     return ('<div class="shop-listing"%(attrs)s>\n'
             '%(i)s<img src="%(thumb)s" class="shop-thumb" width="88" height="88" loading="lazy" alt="%(alt)s">\n'
-            '%(i)s<div>\n'
+            '%(i)s<div class="shop-listing-main">\n'
             '%(i)s <a href="%(href)s"%(link)s>%(title)s</a>\n'
             '%(i)s <p><strong>%(price)s</strong></p>\n'
-            '%(i)s</div>%(badge)s\n'
+            '%(i)s%(badge)s</div>\n'
+            '%(proof)s\n'
             '</div>') % {'attrs': attrs, 'i': indent, 'thumb': shop.thumb(p), 'alt': esc(shop.seo_name(p)),
                          'href': shop.rel(p), 'link': link_attrs, 'title': esc(p['title']),
-                         'price': shop.price_label(p), 'badge': badge}
+                         'price': shop.price_label(p), 'badge': badge, 'proof': proof_html(shop, p, indent)}
 
 
 def buy_row_html(shop, p):
