@@ -634,14 +634,23 @@ test('admin: an order moves through in production, shipped and delivered, emaili
   assert.match((await res.json()).html, /Your Order Is Being Made/);
   assert.equal(sent(), before, 'a preview sends nothing');
 
-  res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'in_production', sendEmail: true, date: '2026-11-03' }, admin), env, ctx);
+  // The ship date Megan expects replaces the handling-time estimate from here on.
+  assert.equal(order.ship_estimate.custom, false);
+  res = await worker.fetch(post('/api/accounts/orders/email/preview', { id: order.id, status: 'in_production', shipBy: '2026-11-14' }, admin), env, ctx);
+  assert.match((await res.json()).html, /November 14, 2026/, 'the preview shows the date being entered');
+  res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'in_production', date: '2026-11-03', shipBy: '2026-11-01' }, admin), env, ctx);
+  assert.equal(res.status, 400, 'a ship date before production is refused');
+  res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'in_production', sendEmail: true, date: '2026-11-03', shipBy: '2026-11-14' }, admin), env, ctx);
   assert.equal(res.status, 200, await res.clone().text());
   let mail = env.EMAIL.sent.at(-1);
   assert.deepEqual(mail.to, ['parent@example.org']);
   assert.equal(mail.subject, `Your Florence Mae Gifts order is being made (${order.order_number})`);
+  assert.ok(mail.text.includes('Estimated Ship Date: November 14, 2026'));
   [order] = await list('open');
   assert.equal(order.status, 'in_production');
   assert.equal(order.in_production_at, '2026-11-03');
+  assert.equal(order.ship_by, '2026-11-14');
+  assert.deepEqual(order.ship_estimate, { by: '2026-11-14', label: 'November 14, 2026', custom: true });
   assert.equal(order.last_email_status, 'in_production');
 
   res = await worker.fetch(post('/api/accounts/orders/shipped', { id: order.id, carrier: 'USPS', trackingNumber: '9400122222222222222222', shipDate: '2026-11-09' }, admin), env, ctx);

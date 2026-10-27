@@ -181,13 +181,19 @@
     var form = document.createElement("form");
     form.className = "ask-k-lookup";
     form.innerHTML = '<label class="ask-k-lookup-label">Email you ordered with</label>' +
-      '<div class="ask-k-lookup-row"><input type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com">' +
+      '<input class="ask-k-lookup-email" type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com">' +
+      '<label class="ask-k-lookup-label">Order number <span class="ask-k-lookup-optional">(optional, for just that order)</span></label>' +
+      '<div class="ask-k-lookup-row"><input class="ask-k-lookup-number" type="text" maxlength="30" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="FMG-7K3QX2">' +
       '<button type="submit">Email my status</button></div>' +
       '<p class="ask-k-lookup-note">We\'ll send the status and tracking to that inbox. Nothing about your order is shown here.</p>';
-    var input = form.querySelector("input");
-    var label = form.querySelector("label");
-    input.id = "ask-k-lookup-" + Date.now();
-    label.setAttribute("for", input.id);
+    var input = form.querySelector(".ask-k-lookup-email");
+    var numberInput = form.querySelector(".ask-k-lookup-number");
+    var labels = form.querySelectorAll("label");
+    var stamp = Date.now();
+    input.id = "ask-k-lookup-email-" + stamp;
+    numberInput.id = "ask-k-lookup-number-" + stamp;
+    labels[0].setAttribute("for", input.id);
+    labels[1].setAttribute("for", numberInput.id);
     form.addEventListener("submit", function(event) {
       event.preventDefault();
       var email = input.value.trim();
@@ -196,7 +202,7 @@
       var button = form.querySelector("button");
       button.disabled = true;
       button.textContent = "Sending...";
-      call(STATUS_API, { email: email }).then(function(data) {
+      call(STATUS_API, { email: email, orderNumber: numberInput.value.trim() || undefined }).then(function(data) {
         if (!data.ok) {
           button.disabled = false;
           button.textContent = "Email my status";

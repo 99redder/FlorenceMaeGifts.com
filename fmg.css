@@ -840,7 +840,27 @@ body.ask-k-open .order-help-fab {
   gap: 6px;
 }
 
-.ask-k-lookup input[type=email] {
+.ask-k-lookup-optional {
+  color: var(--askk-muted);
+  font-size: 12px;
+}
+
+.ask-k-lookup input.ask-k-lookup-email[type=email] {
+  display: block;
+  width: 100%;
+  margin-bottom: 9px;
+}
+
+.ask-k-lookup input.ask-k-lookup-number {
+  text-transform: uppercase;
+}
+
+.ask-k-lookup input.ask-k-lookup-number::placeholder {
+  text-transform: none;
+}
+
+.ask-k-lookup input[type=email],
+.ask-k-lookup input[type=text] {
   flex: 1;
   box-sizing: border-box;
   width: auto;
@@ -854,7 +874,8 @@ body.ask-k-open .order-help-fab {
   font-size: 14.5px;
 }
 
-.ask-k-lookup input[type=email]:focus {
+.ask-k-lookup input[type=email]:focus,
+.ask-k-lookup input[type=text]:focus {
   border-color: var(--askk-accent);
   outline: 2px solid rgba(254, 102, 102, 0.25);
   background: var(--askk-field-bg);

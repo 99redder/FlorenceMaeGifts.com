@@ -764,6 +764,11 @@
         <label for="order-status-date">Date</label>
         <input id="order-status-date" type="date" style="width:100%;" />
       </div>
+      <div id="order-status-shipby-wrap" style="margin-top:.6rem;">
+        <label for="order-status-shipby">Estimated ship date</label>
+        <input id="order-status-shipby" type="date" style="width:100%;" />
+        <p style="margin:.3rem 0 0; color:var(--muted); font-size:.85rem;">When you expect to mail it. The customer's emails and Ask K's order updates use this date.</p>
+      </div>
       <label id="order-status-email-wrap" style="display:flex; gap:.5rem; align-items:center; margin:.8rem 0 0;">
         <input type="checkbox" id="order-status-email" checked style="width:auto;" />
         <span>Email the customer about it</span>
@@ -4792,6 +4797,8 @@
     const orderStatusTextEl = document.getElementById('order-status-text');
     const orderStatusDateEl = document.getElementById('order-status-date');
     const orderStatusDateWrap = document.getElementById('order-status-date-wrap');
+    const orderStatusShipByEl = document.getElementById('order-status-shipby');
+    const orderStatusShipByWrap = document.getElementById('order-status-shipby-wrap');
     const orderStatusEmailEl = document.getElementById('order-status-email');
     const orderStatusEmailWrap = document.getElementById('order-status-email-wrap');
     const orderStatusPreviewBtn = document.getElementById('order-status-preview-btn');
@@ -4837,8 +4844,9 @@
           const status = Number(o.is_digital) ? 'Pattern PDF' : (ORDER_STATUS_LABELS[o.status] || o.status);
           const color = Number(o.is_digital) ? 'var(--muted)' : (ORDER_STATUS_COLORS[o.status] || 'var(--muted)');
           const tracking = o.tracking_number ? `<div style="font-size:.85rem; margin-top:.14rem;">Tracking: ${o.tracking_url ? `<a href="${escAttr(o.tracking_url)}" target="_blank" rel="noopener noreferrer">${escHtml(`${o.tracking_carrier ? `${o.tracking_carrier} ` : ''}${o.tracking_number}`)}</a>` : escHtml(o.tracking_number)}</div>` : '';
+          const shipsBy = ['received', 'in_production'].includes(o.status) && o.ship_estimate ? `<div style="font-size:.85rem; margin-top:.14rem;">Ships by ${escHtml(orderDateLabel(o.ship_estimate.by))}${o.ship_estimate.custom ? '' : ' (estimate)'}</div>` : '';
           const emailed = o.last_email_status ? `<div style="font-size:.85rem; margin-top:.14rem; color:#16a34a;">Last email: ${escHtml(ORDER_STATUS_LABELS[o.last_email_status] || o.last_email_status)}, ${escHtml(orderDateLabel(o.last_email_at))}</div>` : '';
-          return `<div class="tax-row" data-id="${Number(o.id || 0)}"><div>${escHtml(o.order_number || '—')}<div style="font-size:.88rem; color:var(--muted); margin-top:.08rem;">${escHtml(orderItemLabel(o))} · Ordered ${escHtml(orderDateLabel(o.order_date))}<br>Customer: ${escHtml(o.customer_name || '—')}${o.customer_email ? ` - Email: ${escHtml(o.customer_email)}` : ''}</div>${tracking}${emailed}</div><div class="amt">${qMoney(Number(o.amount_cents || 0) / 100)}</div><div style="font-weight:700; color:${color};">${escHtml(status)}</div>${orderActionButtons(o)}</div>`;
+          return `<div class="tax-row" data-id="${Number(o.id || 0)}"><div>${escHtml(o.order_number || '—')}<div style="font-size:.88rem; color:var(--muted); margin-top:.08rem;">${escHtml(orderItemLabel(o))} · Ordered ${escHtml(orderDateLabel(o.order_date))}<br>Customer: ${escHtml(o.customer_name || '—')}${o.customer_email ? ` - Email: ${escHtml(o.customer_email)}` : ''}</div>${shipsBy}${tracking}${emailed}</div><div class="amt">${qMoney(Number(o.amount_cents || 0) / 100)}</div><div style="font-weight:700; color:${color};">${escHtml(status)}</div>${orderActionButtons(o)}</div>`;
         }).join('') : 'No orders here yet.';
       } catch (err) {
         orderListEl.textContent = err.message || 'Failed to load orders.';
@@ -4864,6 +4872,8 @@
       const existingDate = status === 'in_production' ? o.in_production_at : status === 'delivered' ? o.delivered_at : '';
       if (orderStatusDateEl) orderStatusDateEl.value = String(existingDate || '').slice(0, 10) || nowEtParts().date;
       if (orderStatusDateWrap) orderStatusDateWrap.style.display = (status === 'in_production' || status === 'delivered') && !resend ? '' : 'none';
+      if (orderStatusShipByEl) orderStatusShipByEl.value = String(o.ship_by || o.ship_estimate?.by || '').slice(0, 10);
+      if (orderStatusShipByWrap) orderStatusShipByWrap.style.display = status === 'in_production' && !resend ? '' : 'none';
       if (orderStatusEmailEl) orderStatusEmailEl.checked = resend || forward;
       if (orderStatusEmailWrap) orderStatusEmailWrap.style.display = hasEmail && !resend ? 'flex' : 'none';
       if (orderStatusPreviewBtn) orderStatusPreviewBtn.style.display = hasEmail ? '' : 'none';
@@ -4881,7 +4891,8 @@
     async function previewOrderStatusEmail() {
       if (!pendingOrderStatus) return;
       try {
-        const data = await fetchAdminJson(ORDER_EMAIL_PREVIEW_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pendingOrderStatus.id, status: pendingOrderStatus.status }) });
+        const shipBy = pendingOrderStatus.status === 'in_production' && !pendingOrderStatus.resend ? (orderStatusShipByEl?.value || undefined) : undefined;
+        const data = await fetchAdminJson(ORDER_EMAIL_PREVIEW_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pendingOrderStatus.id, status: pendingOrderStatus.status, shipBy }) });
         openDocPreviewModal(data.subject || 'Email Preview', `<iframe title="Email preview" srcdoc="${escAttr(data.html || '')}" style="width:100%; height:60vh; border:1px solid var(--border,#ccc); border-radius:8px; background:#fff;"></iframe>`);
       } catch (err) {
         openErrorModal(err.message || String(err));
@@ -4899,7 +4910,8 @@
       orderStatusSaveBtn.disabled = true;
       orderStatusSaveBtn.textContent = sendEmail ? 'Sending…' : 'Saving…';
       try {
-        await fetchAdminJson(ORDER_STATUS_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status, sendEmail, date: date || undefined }) });
+        const shipBy = status === 'in_production' && !resend ? (orderStatusShipByEl?.value || undefined) : undefined;
+        await fetchAdminJson(ORDER_STATUS_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status, sendEmail, date: date || undefined, shipBy }) });
         closeOrderStatusModal();
         openSuccessModal(sendEmail ? `Saved, and the "${ORDER_STATUS_LABELS[status]}" email was sent to the customer.` : `Order marked ${ORDER_STATUS_LABELS[status]}.`, sendEmail ? 'Email Sent ✅' : 'Order Updated ✅');
       } catch (err) {

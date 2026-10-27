@@ -12,7 +12,10 @@ import { PRICES, HANDLING_TIMES, SHIPPING } from './shop-data.js';
 const SITE = 'https://www.florencemaegifts.com';
 // No 0/O or 1/I/L, so a number read off a phone screen can't be mistyped.
 const ORDER_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+// Order-status emails show at most this many orders; finished ones older than
+// SETTLED_AFTER_DAYS collapse into a "plus N older orders" line.
 const STATUS_EMAIL_LIMIT = 10;
+const SETTLED_AFTER_DAYS = 90;
 
 // ── Dates (Eastern time, business days) ────────────────────────
 
@@ -103,6 +106,8 @@ export function longDate(isoDate) {
 
 // ── Orders ─────────────────────────────────────────────────────
 
+let shipByColumnChecked = false;
+
 export async function ensureShopOrdersTable(env) {
   await env.DB.prepare(`CREATE TABLE IF NOT EXISTS shop_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,6 +134,11 @@ export async function ensureShopOrdersTable(env) {
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`).run();
+  if (!shipByColumnChecked) {
+    // ship_by came later (migration 0031); add it to a table created before that.
+    try { await env.DB.prepare('ALTER TABLE shop_orders ADD COLUMN ship_by TEXT').run(); } catch { /* already there */ }
+    shipByColumnChecked = true;
+  }
 }
 
 function newOrderNumber() {
@@ -232,6 +242,13 @@ function shipRange(orderDate) {
   return dateRange(est.shipFrom, est.shipBy);
 }
 
+/** The ship date Megan set at In Production (ship_by), else the handling-time estimate. */
+export function orderShipEstimate(order) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(order.ship_by || ''))) return { by: order.ship_by, label: longDate(order.ship_by), custom: true };
+  const est = shipEstimate(order.order_date);
+  return { from: est.shipFrom, by: est.shipBy, label: dateRange(est.shipFrom, est.shipBy), custom: false };
+}
+
 /**
  * Subject, html and text for the email that goes with moving a shop order to `status`
  * (received = the order confirmation, in_production, delivered). Shipped emails come
@@ -256,7 +273,7 @@ export function buildOrderUpdateEmail(order, status) {
       subject: `Your Florence Mae Gifts order is being made (${num})`,
       ...render('Your Order Is Being Made', order.customer_name, [
         ['p', 'Good news: Megan has started crocheting your order.'],
-        ['details', [['Order Number', num], ['Item', item], ['Estimated Ship Date', shipRange(order.order_date)]]],
+        ['details', [['Order Number', num], ['Item', item], ['Estimated Ship Date', orderShipEstimate(order).label]]],
         ['p', "We'll email you the tracking number as soon as it ships. Questions? Just reply to this email."],
       ]),
     };
@@ -311,17 +328,41 @@ export async function sendShopOrderConfirmation(env, order, sendEmail) {
 
 // ── Order-status email (Ask K) ─────────────────────────────────
 
-/** Site orders and sent/paid invoices for one email address, newest first. */
-export async function ordersForEmail(env, email) {
+/**
+ * What a buyer typed as an order number, in the stored form: "fmg np9dt3", "#NP9DT3" and
+ * "FMGNP9DT3" all become "FMG-NP9DT3"; invoice numbers are just upper-cased.
+ * @returns {string|null} '' when empty, null when it can't be an order number
+ */
+export function normalizeOrderNumber(input) {
+  const raw = String(input || '').toUpperCase().replace(/[\s#]/g, '');
+  if (!raw) return '';
+  const fmg = raw.match(/^(?:FMG-?)?([A-Z0-9]{6})$/);
+  if (fmg) return `FMG-${fmg[1]}`;
+  return /^[A-Z0-9-]{3,24}$/.test(raw) ? raw : null;
+}
+
+/**
+ * Site orders and sent/paid invoices for one email address. With an order number that
+ * matches one of them, just that order (narrowed); with one that doesn't, all of them
+ * (missed), so a mistyped number still gets the buyer an answer.
+ */
+export async function ordersForEmail(env, email, { orderNumber = '' } = {}) {
   await ensureShopOrdersTable(env);
   const address = String(email || '').trim().toLowerCase();
-  const shop = (await env.DB.prepare('SELECT * FROM shop_orders WHERE customer_email = ?1 ORDER BY order_date DESC, id DESC LIMIT ?2')
-    .bind(address, STATUS_EMAIL_LIMIT).all()).results || [];
+  const shop = (await env.DB.prepare('SELECT * FROM shop_orders WHERE customer_email = ?1 ORDER BY order_date DESC, id DESC LIMIT 50')
+    .bind(address).all()).results || [];
   const invoices = (await env.DB.prepare(`SELECT * FROM invoices WHERE lower(trim(customer_email)) = ?1 AND status IN ('sent', 'partial', 'paid')
-    ORDER BY issue_date DESC, id DESC LIMIT ?2`).bind(address, STATUS_EMAIL_LIMIT).all()).results || [];
+    ORDER BY issue_date DESC, id DESC LIMIT 50`).bind(address).all()).results || [];
   for (const inv of invoices) {
     inv.items = ((await env.DB.prepare('SELECT item_description FROM invoice_line_items WHERE invoice_id = ?1 ORDER BY id').bind(inv.id).all()).results || [])
       .map(r => r.item_description).filter(Boolean);
+  }
+  const wanted = normalizeOrderNumber(orderNumber);
+  if (wanted) {
+    const shopHit = shop.filter(o => o.order_number === wanted);
+    const invoiceHit = invoices.filter(inv => String(inv.invoice_number || '').toUpperCase() === wanted);
+    if (shopHit.length || invoiceHit.length) return { shop: shopHit, invoices: invoiceHit, narrowed: true };
+    return { shop, invoices, missed: true };
   }
   return { shop, invoices };
 }
@@ -336,10 +377,10 @@ function shippedText(shippedAt, carrier) {
 
 // Status line for a not-yet-shipped made-to-order item, honest when it runs late.
 function makingText(order, today, lead) {
-  const est = shipEstimate(order.order_date);
-  return today > est.shipBy
-    ? `${lead} It's taking a little longer than our estimate (it was due to ship by ${longDate(est.shipBy)}); reply to this email and Megan will check on it.`
-    : `${lead} Estimated ship date: ${dateRange(est.shipFrom, est.shipBy)}.`;
+  const est = orderShipEstimate(order);
+  return today > est.by
+    ? `${lead} It's taking a little longer than our estimate (it was due to ship by ${longDate(est.by)}); reply to this email and Megan will check on it.`
+    : `${lead} Estimated ship date: ${est.label}.`;
 }
 
 function shopOrderBlocks(o, today) {
@@ -374,22 +415,66 @@ function invoiceBlocks(inv) {
   return [['details', rows], ...(inv.shipped_at && inv.tracking_url ? [['button', inv.tracking_url, 'Track Your Package']] : [])];
 }
 
-/** Subject, html and text for the order-status email, or null when the address has no orders. */
-export function buildOrderStatusEmail({ shop, invoices }, today = easternDate()) {
-  if (!shop.length && !invoices.length) return null;
-  const blocks = [['p', "Here's the latest on your Florence Mae Gifts order, as you asked in the order help chat on our website."]];
-  for (const o of shop) blocks.push(...shopOrderBlocks(o, today));
-  for (const inv of invoices) blocks.push(...invoiceBlocks(inv));
+function daysBetween(fromIso, toIso) {
+  return Math.round((Date.parse(`${String(toIso).slice(0, 10)}T12:00:00Z`) - Date.parse(`${String(fromIso).slice(0, 10)}T12:00:00Z`)) / 86400000);
+}
+
+// Each order with whether it's still on its way (open) and the date it last moved.
+function statusEntries({ shop, invoices }) {
+  const entries = [
+    ...shop.map(o => ({
+      blocks: (today) => shopOrderBlocks(o, today),
+      open: !o.is_digital && ['received', 'in_production', 'shipped'].includes(o.status),
+      placed: o.order_date,
+      moved: o.delivered_at || o.shipped_at || o.order_date,
+    })),
+    ...invoices.map(inv => {
+      const paid = inv.status === 'paid' || Number(inv.balance_due_cents || 0) <= 0;
+      return { blocks: () => invoiceBlocks(inv), open: !paid || !inv.shipped_at, placed: inv.issue_date, moved: inv.shipped_at || inv.paid_date || inv.issue_date };
+    }),
+  ];
+  // Still on its way first, then the rest; newest first within each.
+  return entries.sort((a, b) => (Number(b.open) - Number(a.open)) || String(b.placed).localeCompare(String(a.placed)));
+}
+
+/**
+ * Subject, html and text for the order-status email, or null when the address has no orders.
+ * Orders still on their way come first; finished ones older than SETTLED_AFTER_DAYS (and any
+ * past STATUS_EMAIL_LIMIT) collapse into one "plus N older orders" line.
+ */
+export function buildOrderStatusEmail({ shop, invoices, narrowed = false, missed = false }, today = easternDate()) {
+  const entries = statusEntries({ shop, invoices });
+  if (!entries.length) return null;
+  let shown = narrowed ? entries : entries.filter(e => e.open || daysBetween(e.moved, today) <= SETTLED_AFTER_DAYS);
+  if (!shown.length) shown = entries.slice(0, 3); // only old orders: show the latest few
+  shown = shown.slice(0, STATUS_EMAIL_LIMIT);
+  const older = entries.length - shown.length;
+
+  const several = shown.length > 1;
+  const blocks = [];
+  // The number the visitor typed is never repeated here, so the box can't put words in this email.
+  if (missed) blocks.push(['p', "We couldn't find the order number you entered under this email address, so here are your orders."]);
+  blocks.push(['p', several
+    ? "Here's the latest on your Florence Mae Gifts orders, as you asked in the order help chat on our website. Orders still on their way are first."
+    : "Here's the latest on your Florence Mae Gifts order, as you asked in the order help chat on our website."]);
+  for (const e of shown) blocks.push(...e.blocks(today));
+  if (older > 0) {
+    blocks.push(['p', `Plus ${older} older order${older > 1 ? 's' : ''} that ${older > 1 ? 'were' : 'was'} delivered or finished more than ${SETTLED_AFTER_DAYS} days ago. Reply to this email if you'd like the details.`]);
+  }
   blocks.push(
     ['p', 'Questions? Just reply to this email.'],
     ['p', "You're getting this because someone asked our order help chat for an update on orders placed with this email address. If that wasn't you, you can ignore it: nothing about your orders was shown in the chat."],
   );
-  return { subject: 'Your Florence Mae Gifts order status', ...render('Your Order Status', null, blocks) };
+  const one = narrowed && shown.length === 1 ? (shop[0]?.order_number || invoices[0]?.invoice_number) : '';
+  return { subject: `Your Florence Mae Gifts order status${one ? ` (${one})` : ''}`, ...render(several ? 'Your Orders' : 'Your Order Status', null, blocks) };
 }
 
-/** Emails the status of every site order and invoice for `email` to that address. @returns {Promise<boolean>} whether one was sent */
-export async function sendOrderStatusEmail(env, email, sendEmail) {
-  const built = buildOrderStatusEmail(await ordersForEmail(env, email));
+/**
+ * Emails the status of `email`'s site orders and invoices (or just `orderNumber`, when it is one
+ * of them) to that address. @returns {Promise<boolean>} whether one was sent
+ */
+export async function sendOrderStatusEmail(env, email, sendEmail, { orderNumber = '' } = {}) {
+  const built = buildOrderStatusEmail(await ordersForEmail(env, email, { orderNumber }));
   if (!built) return false;
   const { from, replyTo } = senderParts(env);
   try {

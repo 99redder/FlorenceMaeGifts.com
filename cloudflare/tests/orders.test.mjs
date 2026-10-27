@@ -3,7 +3,7 @@
 // Run from cloudflare/: node --test tests/*.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addBusinessDays, handlingFor, shipEstimate, dateRange, describeItem, buildOrderUpdateEmail, buildOrderStatusEmail } from '../src/orders.js';
+import { addBusinessDays, handlingFor, shipEstimate, dateRange, describeItem, buildOrderUpdateEmail, buildOrderStatusEmail, normalizeOrderNumber } from '../src/orders.js';
 import { HANDLING_TIMES, PRICES } from '../src/shop-data.js';
 
 const ORDER = {
@@ -94,4 +94,54 @@ test('the order-status email describes each status honestly, with tracking only 
   assert.doesNotMatch(text, /<[a-z]/i);
   assert.match(mail.html, /images\/banner3\.png/);
   assert.equal(buildOrderStatusEmail({ shop: [], invoices: [] }), null);
+});
+
+test('order numbers are read however the buyer types them', () => {
+  for (const typed of ['FMG-NP9DT3', 'fmg-np9dt3', 'fmg np9dt3', '#NP9DT3', 'np9dt3', 'FMGNP9DT3']) {
+    assert.equal(normalizeOrderNumber(typed), 'FMG-NP9DT3', typed);
+  }
+  assert.equal(normalizeOrderNumber('inv-2026-0003'), 'INV-2026-0003');
+  assert.equal(normalizeOrderNumber(''), '');
+  assert.equal(normalizeOrderNumber('<b>free money</b>'), null);
+});
+
+test('several orders: still on their way first, older finished ones collapse into one line', () => {
+  const delivered = (n, date) => ({ ...ORDER, order_number: n, status: 'delivered', order_date: date, delivered_at: date });
+  const mail = buildOrderStatusEmail({
+    shop: [
+      delivered('FMG-OLD111', '2026-03-01'),
+      delivered('FMG-OLD222', '2026-04-01'),
+      delivered('FMG-RECENT', '2026-10-20'),
+      { ...ORDER, order_number: 'FMG-OPEN33', order_date: '2026-10-01', status: 'shipped', shipped_at: '2026-10-30', tracking_carrier: 'USPS' },
+      { ...ORDER, order_number: 'FMG-OPEN44', order_date: '2026-11-02', status: 'in_production' },
+    ],
+    invoices: [],
+  }, '2026-11-05');
+  const order = ['FMG-OPEN44', 'FMG-OPEN33', 'FMG-RECENT'].map(n => mail.text.indexOf(n));
+  assert.ok(order.every(i => i > 0) && order[0] < order[1] && order[1] < order[2], 'open orders first, newest first');
+  assert.ok(!mail.text.includes('FMG-OLD111') && !mail.text.includes('FMG-OLD222'));
+  assert.ok(mail.text.includes('Plus 2 older orders that were delivered or finished more than 90 days ago.'));
+  assert.match(mail.text, /Here's the latest on your Florence Mae Gifts orders, .*Orders still on their way are first\./);
+  assert.equal(mail.subject, 'Your Florence Mae Gifts order status');
+
+  // Nothing recent: the latest few still show.
+  const onlyOld = buildOrderStatusEmail({ shop: [delivered('FMG-OLD111', '2026-03-01'), delivered('FMG-OLD222', '2026-04-01')], invoices: [] }, '2026-11-05');
+  assert.ok(onlyOld.text.includes('FMG-OLD111') && onlyOld.text.includes('FMG-OLD222'));
+});
+
+test('an order number narrows the email; a wrong one gets all orders without repeating what was typed', () => {
+  const narrowed = buildOrderStatusEmail({ shop: [ORDER], invoices: [], narrowed: true }, '2026-11-05');
+  assert.equal(narrowed.subject, 'Your Florence Mae Gifts order status (FMG-ABC234)');
+  assert.match(narrowed.text, /Here's the latest on your Florence Mae Gifts order, /);
+  const missed = buildOrderStatusEmail({ shop: [ORDER], invoices: [], missed: true }, '2026-11-05');
+  assert.ok(missed.text.includes("We couldn't find the order number you entered under this email address, so here are your orders."));
+});
+
+test("Megan's ship date replaces the estimate, in the email and in Ask K's status email", () => {
+  const set = { ...ORDER, status: 'in_production', ship_by: '2026-11-14' };
+  assert.ok(buildOrderUpdateEmail(set, 'in_production').text.includes('Estimated Ship Date: November 14, 2026'));
+  const onTime = buildOrderStatusEmail({ shop: [set], invoices: [] }, '2026-11-10');
+  assert.ok(onTime.text.includes('Status: Megan is making it now. Estimated ship date: November 14, 2026.'));
+  const late = buildOrderStatusEmail({ shop: [set], invoices: [] }, '2026-11-16');
+  assert.ok(late.text.includes('(it was due to ship by November 14, 2026)'));
 });

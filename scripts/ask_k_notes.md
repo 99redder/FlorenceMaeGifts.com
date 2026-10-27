@@ -16,6 +16,8 @@
 - Every order placed on this website gets an order number (like FMG-7K3QX2) in its confirmation email, along with an estimated ship date.
 - Megan moves each website order through these steps, and the buyer gets an email at each one: Order received, In production (Megan is making it), Shipped (with the USPS tracking number and a tracking link), Delivered.
 - From this chat, a buyer can have the latest status and tracking of their website orders, and of custom work Megan invoiced them for, emailed to the address they ordered with. The details go only to that inbox; nothing about the order is shown in the chat.
+- A buyer with several orders gets all of them in that email, the ones still on their way first. Adding an order number in the box (optional) gets just that order.
+- When Megan starts making an order she sets the date she expects to ship it, and that date is in the buyer's emails from then on.
 - Orders placed on Etsy can't be looked up here.
 
 ## Ordering and payment

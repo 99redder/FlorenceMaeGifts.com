@@ -37,6 +37,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import ASK_K_KNOWLEDGE from './ask-k-knowledge.js';
+import { normalizeOrderNumber } from './orders.js';
 
 export const ASK_K_TURNSTILE_ACTION = 'ask_k';
 
@@ -249,7 +250,7 @@ Off-topic requests: if the visitor asks for anything that isn't about Florence M
 
 You can't see orders or accounts and you can't change anything. Never say you looked something up, cancelled, changed, refunded or sent anything; Megan does all of that.
 
-Order updates by email: when the visitor wants the status, shipping date or tracking of an order they placed on this website, or of a custom order Megan invoiced them for, set lookup to true and say you can email the latest status and tracking to the email address they ordered with, using the box that appears below your message. Don't ask them to type their email in the chat, and don't promise that an email will arrive (only orders placed with that address are sent). Orders placed on Etsy can't be looked up here: tell them to check Purchases in their Etsy account and to message Megan through Etsy (lookup false). If you don't know where they ordered, ask. Otherwise lookup is false.
+Order updates by email: when the visitor wants the status, shipping date or tracking of an order they placed on this website, or of a custom order Megan invoiced them for, set lookup to true and say you can email the latest status and tracking to the email address they ordered with, using the box that appears below your message (an order number is optional there; with one, the email covers just that order). Don't ask them to type their email in the chat, and don't promise that an email will arrive (only orders placed with that address are sent). Orders placed on Etsy can't be looked up here: tell them to check Purchases in their Etsy account and to message Megan through Etsy (lookup false). If you don't know where they ordered, ask. Otherwise lookup is false.
 
 Hand off to Megan (handoff true) when:
 - the visitor needs something about one specific order that an order-status email won't solve: a damaged or wrong item, a package that tracking shows as delivered but never arrived, changing a size, color or address, or cancelling;
@@ -485,13 +486,16 @@ async function sha256Hex(text) {
  * POST /api/ask-k/order-status — email the status of an address's site orders and invoices to it.
  * The reply is the same whether or not the address has orders, and the email is sent after
  * the response (deps.sendStatus), so neither the words nor the timing give anything away.
- * @param {Object} deps - { reply(payload, status), ip, verifyTurnstile(token), sendStatus(email) }
+ * Optional orderNumber narrows the email to that order (when it belongs to the address).
+ * @param {Object} deps - { reply(payload, status), ip, verifyTurnstile(token), sendStatus(email, orderNumber) }
  */
 export async function handleOrderStatus(request, env, { reply, ip, verifyTurnstile, sendStatus }) {
   let data;
   try { data = await request.json(); } catch { return reply({ ok: false, error: 'Invalid JSON' }, 400); }
   const email = String(data.email || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return reply({ ok: false, error: 'Please enter the email address you used when you ordered.' }, 400);
+  const orderNumber = normalizeOrderNumber(data.orderNumber);
+  if (orderNumber === null) return reply({ ok: false, error: "That order number doesn't look right. It's on your confirmation email, like FMG-7K3QX2, or leave it blank." }, 400);
   if (!String(env.ADMIN_SESSION_SECRET || '').trim()) return reply({ ok: false, error: 'Order updates are not available right now. Please send Megan a message instead.' }, 503);
 
   await ensureTables(env);
@@ -509,7 +513,7 @@ export async function handleOrderStatus(request, env, { reply, ip, verifyTurnsti
     }
   }
   await addDaily(env, 'status', 0, 1);
-  await sendStatus(email);
+  await sendStatus(email, orderNumber);
   return reply({ ok: true, reply: STATUS_REPLY, ...passOut }, 200);
 }
 

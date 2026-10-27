@@ -4,7 +4,7 @@
 // POST /internal/daily-summary      → handleDailySummary() (ask-k.js) — X-Summary-Token: one day's Ask K counts and dollars for ESA's daily email
 // POST /api/ask-k/order-status      → handleOrderStatus() (ask-k.js) — Public: email a buyer the status of their site orders and invoices
 // GET  /api/accounts/orders         → handleAdminOrdersList() — Admin: site checkout orders (shop_orders, orders.js)
-// POST /api/accounts/orders/status (+ /email/preview)   → Admin: move a shop order to received / in_production / delivered / cancelled, optionally emailing the customer
+// POST /api/accounts/orders/status (+ /email/preview)   → Admin: move a shop order to received / in_production (with an estimated ship date) / delivered / cancelled, optionally emailing the customer
 // POST /api/accounts/orders/shipped (+ /preview)        → Admin: mark a shop order shipped with tracking and send the shipped email
 // POST /api/create-checkout-session → handleStoreCheckoutSession() — Create Stripe checkout session for shop items (priceId)
 // POST /api/stripe-webhook      → handleStripeWebhook()   — Stripe payment confirmation: shop orders (pattern downloads), invoice payments, auto-inserts tax income
@@ -37,7 +37,7 @@
 import { sendEmail, emailConfigured } from './email.js';
 import { handleEmailEventBatch } from './email-events.js';
 import { handleAskK, handleDailySummary, handleOrderStatus, ASK_K_TURNSTILE_ACTION } from './ask-k.js';
-import { recordShopOrder, sendShopOrderConfirmation, sendOrderStatusEmail, ensureShopOrdersTable, itemLabel, ORDER_STATUSES, ORDER_EMAIL_STATUSES, buildOrderUpdateEmail, sendOrderUpdateEmail, markOrderEmailed, easternDate } from './orders.js';
+import { recordShopOrder, sendShopOrderConfirmation, sendOrderStatusEmail, ensureShopOrdersTable, itemLabel, ORDER_STATUSES, ORDER_EMAIL_STATUSES, buildOrderUpdateEmail, sendOrderUpdateEmail, markOrderEmailed, easternDate, orderShipEstimate } from './orders.js';
 
 // Module-level caches — safe because account IDs and setup state are stable within a Worker isolate.
 const _acctIdCache = new Map();
@@ -146,8 +146,8 @@ export default {
         ip: getClientIp(request),
         verifyTurnstile: (token) => verifyTurnstile(env, request, token, ASK_K_TURNSTILE_ACTION),
         // Sent after the response, so the reply takes as long whether or not the address has orders.
-        sendStatus: (email) => {
-          const sending = sendOrderStatusEmail(env, email, sendEmail);
+        sendStatus: (email, orderNumber) => {
+          const sending = sendOrderStatusEmail(env, email, sendEmail, { orderNumber });
           if (ctx?.waitUntil) ctx.waitUntil(sending);
           else return sending;
         }
@@ -3843,8 +3843,10 @@ async function handleAdminOrdersList(request, env, corsHeaders, url) {
   const filter = (url.searchParams.get('status') || 'all').toString();
   const where = filter === 'open' ? "WHERE status IN ('received', 'in_production') AND is_digital = 0"
     : filter === 'shipped' ? "WHERE status = 'shipped'" : filter === 'delivered' ? "WHERE status = 'delivered'" : '';
-  const rows = await env.DB.prepare(`SELECT * FROM shop_orders ${where} ORDER BY order_date DESC, id DESC LIMIT 300`).all();
-  return json({ ok: true, orders: rows.results || [] }, 200, corsHeaders);
+  const rows = (await env.DB.prepare(`SELECT * FROM shop_orders ${where} ORDER BY order_date DESC, id DESC LIMIT 300`).all()).results || [];
+  // ship_estimate: Megan's ship date if she set one, else the handling-time window, for the admin to show and prefill.
+  const orders = rows.map((o) => (o.is_digital ? o : { ...o, ship_estimate: orderShipEstimate(o) }));
+  return json({ ok: true, orders }, 200, corsHeaders);
 }
 
 // Move a shop order to received / in_production / delivered / cancelled (shipped goes
@@ -3859,12 +3861,17 @@ async function handleAdminOrderStatus(request, env, corsHeaders, url) {
   const id = Number(data.id || 0);
   const status = (data.status || '').toString();
   if (!id || !ORDER_STATUSES.includes(status) || status === 'shipped') return json({ ok: false, error: 'Invalid payload' }, 400, corsHeaders);
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(data.date || '')) ? String(data.date) : easternDate();
+  const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  const date = isDate(data.date) ? String(data.date) : easternDate();
+  // In Production can set the date Megan expects it to ship (kept until changed again).
+  const shipBy = status === 'in_production' && isDate(data.shipBy) ? String(data.shipBy) : null;
+  if (shipBy && shipBy < date) return json({ ok: false, error: 'The estimated ship date can\'t be before the production date.' }, 400, corsHeaders);
   await ensureShopOrdersTable(env);
   const res = await env.DB.prepare(`UPDATE shop_orders SET status = ?2, updated_at = datetime('now'),
       in_production_at = CASE WHEN ?2 = 'in_production' THEN ?3 ELSE in_production_at END,
-      delivered_at = CASE WHEN ?2 = 'delivered' THEN ?3 ELSE delivered_at END
-    WHERE id = ?1 AND is_digital = 0`).bind(id, status, date).run();
+      delivered_at = CASE WHEN ?2 = 'delivered' THEN ?3 ELSE delivered_at END,
+      ship_by = COALESCE(?4, ship_by)
+    WHERE id = ?1 AND is_digital = 0`).bind(id, status, date, shipBy).run();
   if (!res.meta?.changes) return json({ ok: false, error: 'Order not found' }, 404, corsHeaders);
   let emailed = false;
   if (data.sendEmail && ORDER_EMAIL_STATUSES.includes(status)) {
@@ -3887,7 +3894,11 @@ async function handleAdminOrderEmailPreview(request, env, corsHeaders, url) {
   const order = await env.DB.prepare('SELECT * FROM shop_orders WHERE id = ?1').bind(Number(data.id || 0)).first();
   if (!order) return json({ ok: false, error: 'Order not found' }, 404, corsHeaders);
   const status = (data.status || '').toString();
-  const preview = { ...order, ...(status === 'delivered' && !order.delivered_at ? { delivered_at: easternDate() } : {}) };
+  const preview = {
+    ...order,
+    ...(status === 'delivered' && !order.delivered_at ? { delivered_at: easternDate() } : {}),
+    ...(status === 'in_production' && /^\d{4}-\d{2}-\d{2}$/.test(String(data.shipBy || '')) ? { ship_by: String(data.shipBy) } : {}),
+  };
   const built = buildOrderUpdateEmail(preview, status);
   if (!built) return json({ ok: false, error: 'No email for that status' }, 400, corsHeaders);
   return json({ ok: true, subject: built.subject, html: built.html }, 200, corsHeaders);

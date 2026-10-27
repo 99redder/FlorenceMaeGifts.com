@@ -487,3 +487,24 @@ test('K asks for the order lookup box instead of guessing about a website order'
   assert.ok(schema.required.includes('lookup'));
   assert.match(answerCalls(calls)[0].body.system[0].text, /Orders placed on Etsy can't be looked up here/);
 });
+
+test('An order number narrows the order-status email to that order', async (t) => {
+  fakeApis(t);
+  const env = baseEnv();
+  seedOrders(env);
+  const pass = (await ask(env, { message: ON_TOPIC, turnstileToken: passToken() })).data.pass;
+
+  const narrowed = await statusRequest(env, { email: 'parent@example.org', orderNumber: ' fmg hat234 ', pass });
+  const wrong = await statusRequest(env, { email: 'parent@example.org', orderNumber: 'FMG-ZZZZZZ', pass }, '198.51.100.50');
+  assert.equal(narrowed.data.reply, wrong.data.reply, 'the chat says the same thing either way');
+  const [one, all] = env.EMAIL.sent;
+  assert.equal(one.subject, 'Your Florence Mae Gifts order status (FMG-HAT234)');
+  assert.ok(one.text.includes('FMG-HAT234') && !one.text.includes('INV-2001'));
+  assert.ok(all.text.includes('FMG-HAT234') && all.text.includes('INV-2001'));
+  assert.ok(all.text.includes("couldn't find the order number you entered"));
+  assert.ok(!all.text.includes('ZZZZZZ'), 'what was typed is never repeated in the email');
+
+  const bad = await statusRequest(env, { email: 'parent@example.org', orderNumber: '<a href=x>click</a>', pass }, '198.51.100.51');
+  assert.equal(bad.status, 400);
+  assert.equal(env.EMAIL.sent.length, 2);
+});
