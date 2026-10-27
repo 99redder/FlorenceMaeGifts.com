@@ -11,7 +11,7 @@ Business: handmade, made-to-order crochet baby hats, diaper cover sets, cosplay 
 - /crochet-patterns.html — beginner crochet pattern PDFs (digital download)
 - /shipping-returns.html — processing time, free U.S. shipping, 30-day return policy
 - /about.html — the artist
-- /reviews.html — customer feedback
+- /reviews.html — Etsy reviews, other customer feedback, and a map of where Etsy orders have shipped
 - /privacy.html, /terms.html, /disclaimers.html — legal
 - /shop.html — photo gallery of past creations (not the store; noindex)
 - /sitemap.xml — every page and product image
@@ -26,5 +26,5 @@ Business: handmade, made-to-order crochet baby hats, diaper cover sets, cosplay 
 ## Notes for AI agents working on this repo
 - Static site on GitHub Pages; shared header/nav/footer are loaded with `includeHTML.js`.
 - `products.json` is the single source of truth for listings. Run `python3 scripts/build_shop.py` after editing it.
-- Generated (do not hand-edit): the shop grid in `index.html`, `products/*.html`, the three category pages, `shipping-returns.html`, `privacy.html`, `terms.html`, `sitemap.xml`, `merchant-feed.xml`.
+- Generated (do not hand-edit): the shop grid in `index.html`, `products/*.html`, the three category pages, `shipping-returns.html`, `privacy.html`, `terms.html`, `sitemap.xml`, `merchant-feed.xml`, and the reviews + sales map block in `reviews.html` (from `reviews.json` and `sales-map.json`).
 - Update "Last Updated" fields in file header comments when editing hand-written pages.

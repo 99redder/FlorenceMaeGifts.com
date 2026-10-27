@@ -1,0 +1,9 @@
+{
+  "_readme": "Data for the sales map on reviews.html. Made by scripts/import_etsy_orders.py from Etsy order CSVs (kept out of the repo in private/etsy-orders/); rebuild the page with python3 scripts/build_shop.py. Only town or city, region, country, rounded coordinates and an order count per place: never names, addresses, ZIP codes, order IDs or money. A place with lat/lon null is counted but not drawn; type its coordinates in by hand and later imports keep them.",
+  "source": "Etsy orders",
+  "asOf": null,
+  "firstOrder": null,
+  "lastOrder": null,
+  "ordersWithoutAddress": 0,
+  "places": []
+}

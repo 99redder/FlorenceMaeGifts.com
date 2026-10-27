@@ -11,7 +11,8 @@ IDs, images, handling time and the return policy. This script regenerates:
   crochet-baby-hats.html, crochet-baby-sets.html, crochet-patterns.html
   shipping-returns.html   shipping + return policy
   privacy.html, terms.html  static copies of the footer modals (footer.html stays the source)
-  reviews.html            review cards from reviews.json (between markers)
+  reviews.html            review cards from reviews.json, and the sales map from
+                          sales-map.json via scripts/sales_map.py (between markers)
   sitemap.xml             pages + product images
   merchant-feed.xml       Google Merchant Center feed (products with "merchantFeed": true)
 
@@ -24,6 +25,8 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
+
+import sales_map
 
 ROOT = Path(__file__).resolve().parent.parent
 TODAY = date.today()
@@ -631,8 +634,10 @@ def build_reviews(shop):
             '      <figcaption>A text from a custom order customer</figcaption>',
             '     </figure>',
             '    </div>',
-            '',
-            '    <p class="reviews-cta"><a class="reviews-etsy-button" href="./#shop">Shop handmade crochet</a></p>',
+            '']
+    # Where orders have shipped. Left out while sales-map.json has no places yet.
+    out += sales_map.section_html(sales_map.load_data(), sales_map.load_basemap())
+    out += ['    <p class="reviews-cta"><a class="reviews-etsy-button" href="./#shop">Shop handmade crochet</a></p>',
             '    <p class="reviews-asof">Reviews copied from Etsy on %s.</p>' % us_date(etsy['asOf'])]
     path = ROOT / 'reviews.html'
     write_page('reviews.html', fill(path.read_text(), 'REVIEWS', '\n'.join(out), 'reviews.html'))

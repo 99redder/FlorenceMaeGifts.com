@@ -1,0 +1,490 @@
+{
+  "_readme": "MADE-UP places for previewing the sales map layout (python3 scripts/sales_map.py --preview). Real cities, invented order counts. Never copy these into sales-map.json.",
+  "source": "sample",
+  "asOf": "2026-10-27",
+  "firstOrder": "2022-11",
+  "lastOrder": "2026-10",
+  "ordersWithoutAddress": 6,
+  "places": [
+    {
+      "city": "Salisbury",
+      "region": "MD",
+      "country": "US",
+      "lat": 38.36,
+      "lon": -75.6,
+      "orders": 9
+    },
+    {
+      "city": "Ocean City",
+      "region": "MD",
+      "country": "US",
+      "lat": 38.34,
+      "lon": -75.08,
+      "orders": 4
+    },
+    {
+      "city": "Baltimore",
+      "region": "MD",
+      "country": "US",
+      "lat": 39.29,
+      "lon": -76.61,
+      "orders": 6
+    },
+    {
+      "city": "Annapolis",
+      "region": "MD",
+      "country": "US",
+      "lat": 38.98,
+      "lon": -76.49,
+      "orders": 2
+    },
+    {
+      "city": "Dover",
+      "region": "DE",
+      "country": "US",
+      "lat": 39.16,
+      "lon": -75.52,
+      "orders": 3
+    },
+    {
+      "city": "Philadelphia",
+      "region": "PA",
+      "country": "US",
+      "lat": 39.95,
+      "lon": -75.17,
+      "orders": 5
+    },
+    {
+      "city": "Pittsburgh",
+      "region": "PA",
+      "country": "US",
+      "lat": 40.44,
+      "lon": -80.0,
+      "orders": 2
+    },
+    {
+      "city": "Brooklyn",
+      "region": "NY",
+      "country": "US",
+      "lat": 40.65,
+      "lon": -73.95,
+      "orders": 7
+    },
+    {
+      "city": "Buffalo",
+      "region": "NY",
+      "country": "US",
+      "lat": 42.89,
+      "lon": -78.88,
+      "orders": 1
+    },
+    {
+      "city": "Newark",
+      "region": "NJ",
+      "country": "US",
+      "lat": 40.74,
+      "lon": -74.17,
+      "orders": 2
+    },
+    {
+      "city": "Boston",
+      "region": "MA",
+      "country": "US",
+      "lat": 42.36,
+      "lon": -71.06,
+      "orders": 3
+    },
+    {
+      "city": "Portland",
+      "region": "ME",
+      "country": "US",
+      "lat": 43.66,
+      "lon": -70.26,
+      "orders": 1
+    },
+    {
+      "city": "Richmond",
+      "region": "VA",
+      "country": "US",
+      "lat": 37.54,
+      "lon": -77.44,
+      "orders": 4
+    },
+    {
+      "city": "Virginia Beach",
+      "region": "VA",
+      "country": "US",
+      "lat": 36.85,
+      "lon": -75.98,
+      "orders": 3
+    },
+    {
+      "city": "Raleigh",
+      "region": "NC",
+      "country": "US",
+      "lat": 35.78,
+      "lon": -78.64,
+      "orders": 3
+    },
+    {
+      "city": "Charleston",
+      "region": "SC",
+      "country": "US",
+      "lat": 32.78,
+      "lon": -79.93,
+      "orders": 2
+    },
+    {
+      "city": "Atlanta",
+      "region": "GA",
+      "country": "US",
+      "lat": 33.75,
+      "lon": -84.39,
+      "orders": 4
+    },
+    {
+      "city": "Orlando",
+      "region": "FL",
+      "country": "US",
+      "lat": 28.54,
+      "lon": -81.38,
+      "orders": 6
+    },
+    {
+      "city": "Miami",
+      "region": "FL",
+      "country": "US",
+      "lat": 25.76,
+      "lon": -80.19,
+      "orders": 3
+    },
+    {
+      "city": "Tampa",
+      "region": "FL",
+      "country": "US",
+      "lat": 27.95,
+      "lon": -82.46,
+      "orders": 4
+    },
+    {
+      "city": "Nashville",
+      "region": "TN",
+      "country": "US",
+      "lat": 36.16,
+      "lon": -86.78,
+      "orders": 2
+    },
+    {
+      "city": "Columbus",
+      "region": "OH",
+      "country": "US",
+      "lat": 39.96,
+      "lon": -83.0,
+      "orders": 3
+    },
+    {
+      "city": "Detroit",
+      "region": "MI",
+      "country": "US",
+      "lat": 42.33,
+      "lon": -83.05,
+      "orders": 2
+    },
+    {
+      "city": "Chicago",
+      "region": "IL",
+      "country": "US",
+      "lat": 41.88,
+      "lon": -87.63,
+      "orders": 6
+    },
+    {
+      "city": "Indianapolis",
+      "region": "IN",
+      "country": "US",
+      "lat": 39.77,
+      "lon": -86.16,
+      "orders": 1
+    },
+    {
+      "city": "Milwaukee",
+      "region": "WI",
+      "country": "US",
+      "lat": 43.04,
+      "lon": -87.91,
+      "orders": 1
+    },
+    {
+      "city": "Minneapolis",
+      "region": "MN",
+      "country": "US",
+      "lat": 44.98,
+      "lon": -93.27,
+      "orders": 2
+    },
+    {
+      "city": "St. Louis",
+      "region": "MO",
+      "country": "US",
+      "lat": 38.63,
+      "lon": -90.2,
+      "orders": 2
+    },
+    {
+      "city": "New Orleans",
+      "region": "LA",
+      "country": "US",
+      "lat": 29.95,
+      "lon": -90.07,
+      "orders": 1
+    },
+    {
+      "city": "Houston",
+      "region": "TX",
+      "country": "US",
+      "lat": 29.76,
+      "lon": -95.37,
+      "orders": 8
+    },
+    {
+      "city": "San Antonio",
+      "region": "TX",
+      "country": "US",
+      "lat": 29.42,
+      "lon": -98.49,
+      "orders": 6
+    },
+    {
+      "city": "Austin",
+      "region": "TX",
+      "country": "US",
+      "lat": 30.27,
+      "lon": -97.74,
+      "orders": 4
+    },
+    {
+      "city": "El Paso",
+      "region": "TX",
+      "country": "US",
+      "lat": 31.76,
+      "lon": -106.49,
+      "orders": 3
+    },
+    {
+      "city": "Dallas",
+      "region": "TX",
+      "country": "US",
+      "lat": 32.78,
+      "lon": -96.8,
+      "orders": 5
+    },
+    {
+      "city": "Oklahoma City",
+      "region": "OK",
+      "country": "US",
+      "lat": 35.47,
+      "lon": -97.52,
+      "orders": 1
+    },
+    {
+      "city": "Denver",
+      "region": "CO",
+      "country": "US",
+      "lat": 39.74,
+      "lon": -104.99,
+      "orders": 2
+    },
+    {
+      "city": "Albuquerque",
+      "region": "NM",
+      "country": "US",
+      "lat": 35.08,
+      "lon": -106.65,
+      "orders": 2
+    },
+    {
+      "city": "Phoenix",
+      "region": "AZ",
+      "country": "US",
+      "lat": 33.45,
+      "lon": -112.07,
+      "orders": 5
+    },
+    {
+      "city": "Las Vegas",
+      "region": "NV",
+      "country": "US",
+      "lat": 36.17,
+      "lon": -115.14,
+      "orders": 3
+    },
+    {
+      "city": "Salt Lake City",
+      "region": "UT",
+      "country": "US",
+      "lat": 40.76,
+      "lon": -111.89,
+      "orders": 1
+    },
+    {
+      "city": "Los Angeles",
+      "region": "CA",
+      "country": "US",
+      "lat": 34.05,
+      "lon": -118.24,
+      "orders": 11
+    },
+    {
+      "city": "San Diego",
+      "region": "CA",
+      "country": "US",
+      "lat": 32.72,
+      "lon": -117.16,
+      "orders": 5
+    },
+    {
+      "city": "Fresno",
+      "region": "CA",
+      "country": "US",
+      "lat": 36.74,
+      "lon": -119.79,
+      "orders": 2
+    },
+    {
+      "city": "San Jose",
+      "region": "CA",
+      "country": "US",
+      "lat": 37.34,
+      "lon": -121.89,
+      "orders": 3
+    },
+    {
+      "city": "Sacramento",
+      "region": "CA",
+      "country": "US",
+      "lat": 38.58,
+      "lon": -121.49,
+      "orders": 2
+    },
+    {
+      "city": "Portland",
+      "region": "OR",
+      "country": "US",
+      "lat": 45.52,
+      "lon": -122.68,
+      "orders": 2
+    },
+    {
+      "city": "Seattle",
+      "region": "WA",
+      "country": "US",
+      "lat": 47.61,
+      "lon": -122.33,
+      "orders": 3
+    },
+    {
+      "city": "Boise",
+      "region": "ID",
+      "country": "US",
+      "lat": 43.62,
+      "lon": -116.2,
+      "orders": 1
+    },
+    {
+      "city": "Anchorage",
+      "region": "AK",
+      "country": "US",
+      "lat": 61.22,
+      "lon": -149.9,
+      "orders": 1
+    },
+    {
+      "city": "Honolulu",
+      "region": "HI",
+      "country": "US",
+      "lat": 21.31,
+      "lon": -157.86,
+      "orders": 2
+    },
+    {
+      "city": "Washington",
+      "region": "DC",
+      "country": "US",
+      "lat": 38.91,
+      "lon": -77.04,
+      "orders": 2
+    },
+    {
+      "city": "Toronto",
+      "region": "ON",
+      "country": "CA",
+      "lat": 43.65,
+      "lon": -79.38,
+      "orders": 3
+    },
+    {
+      "city": "Vancouver",
+      "region": "BC",
+      "country": "CA",
+      "lat": 49.28,
+      "lon": -123.12,
+      "orders": 1
+    },
+    {
+      "city": "London",
+      "region": "",
+      "country": "GB",
+      "lat": 51.51,
+      "lon": -0.13,
+      "orders": 2
+    },
+    {
+      "city": "Berlin",
+      "region": "",
+      "country": "DE",
+      "lat": 52.52,
+      "lon": 13.4,
+      "orders": 1
+    },
+    {
+      "city": "Tel Aviv",
+      "region": "",
+      "country": "IL",
+      "lat": 32.09,
+      "lon": 34.78,
+      "orders": 1
+    },
+    {
+      "city": "Tokyo",
+      "region": "",
+      "country": "JP",
+      "lat": 35.68,
+      "lon": 139.69,
+      "orders": 1
+    },
+    {
+      "city": "Sydney",
+      "region": "NSW",
+      "country": "AU",
+      "lat": -33.87,
+      "lon": 151.21,
+      "orders": 1
+    },
+    {
+      "city": "Monterrey",
+      "region": "",
+      "country": "MX",
+      "lat": 25.69,
+      "lon": -100.32,
+      "orders": 1
+    },
+    {
+      "city": "Smallville",
+      "region": "KS",
+      "country": "US",
+      "lat": null,
+      "lon": null,
+      "orders": 1
+    }
+  ]
+}

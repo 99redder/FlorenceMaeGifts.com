@@ -7,3 +7,10 @@ cloudflare/wrangler.toml
 # Paid pattern PDFs: buyers get them from the Cloudflare R2 bucket "fmg" through /api/download.
 # Never commit them; GitHub Pages would serve them free.
 downloads/
+
+# Etsy order exports (buyers' names and addresses) and downloaded gazetteers for the sales map.
+# Only the aggregated sales-map.json is committed. See scripts/import_etsy_orders.py.
+private/
+__pycache__/
+# Layout preview with made-up places: python3 scripts/sales_map.py --preview
+sales-map-preview.html
