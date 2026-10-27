@@ -2,6 +2,10 @@
 // POST /api/contact                 → handleContact()        — Form submissions (domain offers, questions) + email (email.js)
 // POST /api/ask-k                   → handleAskK() (ask-k.js) — Public: Ask K order-help chat (Claude), hands off to the contact form
 // POST /internal/daily-summary      → handleDailySummary() (ask-k.js) — X-Summary-Token: one day's Ask K counts and dollars for ESA's daily email
+// POST /api/ask-k/order-status      → handleOrderStatus() (ask-k.js) — Public: email a buyer the status of their site orders and invoices
+// GET  /api/accounts/orders         → handleAdminOrdersList() — Admin: site checkout orders (shop_orders, orders.js)
+// POST /api/accounts/orders/status (+ /email/preview)   → Admin: move a shop order to received / in_production / delivered / cancelled, optionally emailing the customer
+// POST /api/accounts/orders/shipped (+ /preview)        → Admin: mark a shop order shipped with tracking and send the shipped email
 // POST /api/create-checkout-session → handleStoreCheckoutSession() — Create Stripe checkout session for shop items (priceId)
 // POST /api/stripe-webhook      → handleStripeWebhook()   — Stripe payment confirmation: shop orders (pattern downloads), invoice payments, auto-inserts tax income
 // POST /api/admin/login         → handleAdminLogin()      — Admin: create signed HttpOnly session cookie
@@ -32,7 +36,8 @@
 
 import { sendEmail, emailConfigured } from './email.js';
 import { handleEmailEventBatch } from './email-events.js';
-import { handleAskK, handleDailySummary, ASK_K_TURNSTILE_ACTION } from './ask-k.js';
+import { handleAskK, handleDailySummary, handleOrderStatus, ASK_K_TURNSTILE_ACTION } from './ask-k.js';
+import { recordShopOrder, sendShopOrderConfirmation, sendOrderStatusEmail, ensureShopOrdersTable, itemLabel, ORDER_STATUSES, ORDER_EMAIL_STATUSES, buildOrderUpdateEmail, sendOrderUpdateEmail, markOrderEmailed, easternDate } from './orders.js';
 
 // Module-level caches — safe because account IDs and setup state are stable within a Worker isolate.
 const _acctIdCache = new Map();
@@ -69,7 +74,7 @@ function requireUsShippingAddressAndAutomaticTax(form) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     try {
     const origin = request.headers.get('Origin') || '';
     const allowedOrigins = (env.ALLOWED_ORIGINS || env.ALLOWED_ORIGIN || '')
@@ -98,8 +103,8 @@ export default {
     if (url.pathname !== '/api/stripe-webhook') {
       const isTaxRead = ['/api/tax/transactions','/api/tax/summary','/api/tax/export.csv','/api/tax/receipt'].includes(url.pathname) && request.method === 'GET';
       const isTaxWrite = ['/api/tax/expense','/api/tax/income','/api/tax/owner-transfer','/api/tax/expense/update','/api/tax/income/update','/api/tax/expense/delete','/api/tax/income/delete','/api/tax/receipt/upload'].includes(url.pathname) && request.method === 'POST';
-      const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail','/api/accounts/notes','/api/admin/notes'].includes(url.pathname) && request.method === 'GET';
-      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/shipped','/api/accounts/invoices/shipped/preview','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes'].includes(url.pathname) && request.method === 'POST';
+      const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail','/api/accounts/notes','/api/admin/notes','/api/accounts/orders'].includes(url.pathname) && request.method === 'GET';
+      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/shipped','/api/accounts/invoices/shipped/preview','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes','/api/accounts/orders/shipped','/api/accounts/orders/shipped/preview','/api/accounts/orders/status','/api/accounts/orders/email/preview'].includes(url.pathname) && request.method === 'POST';
       const isQuotePublic = ['/api/quote/accept','/api/quote/deny'].includes(url.pathname) && ['GET', 'POST'].includes(request.method);
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
@@ -107,7 +112,7 @@ export default {
       const isHealthRead = url.pathname === '/api/health' && request.method === 'GET';
       // Server to server (ESA's FMG_ASKK service binding); the SUMMARY_TOKEN header is the check.
       const isInternalSummary = url.pathname === '/internal/daily-summary' && request.method === 'POST';
-      const isPostRoute = ['/api/contact', '/api/create-checkout-session', '/api/ask-k'].includes(url.pathname) && request.method === 'POST';
+      const isPostRoute = ['/api/contact', '/api/create-checkout-session', '/api/ask-k', '/api/ask-k/order-status'].includes(url.pathname) && request.method === 'POST';
       const isAdminSessionRoute = (url.pathname === '/api/admin/verify-session' && request.method === 'GET')
         || (url.pathname === '/api/admin/login' && request.method === 'POST')
         || (url.pathname === '/api/admin/logout' && request.method === 'POST')
@@ -133,6 +138,20 @@ export default {
 
     if (url.pathname === '/internal/daily-summary' && request.method === 'POST') {
       return handleDailySummary(request, env, (payload, status) => json(payload, status));
+    }
+
+    if (url.pathname === '/api/ask-k/order-status' && request.method === 'POST') {
+      return handleOrderStatus(request, env, {
+        reply: (payload, status) => json(payload, status, corsHeaders),
+        ip: getClientIp(request),
+        verifyTurnstile: (token) => verifyTurnstile(env, request, token, ASK_K_TURNSTILE_ACTION),
+        // Sent after the response, so the reply takes as long whether or not the address has orders.
+        sendStatus: (email) => {
+          const sending = sendOrderStatusEmail(env, email, sendEmail);
+          if (ctx?.waitUntil) ctx.waitUntil(sending);
+          else return sending;
+        }
+      });
     }
 
     if (url.pathname === '/api/ask-k' && request.method === 'POST') {
@@ -316,6 +335,26 @@ export default {
 
     if (url.pathname === '/api/accounts/invoices/shipped' && request.method === 'POST') {
       return handleInvoiceShippedEmail(request, env, corsHeaders, url);
+    }
+
+    if (url.pathname === '/api/accounts/orders' && request.method === 'GET') {
+      return handleAdminOrdersList(request, env, corsHeaders, url);
+    }
+
+    if (url.pathname === '/api/accounts/orders/shipped/preview' && request.method === 'POST') {
+      return handleInvoiceShippedPreview(request, env, corsHeaders, url, 'order');
+    }
+
+    if (url.pathname === '/api/accounts/orders/shipped' && request.method === 'POST') {
+      return handleInvoiceShippedEmail(request, env, corsHeaders, url, 'order');
+    }
+
+    if (url.pathname === '/api/accounts/orders/status' && request.method === 'POST') {
+      return handleAdminOrderStatus(request, env, corsHeaders, url);
+    }
+
+    if (url.pathname === '/api/accounts/orders/email/preview' && request.method === 'POST') {
+      return handleAdminOrderEmailPreview(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/accounts/invoices/delete' && request.method === 'POST') {
@@ -926,13 +965,31 @@ async function handleStripeWebhook(request, env, corsHeaders) {
           ).run();
           incomeId = Number(ins.meta?.last_row_id || 0) || null;
         }
+        // Site orders get an order number (shop_orders, src/orders.js) for the buyer's
+        // confirmation email, the admin Orders tab and Ask K's order-status emails.
+        let shopOrder = null;
+        if (isFmgShopItem) {
+          try {
+            shopOrder = await recordShopOrder(env, {
+              sessionId, itemName, priceId, customerEmail, customerName,
+              amountCents: amount, isDigital: isDigitalDownload, created: event.created || session.created
+            });
+            if (!isDigitalDownload && !(await sendShopOrderConfirmation(env, shopOrder, sendEmail)) && !shopOrder?.confirmation_sent_at) {
+              await alertOrderEmailFailure(env, { customerEmail, detail: `Order confirmation for ${shopOrder?.order_number || sessionId} was not sent.` });
+            }
+          } catch (e) {
+            console.error('Shop order record failed', e);
+            await alertFmgOperationalFailure(env, { subject: '[ACTION NEEDED] FMG shop order not recorded', detail: `The paid checkout was not saved to shop_orders: ${e?.message || e}`, session });
+          }
+        }
         if (isDigitalDownload) {
           downloadUrl = await fulfillFmgShopOrder(env, {
             sessionId,
             itemName,
             priceId,
             customerEmail,
-            customerName
+            customerName,
+            orderNumber: shopOrder?.order_number || null
           });
         }
 
@@ -1037,7 +1094,7 @@ async function handleStripeWebhook(request, env, corsHeaders) {
   return json({ ok: true }, 200, corsHeaders);
 }
 
-async function fulfillFmgShopOrder(env, { sessionId, itemName, priceId, customerEmail, customerName }) {
+async function fulfillFmgShopOrder(env, { sessionId, itemName, priceId, customerEmail, customerName, orderNumber = null }) {
   if (!sessionId) return null;
   if (await hasOrderConfirmationBeenSent(env, sessionId)) return await getDownloadUrlForSession(env, sessionId);
   await markOrderConfirmationSent(env, sessionId, 'sending');
@@ -1065,7 +1122,8 @@ async function fulfillFmgShopOrder(env, { sessionId, itemName, priceId, customer
     customerEmail,
     customerName,
     downloadUrl,
-    itemName
+    itemName,
+    orderNumber
   });
   if (sent) {
     await markOrderConfirmationSent(env, sessionId, 'sent');
@@ -1207,8 +1265,17 @@ async function handleCheckoutSessionDetails(request, env, corsHeaders, url) {
   const checkoutType = (session.metadata?.checkout_type || '').toString().trim().toLowerCase();
   const itemName = (session.metadata?.item_name || session.metadata?.selectedItemName || '').toString().trim();
   const priceId = (session.metadata?.price_id || '').toString().trim();
-  const isDigital = checkoutType === 'fmg_shop_item' || !!itemName || !!priceId;
+  const isDigital = (checkoutType === 'fmg_shop_item' || !!itemName || !!priceId) && hasDownloadFileMapping(env, itemName, priceId);
   const isPaid = session.payment_status === 'paid' || session.status === 'complete';
+  let orderNumber = null;
+  if (isPaid && env.DB) {
+    try {
+      await ensureShopOrdersTable(env);
+      orderNumber = (await env.DB.prepare('SELECT order_number FROM shop_orders WHERE stripe_session_id = ?1').bind(sessionId).first('order_number')) || null;
+    } catch (e) {
+      console.error('Order number lookup failed', e);
+    }
+  }
   let downloadUrl = null;
 
   // The session ID sits in the shop's success URL, so it only mints a new link while the
@@ -1237,6 +1304,7 @@ async function handleCheckoutSessionDetails(request, env, corsHeaders, url) {
     isDigital,
     paymentStatus: session.payment_status || session.status || null,
     downloadUrl,
+    orderNumber,
     // Order totals for the purchase event the shop page sends to Google (no customer details).
     purchase: isPaid ? {
       transactionId: session.id,
@@ -1312,7 +1380,7 @@ async function handleDownload(request, env, corsHeaders) {
   });
 }
 
-async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl, itemName }) {
+async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl, itemName, orderNumber = null }) {
   if (!emailConfigured(env)) {
     console.error('Order confirmation email skipped: no email provider configured');
     return false;
@@ -1355,7 +1423,7 @@ async function sendOrderConfirmationEmail(env, { customerEmail, customerName, do
     reply_to: supportEmail,
     html: `<p>Hi ${safeName},</p>
 <p>Thank you for your order! Your payment for <strong>${safeItemName}</strong> was successful.</p>
-${downloadSection}
+${orderNumber ? `<p>Order number: <strong>${escapeHtml(orderNumber)}</strong></p>\n` : ''}${downloadSection}
 <p>Questions? Reply to this email or contact us at ${escapeHtml(supportEmail)}.</p>
 <p>— Florence Mae Gifts</p>`,
     text: [
@@ -1363,6 +1431,7 @@ ${downloadSection}
       '',
       `Thank you for your order! Your payment for ${displayItemName} was successful.`,
       '',
+      ...(orderNumber ? [`Order number: ${orderNumber}`, ''] : []),
       downloadText,
       '',
       `Questions? Reply to this email or contact us at ${supportEmail}.`,
@@ -3619,6 +3688,7 @@ const DEFAULT_SHIPPED_CLOSING = 'Thank you so much for your order! Questions? Ju
 // the send handler and the preview endpoint so they never drift.
 function buildShippedEmailContent({ invoice, id, carrier, trackingNumber, shipDate, note, trackingUrl, introMessage, closingMessage }) {
   const invoiceNumber = String(invoice.invoice_number || `INV-${id}`);
+  const numberLabel = invoice.number_label || 'Invoice';
   const intro = (introMessage || '').toString().trim() || DEFAULT_SHIPPED_INTRO;
   const closing = (closingMessage || '').toString().trim() || DEFAULT_SHIPPED_CLOSING;
   const packageNotes = (invoice.notes || '').toString().trim();
@@ -3641,7 +3711,7 @@ function buildShippedEmailContent({ invoice, id, carrier, trackingNumber, shipDa
 
   const textLines = [
     `Your Florence Mae Gifts order has shipped! 📦`,
-    `Invoice: ${invoiceNumber}`,
+    `${numberLabel}: ${invoiceNumber}`,
     `Customer: ${invoice.customer_name || ''}`,
     '',
     intro,
@@ -3665,9 +3735,10 @@ function buildShippedEmailContent({ invoice, id, carrier, trackingNumber, shipDa
   };
 }
 
-// Shared: parse + validate shipped-email inputs and load the invoice.
+// Shared: parse + validate shipped-email inputs and load the invoice, or the shop
+// order (kind 'order') dressed as one so the same email serves both.
 // Returns { error, status } on failure or the resolved context on success.
-async function resolveShippedEmailContext(request, env) {
+async function resolveShippedEmailContext(request, env, kind = 'invoice') {
   let data;
   try { data = await request.json(); } catch { return { error: 'Invalid JSON', status: 400 }; }
 
@@ -3683,38 +3754,48 @@ async function resolveShippedEmailContext(request, env) {
   const closingMessage = (data.closingMessage || data.closing || '').toString();
   const trackingUrl = (data.trackingUrl || data.tracking_url || '').toString().trim() || buildTrackingUrl(carrier, trackingNumber);
 
-  const invoice = await env.DB.prepare(`SELECT * FROM invoices WHERE id = ?1`).bind(id).first();
-  if (!invoice) return { error: 'Invoice not found', status: 404 };
+  let invoice;
+  if (kind === 'order') {
+    await ensureShopOrdersTable(env);
+    const order = await env.DB.prepare('SELECT * FROM shop_orders WHERE id = ?1').bind(id).first();
+    if (!order) return { error: 'Order not found', status: 404 };
+    if (order.is_digital) return { error: 'Pattern downloads do not ship', status: 400 };
+    invoice = { invoice_number: order.order_number, number_label: 'Order', customer_name: order.customer_name, customer_email: order.customer_email, notes: itemLabel(order) };
+  } else {
+    invoice = await env.DB.prepare(`SELECT * FROM invoices WHERE id = ?1`).bind(id).first();
+    if (!invoice) return { error: 'Invoice not found', status: 404 };
+  }
 
   return { id, carrier, trackingNumber, shipDate, note, introMessage, closingMessage, trackingUrl, invoice };
 }
 
-async function handleInvoiceShippedPreview(request, env, corsHeaders, url) {
+async function handleInvoiceShippedPreview(request, env, corsHeaders, url, kind = 'invoice') {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
 
-  const ctx = await resolveShippedEmailContext(request, env);
+  const ctx = await resolveShippedEmailContext(request, env, kind);
   if (ctx.error) return json({ ok: false, error: ctx.error }, ctx.status, corsHeaders);
 
   const built = buildShippedEmailContent(ctx);
   return json({ ok: true, subject: built.subject, html: built.html }, 200, corsHeaders);
 }
 
-async function handleInvoiceShippedEmail(request, env, corsHeaders, url) {
+async function handleInvoiceShippedEmail(request, env, corsHeaders, url, kind = 'invoice') {
   if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
   const auth = await requireAdmin(request, env, corsHeaders, url);
   if (!auth.ok) return auth.res;
   const fromEmailEnv = (env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
   if (!emailConfigured(env) || !fromEmailEnv) return json({ ok: false, error: 'Email provider is not configured' }, 500, corsHeaders);
 
-  const ctx = await resolveShippedEmailContext(request, env);
+  const ctx = await resolveShippedEmailContext(request, env, kind);
   if (ctx.error) return json({ ok: false, error: ctx.error }, ctx.status, corsHeaders);
   const { id, carrier, trackingNumber, shipDate, trackingUrl, invoice } = ctx;
+  const what = kind === 'order' ? 'Order' : 'Invoice';
 
   const customerEmail = (invoice.customer_email || '').toString().trim();
-  if (!customerEmail) return json({ ok: false, error: 'Invoice has no customer email' }, 400, corsHeaders);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) return json({ ok: false, error: 'Invoice customer email is invalid' }, 400, corsHeaders);
+  if (!customerEmail) return json({ ok: false, error: `${what} has no customer email` }, 400, corsHeaders);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) return json({ ok: false, error: `${what} customer email is invalid` }, 400, corsHeaders);
 
   const fromEmail = fromEmailEnv;
   const replyToEmail = (env.CC_EMAIL || env.RESEND_FROM_EMAIL || env.FROM_EMAIL || '').toString().trim();
@@ -3740,16 +3821,76 @@ async function handleInvoiceShippedEmail(request, env, corsHeaders, url) {
   }
 
   await env.DB.prepare(
-    `UPDATE invoices
-     SET shipped_at = COALESCE(?2, datetime('now')),
+    `UPDATE ${kind === 'order' ? "shop_orders SET status = 'shipped'," : 'invoices SET'}
+         shipped_at = COALESCE(?2, datetime('now')),
          tracking_carrier = ?3,
          tracking_number = ?4,
          tracking_url = ?5,
          updated_at = datetime('now')
      WHERE id = ?1`
   ).bind(id, shipDate || null, carrier || null, trackingNumber, trackingUrl || null).run();
+  if (kind === 'order') await markOrderEmailed(env, id, 'shipped');
 
   return json({ ok: true, id, emailId: sendJson?.id || null, trackingUrl: trackingUrl || null }, 200, corsHeaders);
+}
+
+// Admin Orders tab: site checkout orders, newest first. ?status=open (not shipped yet) | shipped | all
+async function handleAdminOrdersList(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+  await ensureShopOrdersTable(env);
+  const filter = (url.searchParams.get('status') || 'all').toString();
+  const where = filter === 'open' ? "WHERE status IN ('received', 'in_production') AND is_digital = 0"
+    : filter === 'shipped' ? "WHERE status = 'shipped'" : filter === 'delivered' ? "WHERE status = 'delivered'" : '';
+  const rows = await env.DB.prepare(`SELECT * FROM shop_orders ${where} ORDER BY order_date DESC, id DESC LIMIT 300`).all();
+  return json({ ok: true, orders: rows.results || [] }, 200, corsHeaders);
+}
+
+// Move a shop order to received / in_production / delivered / cancelled (shipped goes
+// through the shipped email, which carries the tracking), optionally emailing the
+// customer about it. Statuses can move back if one was set by mistake; tracking is kept.
+async function handleAdminOrderStatus(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+  let data;
+  try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
+  const id = Number(data.id || 0);
+  const status = (data.status || '').toString();
+  if (!id || !ORDER_STATUSES.includes(status) || status === 'shipped') return json({ ok: false, error: 'Invalid payload' }, 400, corsHeaders);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(data.date || '')) ? String(data.date) : easternDate();
+  await ensureShopOrdersTable(env);
+  const res = await env.DB.prepare(`UPDATE shop_orders SET status = ?2, updated_at = datetime('now'),
+      in_production_at = CASE WHEN ?2 = 'in_production' THEN ?3 ELSE in_production_at END,
+      delivered_at = CASE WHEN ?2 = 'delivered' THEN ?3 ELSE delivered_at END
+    WHERE id = ?1 AND is_digital = 0`).bind(id, status, date).run();
+  if (!res.meta?.changes) return json({ ok: false, error: 'Order not found' }, 404, corsHeaders);
+  let emailed = false;
+  if (data.sendEmail && ORDER_EMAIL_STATUSES.includes(status)) {
+    if (!emailConfigured(env)) return json({ ok: false, error: 'Status saved, but email is not configured' }, 500, corsHeaders);
+    const order = await env.DB.prepare('SELECT * FROM shop_orders WHERE id = ?1').bind(id).first();
+    emailed = await sendOrderUpdateEmail(env, order, status, sendEmail);
+    if (!emailed) return json({ ok: false, error: 'Status saved, but the email to the customer failed. Try "Email customer" again.' }, 502, corsHeaders);
+  }
+  return json({ ok: true, id, status, emailed }, 200, corsHeaders);
+}
+
+// HTML of the email a status change would send, for the admin preview.
+async function handleAdminOrderEmailPreview(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+  let data;
+  try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
+  await ensureShopOrdersTable(env);
+  const order = await env.DB.prepare('SELECT * FROM shop_orders WHERE id = ?1').bind(Number(data.id || 0)).first();
+  if (!order) return json({ ok: false, error: 'Order not found' }, 404, corsHeaders);
+  const status = (data.status || '').toString();
+  const preview = { ...order, ...(status === 'delivered' && !order.delivered_at ? { delivered_at: easternDate() } : {}) };
+  const built = buildOrderUpdateEmail(preview, status);
+  if (!built) return json({ ok: false, error: 'No email for that status' }, 400, corsHeaders);
+  return json({ ok: true, subject: built.subject, html: built.html }, 200, corsHeaders);
 }
 
 async function convertQuoteToInvoice(db, quote) {

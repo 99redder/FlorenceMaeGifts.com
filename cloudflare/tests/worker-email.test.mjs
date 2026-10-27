@@ -532,3 +532,146 @@ test('emergency access is off without EMERGENCY_ADMIN_EMAIL', async (t) => {
   assert.equal(res.status, 500);
   assert.equal(env.EMAIL.sent.length, 0);
 });
+
+// ── Website orders (shop_orders, src/orders.js) ──
+
+const HAT = 'Crochet Shadow Monster Baby Hat (Multiple Sizes Available)';
+const HAT_PRICE = 'price_1UEHH5CHBNzHMP0M3pRzQbLj'; // its 3-6 months size in products.json
+
+function hatPurchase(id, email = 'parent@example.org') {
+  return {
+    id: `evt_${id}`, type: 'checkout.session.completed', created: Math.floor(Date.now() / 1000),
+    data: { object: {
+      id, payment_intent: `pi_${id}`, amount_total: 5299, payment_status: 'paid',
+      customer_details: { email, name: 'Pat Parent' },
+      metadata: { checkout_type: 'fmg_shop_item', item_name: HAT, price_id: HAT_PRICE }
+    } }
+  };
+}
+
+test('a hat order gets an order number and one branded confirmation email', async (t) => {
+  quietConsole(t);
+  guardNetwork(t, stripeStubs);
+  const env = baseEnv();
+  let res = await worker.fetch(await signedWebhook(hatPurchase('cs_test_hat_1')), env, ctx);
+  assert.equal(res.status, 200, await res.clone().text());
+  const order = await env.DB.prepare("SELECT * FROM shop_orders WHERE stripe_session_id = 'cs_test_hat_1'").first();
+  assert.match(order.order_number, /^FMG-[A-HJKMNP-Z2-9]{6}$/);
+  assert.equal(order.item_name, 'Crochet Shadow Monster Baby Hat');
+  assert.equal(order.size_label, '3-6 months');
+  assert.equal(order.customer_email, 'parent@example.org');
+  assert.equal(order.status, 'received');
+  assert.equal(order.is_digital, 0);
+  assert.ok(order.confirmation_sent_at && order.confirmation_sent_at !== 'sending');
+
+  assert.equal(env.EMAIL.sent.length, 1);
+  const [mail] = env.EMAIL.sent;
+  assert.deepEqual(mail.from, { email: 'orders@florencemaegifts.com', name: 'Florence Mae Gifts' });
+  assert.deepEqual(mail.to, ['parent@example.org']);
+  assert.equal(mail.replyTo, 'contact@florencemaegifts.com');
+  assert.deepEqual(mail.bcc, ['contact@florencemaegifts.com']);
+  assert.equal(mail.subject, `Your Florence Mae Gifts order is confirmed (${order.order_number})`);
+  // Same layout as the shipped and invoice emails, and a plain-text copy with the same facts.
+  assert.match(mail.html, /images\/banner3\.png/);
+  assert.match(mail.html, /Thank You for Your Order!/);
+  for (const fact of [order.order_number, 'Crochet Shadow Monster Baby Hat (3-6 months)', 'Estimated Ship Date:']) {
+    assert.ok(mail.html.includes(fact) && mail.text.includes(fact), fact);
+  }
+  assert.doesNotMatch(mail.text, /<[a-z]/i);
+
+  // Stripe redelivers the event: the same order, no second email.
+  res = await worker.fetch(await signedWebhook(hatPurchase('cs_test_hat_1')), env, ctx);
+  assert.equal(res.status, 200);
+  assert.equal(env.EMAIL.sent.length, 1);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) AS n FROM shop_orders').first()).n, 1);
+});
+
+test('a pattern order is recorded as digital and its download email carries the order number', async (t) => {
+  quietConsole(t);
+  guardNetwork(t, stripeStubs);
+  const env = baseEnv();
+  await worker.fetch(await signedWebhook(downloadPurchase('cs_test_dl_num')), env, ctx);
+  const order = await env.DB.prepare("SELECT * FROM shop_orders WHERE stripe_session_id = 'cs_test_dl_num'").first();
+  assert.equal(order.is_digital, 1);
+  assert.equal(env.EMAIL.sent.length, 1, 'only the download email, no second confirmation');
+  assert.ok(env.EMAIL.sent[0].text.includes(`Order number: ${order.order_number}`));
+  assert.ok(env.EMAIL.sent[0].html.includes(order.order_number));
+});
+
+test('order details show the order number, and a hat is not a download', async (t) => {
+  quietConsole(t);
+  const session = {
+    id: 'cs_test_hat_2', payment_status: 'paid', status: 'complete', created: Math.floor(Date.now() / 1000),
+    amount_subtotal: 5299, currency: 'usd', customer_details: { email: 'parent@example.org' },
+    metadata: { checkout_type: 'fmg_shop_item', item_name: HAT, price_id: HAT_PRICE }
+  };
+  guardNetwork(t, { 'https://api.stripe.com/v1/checkout/sessions/': session, ...stripeStubs });
+  const env = baseEnv({ STRIPE_SECRET_KEY: 'sk_test_only' });
+  await worker.fetch(await signedWebhook(hatPurchase('cs_test_hat_2')), env, ctx);
+  const details = await (await worker.fetch(new Request('https://worker.example/api/checkout-session-details?session_id=cs_test_hat_2'), env, ctx)).json();
+  const order = await env.DB.prepare("SELECT order_number FROM shop_orders WHERE stripe_session_id = 'cs_test_hat_2'").first();
+  assert.equal(details.orderNumber, order.order_number);
+  assert.equal(details.isDigital, false, 'the success page must not promise a pattern download for a hat');
+  assert.equal(details.downloadUrl, null);
+});
+
+test('admin: an order moves through in production, shipped and delivered, emailing the customer at each step', async (t) => {
+  quietConsole(t);
+  guardNetwork(t, stripeStubs);
+  const env = baseEnv();
+  await worker.fetch(await signedWebhook(hatPurchase('cs_test_hat_3')), env, ctx);
+  await worker.fetch(await signedWebhook(downloadPurchase('cs_test_dl_admin')), env, ctx);
+  const admin = await adminCookie(env);
+  const list = async (status) => (await (await worker.fetch(new Request(`https://worker.example/api/accounts/orders?status=${status}`, { headers: { Origin: SITE, ...admin } }), env, ctx)).json()).orders;
+  assert.equal((await list('all')).length, 2);
+  let [order] = await list('open');
+  assert.equal(order.status, 'received');
+  assert.equal((await list('open')).length, 1, 'patterns are never waiting to ship');
+  const sent = () => env.EMAIL.sent.length;
+  const before = sent();
+
+  let res = await worker.fetch(post('/api/accounts/orders/email/preview', { id: order.id, status: 'in_production' }, admin), env, ctx);
+  assert.match((await res.json()).html, /Your Order Is Being Made/);
+  assert.equal(sent(), before, 'a preview sends nothing');
+
+  res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'in_production', sendEmail: true, date: '2026-11-03' }, admin), env, ctx);
+  assert.equal(res.status, 200, await res.clone().text());
+  let mail = env.EMAIL.sent.at(-1);
+  assert.deepEqual(mail.to, ['parent@example.org']);
+  assert.equal(mail.subject, `Your Florence Mae Gifts order is being made (${order.order_number})`);
+  [order] = await list('open');
+  assert.equal(order.status, 'in_production');
+  assert.equal(order.in_production_at, '2026-11-03');
+  assert.equal(order.last_email_status, 'in_production');
+
+  res = await worker.fetch(post('/api/accounts/orders/shipped', { id: order.id, carrier: 'USPS', trackingNumber: '9400122222222222222222', shipDate: '2026-11-09' }, admin), env, ctx);
+  assert.equal(res.status, 200, await res.clone().text());
+  mail = env.EMAIL.sent.at(-1);
+  assert.equal(mail.subject, `Your Florence Mae Gifts order has shipped (${order.order_number})`);
+  assert.match(mail.text, new RegExp(`^Order: ${order.order_number}$`, 'm'));
+  assert.match(mail.html, /tools\.usps\.com\/go\/TrackConfirmAction\?tLabels=9400122222222222222222/);
+  [order] = await list('shipped');
+  assert.equal(order.tracking_number, '9400122222222222222222');
+  assert.equal(order.last_email_status, 'shipped');
+
+  const count = sent();
+  res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'delivered', sendEmail: false, date: '2026-11-13' }, admin), env, ctx);
+  assert.equal(res.status, 200);
+  assert.equal(sent(), count, 'no email unless asked for');
+  [order] = await list('delivered');
+  assert.equal(order.delivered_at, '2026-11-13');
+  res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'delivered', sendEmail: true, date: '2026-11-13' }, admin), env, ctx);
+  assert.equal(res.status, 200);
+  mail = env.EMAIL.sent.at(-1);
+  assert.equal(mail.subject, `Your Florence Mae Gifts order was delivered (${order.order_number})`);
+  assert.ok(mail.text.includes('Delivered: November 13, 2026'));
+
+  // Patterns have nothing to ship, and the status endpoint takes only known statuses.
+  const pattern = (await list('all')).find((o) => o.is_digital);
+  res = await worker.fetch(post('/api/accounts/orders/shipped', { id: pattern.id, carrier: 'USPS', trackingNumber: '1' }, admin), env, ctx);
+  assert.equal(res.status, 400);
+  res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'lost' }, admin), env, ctx);
+  assert.equal(res.status, 400);
+  res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'received' }), env, ctx);
+  assert.equal(res.status, 401, 'admin only');
+});

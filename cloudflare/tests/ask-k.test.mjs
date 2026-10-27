@@ -133,7 +133,7 @@ test('Ask K answers a shop question after a Turnstile check, then reuses the con
   assert.equal(call.body.model, 'claude-opus-5-5');
   assert.equal(call.body.output_config.effort, 'low');
   assert.equal(call.body.output_config.format.type, 'json_schema');
-  assert.deepEqual(call.body.output_config.format.schema.required, ['reply', 'handoff', 'topic', 'summary']);
+  assert.deepEqual(call.body.output_config.format.schema.required, ['reply', 'handoff', 'topic', 'summary', 'lookup']);
   assert.equal(call.body.fallbacks, 'default');
   assert.match(call.headers.get('anthropic-beta'), /server-side-fallback-2026-07-01/);
   assert.equal(call.headers.get('anthropic-workspace-id'), null);
@@ -407,4 +407,83 @@ test('The daily summary needs SUMMARY_TOKEN and a YYYY-MM-DD day', async (t) => 
   const bad = await summary(env, { day: 'yesterday' });
   assert.equal(bad.status, 400);
   assert.deepEqual(await bad.json(), { error: 'day must be YYYY-MM-DD' });
+});
+
+// ── Order updates by email (/api/ask-k/order-status) ──
+
+async function statusRequest(env, body, ip = '203.0.113.7') {
+  const res = await worker.fetch(new Request(`${SITE}/api/ask-k/order-status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Origin: SITE, 'CF-Connecting-IP': ip },
+    body: JSON.stringify(body)
+  }), env);
+  return { status: res.status, data: await res.json() };
+}
+
+function seedOrders(env) {
+  env.DB.sqlite.exec(`
+    INSERT INTO shop_orders (order_number, stripe_session_id, customer_email, customer_name, item_name, size_label, amount_cents, order_date, status, in_production_at)
+      VALUES ('FMG-HAT234', 'cs_seed_1', 'parent@example.org', 'Pat Parent', 'Crochet Shadow Monster Baby Hat', '3-6 months', 5299, '${easternDay()}', 'in_production', '${easternDay()}');
+    INSERT INTO invoices (invoice_number, customer_name, customer_email, issue_date, due_date, status, total_cents, balance_due_cents)
+      VALUES ('INV-2001', 'Pat Parent', 'Parent@Example.org', '2026-10-01', '2026-10-15', 'paid', 6000, 0),
+             ('INV-2002', 'Drew Draft', 'draft@example.com', '2026-10-01', '2026-10-15', 'draft', 3000, 3000);
+    INSERT INTO invoice_line_items (invoice_id, item_description, quantity, unit_amount_cents, line_total_cents)
+      SELECT id, 'Custom Goku blanket', 1, 6000, 6000 FROM invoices WHERE invoice_number = 'INV-2001';`);
+}
+
+test('Order updates go only to the inbox, and the chat says the same thing either way', async (t) => {
+  fakeApis(t);
+  const env = baseEnv();
+  seedOrders(env);
+  const pass = (await ask(env, { message: ON_TOPIC, turnstileToken: passToken() })).data.pass;
+
+  const known = await statusRequest(env, { email: '  Parent@Example.ORG ', pass });
+  const unknown = await statusRequest(env, { email: 'stranger@example.com', pass }, '198.51.100.30');
+  const draftOnly = await statusRequest(env, { email: 'draft@example.com', pass }, '198.51.100.31');
+  for (const res of [known, unknown, draftOnly]) {
+    assert.equal(res.status, 200);
+    assert.equal(res.data.reply, known.data.reply, 'the same words whether or not the address has orders');
+    assert.doesNotMatch(JSON.stringify(res.data), /FMG-|INV-|Shadow|Goku|parent@|Pat Parent/i);
+  }
+  assert.match(known.data.reply, /Etsy/);
+
+  assert.equal(env.EMAIL.sent.length, 1, 'only the address with orders gets an email; a draft invoice is not an order');
+  const [mail] = env.EMAIL.sent;
+  assert.deepEqual(mail.to, ['parent@example.org']);
+  assert.equal(mail.replyTo, 'contact@florencemaegifts.com');
+  assert.equal(mail.subject, 'Your Florence Mae Gifts order status');
+  assert.match(mail.html, /images\/banner3\.png/);
+  for (const fact of ['Order Number: FMG-HAT234', 'Item: Crochet Shadow Monster Baby Hat (3-6 months)', 'Status: Megan is making it now.', 'Custom Order: INV-2001', 'Items: Custom Goku blanket', 'Payment: Paid']) {
+    assert.ok(mail.text.includes(fact), fact);
+  }
+  assert.doesNotMatch(mail.text, /<[a-z]/i);
+  const row = await env.DB.prepare("SELECT questions FROM askk_daily WHERE provider = 'status'").first();
+  assert.equal(row.questions, 3);
+});
+
+test('Order updates need the bot check, a real address, and are limited per address', async (t) => {
+  fakeApis(t);
+  const env = baseEnv();
+  seedOrders(env);
+  assert.equal((await statusRequest(env, { email: 'parent@example.org' })).status, 403);
+  const first = await statusRequest(env, { email: 'parent@example.org', turnstileToken: passToken() });
+  assert.equal(first.status, 200);
+  assert.ok(first.data.pass, 'a passed check returns a conversation pass');
+  assert.equal((await statusRequest(env, { email: 'not-an-email', pass: first.data.pass })).status, 400);
+
+  await statusRequest(env, { email: 'parent@example.org', pass: first.data.pass }, '198.51.100.40');
+  const third = await statusRequest(env, { email: 'PARENT@example.org', pass: first.data.pass }, '198.51.100.41');
+  assert.equal(third.status, 200);
+  assert.match(third.data.reply, /already emailed order updates for that address recently/);
+  assert.equal(env.EMAIL.sent.length, 2, 'two per address per hour, whoever asks');
+});
+
+test('K asks for the order lookup box instead of guessing about a website order', async (t) => {
+  const calls = fakeApis(t, { answer: { reply: 'I can email you the latest status. Use the box below.', handoff: false, topic: 'general', summary: '', lookup: true } });
+  const res = await ask(baseEnv(), { message: 'Where is my order? I bought it on your website', turnstileToken: passToken() });
+  assert.equal(res.data.lookup, true);
+  assert.equal(res.data.handoff, false);
+  const schema = answerCalls(calls)[0].body.output_config.format.schema;
+  assert.ok(schema.required.includes('lookup'));
+  assert.match(answerCalls(calls)[0].body.system[0].text, /Orders placed on Etsy can't be looked up here/);
 });

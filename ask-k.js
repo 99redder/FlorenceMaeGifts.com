@@ -2,8 +2,12 @@
 // button (footer.html). Questions go to /api/ask-k (cloudflare/src/ask-k.js).
 // When K can't help, it opens the contact modal on the right topic with a
 // summary typed in and this chat attached (window.openContactModal, footer.js).
+// For order updates it shows an email field: the status of that address's site
+// orders is emailed to it (/api/ask-k/order-status), never shown in the chat.
 (function() {
   var API = "/api/ask-k";
+  var STATUS_API = "/api/ask-k/order-status";
+  var LOOKUP_INTRO = "I can email you the latest status and tracking for orders placed on this website (or custom work Megan invoiced you for). Which email address did you order with?";
   var TURNSTILE_SITE_KEY = "0x4AAAAAAFnNlSgwL9V46Urf";
   var TURNSTILE_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
   var STORE_KEY = "fmgAskK";
@@ -137,11 +141,11 @@
 
   // ── Asking ──
 
-  function post(question, token) {
-    return fetch(API, {
+  function post(url, body, token) {
+    return fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: question, history: state.history, pass: state.pass || undefined, turnstileToken: token || undefined })
+      body: JSON.stringify(Object.assign({}, body, { pass: state.pass || undefined, turnstileToken: token || undefined }))
     }).then(function(response) {
       return response.json().catch(function() { return {}; }).then(function(data) {
         data.status = response.status;
@@ -150,19 +154,82 @@
     });
   }
 
-  function ask(question, retried) {
+  // Posts with the conversation pass, or a Turnstile token when there is none yet.
+  function call(url, body, retried) {
     var tokenNeeded = !state.pass;
     var tokenReady = tokenNeeded ? turnstileToken() : Promise.resolve("");
     return tokenReady.then(function(token) {
       if (tokenNeeded) useToken();
-      return post(question, token);
+      return post(url, body, token);
     }).then(function(data) {
+      if (data.pass) state.pass = data.pass;
       if (data.needsVerification && !retried) {
         state.pass = "";
-        return ask(question, true);
+        return call(url, body, true);
       }
       return data;
     });
+  }
+
+  function ask(question) {
+    return call(API, { message: question, history: state.history });
+  }
+
+  // The "email me my order status" field, shown under K's message. The address is
+  // sent once and kept nowhere: not in the chat, the history or session storage.
+  function lookupForm() {
+    var form = document.createElement("form");
+    form.className = "ask-k-lookup";
+    form.innerHTML = '<label class="ask-k-lookup-label">Email you ordered with</label>' +
+      '<div class="ask-k-lookup-row"><input type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com">' +
+      '<button type="submit">Email my status</button></div>' +
+      '<p class="ask-k-lookup-note">We\'ll send the status and tracking to that inbox. Nothing about your order is shown here.</p>';
+    var input = form.querySelector("input");
+    var label = form.querySelector("label");
+    input.id = "ask-k-lookup-" + Date.now();
+    label.setAttribute("for", input.id);
+    form.addEventListener("submit", function(event) {
+      event.preventDefault();
+      var email = input.value.trim();
+      if (!email || busy) return;
+      busy = true;
+      var button = form.querySelector("button");
+      button.disabled = true;
+      button.textContent = "Sending...";
+      call(STATUS_API, { email: email }).then(function(data) {
+        if (!data.ok) {
+          button.disabled = false;
+          button.textContent = "Email my status";
+          addBubble("assistant", data.error || NETWORK_ERROR);
+          return;
+        }
+        form.remove();
+        state.history.push({ role: "assistant", content: data.reply });
+        save();
+        addBubble("assistant", data.reply);
+      }, function() {
+        button.disabled = false;
+        button.textContent = "Email my status";
+        addBubble("assistant", NETWORK_ERROR);
+      }).then(function() {
+        busy = false;
+      });
+    });
+    setTimeout(function() { input.focus(); }, 0);
+    return form;
+  }
+
+  function showLookup(intro) {
+    if (intro) {
+      state.history.push({ role: "user", content: "Check my order status" }, { role: "assistant", content: intro });
+      save();
+      addBubble("user", "Check my order status");
+      addBubble("assistant", intro);
+    }
+    var log = el("ask-k-log");
+    log.querySelectorAll(".ask-k-lookup").forEach(function(old) { old.remove(); });
+    log.appendChild(lookupForm());
+    log.scrollTop = log.scrollHeight;
   }
 
   function send(question) {
@@ -182,7 +249,6 @@
 
     ask(question).then(function(data) {
       typing.remove();
-      if (data.pass) state.pass = data.pass;
       var reply = data.ok ? data.reply : (data.error || NETWORK_ERROR);
       var handoff = data.ok ? data.handoff : (data.handoff || data.status >= 500);
       var summary = data.summary || question;
@@ -190,6 +256,7 @@
       if (data.ok) state.history.push({ role: "assistant", content: reply });
       save();
       addBubble("assistant", reply, handoff ? formButton(data.topic, summary) : null);
+      if (data.ok && data.lookup) showLookup();
       if (handoff) {
         setTimeout(function() { openForm(data.topic || "order", summary); }, HANDOFF_DELAY);
       }
@@ -254,7 +321,11 @@
     });
     el("ask-k-chips").addEventListener("click", function(event) {
       var chip = event.target.closest("button");
-      if (chip) send(chip.textContent);
+      if (!chip || busy) return;
+      el("ask-k-chips").hidden = true;
+      // Answered here, without a question to Claude.
+      if (chip.hasAttribute("data-ask-k-lookup")) showLookup(LOOKUP_INTRO);
+      else send(chip.textContent);
     });
     el("ask-k").addEventListener("keydown", function(event) {
       var modalOpen = document.querySelector('.footer-modal[aria-hidden="false"]');

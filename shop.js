@@ -294,8 +294,16 @@
       checkoutStatusText.innerHTML = "Thank you for your order! Your checkout was completed successfully.";
       const sessionId = params.get("session_id");
       if (sessionId) {
-        fetch(`/api/checkout-session-details?session_id=${encodeURIComponent(sessionId)}`)
-          .then((res) => res.json().then((details) => ({ ok: res.ok, details })))
+        const detailsUrl = `/api/checkout-session-details?session_id=${encodeURIComponent(sessionId)}`;
+        const getDetails = () => fetch(detailsUrl).then((res) => res.json().then((details) => ({ ok: res.ok, details })));
+        // The order number comes from Stripe's webhook, which can land a moment after the buyer returns.
+        const showOrderNumber = (details) => {
+          const orderNumber = String(details?.orderNumber || "").replace(/[^A-Z0-9-]/g, "");
+          if (!orderNumber) return false;
+          checkoutStatusText.innerHTML += `<br><br>Your order number is <strong>${orderNumber}</strong>. We've emailed you a confirmation${details.isDigital ? "" : ", and we'll email you again when it ships"}.`;
+          return true;
+        };
+        getDetails()
           .then(({ ok, details }) => {
             if (ok) sendPurchaseEvent(details?.purchase);
             if (ok && details?.isDigital) {
@@ -303,6 +311,9 @@
               if (details?.downloadUrl) {
                 checkoutStatusText.innerHTML += `<br><br><strong>Your digital download is ready:</strong><br><a href="${details.downloadUrl}" target="_blank" rel="noopener noreferrer">Download your PDF file</a>`;
               }
+            }
+            if (ok && !showOrderNumber(details)) {
+              setTimeout(() => getDetails().then((again) => { if (again.ok) showOrderNumber(again.details); }).catch(function() {}), 4000);
             }
           }).catch(function() {});
       }

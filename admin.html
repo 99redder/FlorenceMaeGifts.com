@@ -314,6 +314,7 @@
       <div class="admin-controls" id="admin-controls" style="padding:0 1rem 1rem;">
         <div class="admin-section-tabs" id="admin-section-tabs">
           <button type="button" class="btn active" data-admin-tab="stats">Stats</button>
+          <button type="button" class="btn" data-admin-tab="orders">Orders</button>
           <button type="button" class="btn" data-admin-tab="notes">Notes</button>
           <button type="button" class="btn" data-admin-tab="tax">Tax Ledger</button>
           <button type="button" class="btn" data-admin-tab="accounts">Accounts</button>
@@ -544,6 +545,30 @@
         </div>
       </div>
 
+      <!-- Website checkout orders (shop_orders): Megan moves each through Received, In Production,
+           Shipped and Delivered, optionally emailing the customer at each step. -->
+      <div class="admin-collapsible-card" id="orders-card" style="margin-top:1rem; display:none;">
+        <div class="admin-collapsible-head">
+          <h3 style="margin:0;">Orders</h3>
+        </div>
+        <div id="orders-body">
+          <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
+            <p style="margin:.1rem 0 .7rem; color:var(--muted); font-size:.92rem;">Orders placed through the website's checkout. Move each one along as you work on it; every step can email the customer, and when a customer asks Ask K for an update, the email they get shows the status set here. Etsy orders stay in Etsy, and custom work is under Invoices.</p>
+            <div class="admin-row" style="gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem; align-items:center;">
+              <label for="order-filter" style="margin:0;">Show</label>
+              <select id="order-filter" style="max-width:220px;">
+                <option value="open" selected>To do (received, in production)</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="all">All orders</option>
+              </select>
+              <button type="button" class="btn" id="order-refresh-btn">Refresh Orders</button>
+            </div>
+            <div id="order-list" class="admin-list">No orders yet.</div>
+          </section>
+        </div>
+      </div>
+
       <div class="admin-collapsible-card" id="invoices-card" style="margin-top:1rem;">
         <div class="admin-collapsible-head">
           <h3 style="margin:0;">Invoices</h3>
@@ -727,6 +752,26 @@
       <div class="form-actions" style="margin-top:1.2rem; display:flex; gap:.5rem; justify-content:flex-end;">
         <button type="button" class="btn" id="cc-payment-cancel-btn">Cancel</button>
         <button type="button" class="btn btn-primary" id="cc-payment-save-btn">Save Payment</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="success-modal-overlay" id="order-status-modal" aria-hidden="true">
+    <div class="success-modal" role="dialog" aria-modal="true" aria-labelledby="order-status-title" style="width:min(460px,94vw); max-height:90vh; overflow-y:auto; text-align:left;">
+      <h3 id="order-status-title" style="margin:.1rem 0 .3rem;">Update Order</h3>
+      <p id="order-status-text" style="margin:0 0 .8rem; color:var(--muted); font-size:.92rem;"></p>
+      <div id="order-status-date-wrap">
+        <label for="order-status-date">Date</label>
+        <input id="order-status-date" type="date" style="width:100%;" />
+      </div>
+      <label id="order-status-email-wrap" style="display:flex; gap:.5rem; align-items:center; margin:.8rem 0 0;">
+        <input type="checkbox" id="order-status-email" checked style="width:auto;" />
+        <span>Email the customer about it</span>
+      </label>
+      <div class="form-actions" style="margin-top:1rem; display:flex; gap:.4rem; justify-content:flex-end; flex-wrap:wrap;">
+        <button type="button" class="btn" id="order-status-cancel-btn">Cancel</button>
+        <button type="button" class="btn" id="order-status-preview-btn">Preview Email</button>
+        <button type="button" class="btn btn-primary" id="order-status-save-btn">Save</button>
       </div>
     </div>
   </div>
@@ -1438,6 +1483,11 @@
     const ACCOUNTS_YEAR_CLOSE_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/year-close');
     const ACCOUNTS_REBUILD_JOURNAL_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/rebuild-auto-journal');
     const INVOICES_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices');
+    const ORDERS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/orders');
+    const ORDER_STATUS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/orders/status');
+    const ORDER_EMAIL_PREVIEW_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/orders/email/preview');
+    const ORDER_SHIPPED_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/orders/shipped');
+    const ORDER_SHIPPED_PREVIEW_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/orders/shipped/preview');
     const INVOICE_STATUS_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/status');
     const INVOICE_PAYMENT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/payment');
     const INVOICE_PAYMENT_LINK_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/invoices/payment-link');
@@ -4427,6 +4477,7 @@
 
     let pendingInvoicePaymentId = null;
     let pendingInvoiceShippedId = null;
+    let pendingShippedKind = 'invoice'; // or 'order' (Orders tab); picks the endpoints and list to refresh
 
     async function fetchAdminJson(url, options = {}) {
       const headers = { ...(options.headers || {}) };
@@ -4635,12 +4686,13 @@
     const DEFAULT_SHIPPED_INTRO = 'Great news — your handmade order from Florence Mae Gifts is on its way! Your tracking details are below.';
     const DEFAULT_SHIPPED_CLOSING = 'Thank you so much for your order! Questions? Just reply to this email.';
 
-    function openInvoiceShippedModal(id) {
+    function openInvoiceShippedModal(id, kind = 'invoice', prefill = {}) {
       pendingInvoiceShippedId = Number(id || 0);
-      if (invoiceShippedCarrierEl) invoiceShippedCarrierEl.value = 'USPS';
-      if (invoiceShippedTrackingEl) invoiceShippedTrackingEl.value = '';
-      if (invoiceShippedDateEl) invoiceShippedDateEl.value = nowEtParts().date;
-      if (invoiceShippedUrlEl) invoiceShippedUrlEl.value = '';
+      pendingShippedKind = kind;
+      if (invoiceShippedCarrierEl) invoiceShippedCarrierEl.value = prefill.carrier || 'USPS';
+      if (invoiceShippedTrackingEl) invoiceShippedTrackingEl.value = prefill.trackingNumber || '';
+      if (invoiceShippedDateEl) invoiceShippedDateEl.value = prefill.shipDate || nowEtParts().date;
+      if (invoiceShippedUrlEl) invoiceShippedUrlEl.value = prefill.trackingUrl || '';
       if (invoiceShippedIntroEl) invoiceShippedIntroEl.value = DEFAULT_SHIPPED_INTRO;
       if (invoiceShippedNoteEl) invoiceShippedNoteEl.value = '';
       if (invoiceShippedClosingEl) invoiceShippedClosingEl.value = DEFAULT_SHIPPED_CLOSING;
@@ -4676,10 +4728,11 @@
 
     async function sendShippedEmail(payload, btn) {
       const oldText = btn.textContent;
+      const kind = pendingShippedKind;
       btn.disabled = true;
       btn.textContent = 'Sending…';
       try {
-        await fetchAdminJson(INVOICE_SHIPPED_API_URL, {
+        await fetchAdminJson(kind === 'order' ? ORDER_SHIPPED_API_URL : INVOICE_SHIPPED_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -4687,7 +4740,8 @@
         closeInvoiceShippedPreview();
         closeInvoiceShippedModal();
         openSuccessModal('Shipping notification email sent to the customer.', 'Shipped Email Sent ✅');
-        await refreshInvoiceList();
+        if (kind === 'order') await refreshOrderList();
+        else await refreshInvoiceList();
       } catch (err) {
         openErrorModal(err.message || String(err));
       } finally {
@@ -4708,7 +4762,7 @@
       invoiceShippedPreviewBtn.disabled = true;
       invoiceShippedPreviewBtn.textContent = 'Loading…';
       try {
-        const data = await fetchAdminJson(INVOICE_SHIPPED_PREVIEW_API_URL, {
+        const data = await fetchAdminJson(pendingShippedKind === 'order' ? ORDER_SHIPPED_PREVIEW_API_URL : INVOICE_SHIPPED_PREVIEW_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -4725,6 +4779,162 @@
       }
     }
 
+
+    // ── Orders tab (website checkout orders) ──
+    const ORDER_STATUS_LABELS = { received: 'Order Received', in_production: 'In Production', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' };
+    const ORDER_STATUS_COLORS = { received: '#6b7280', in_production: '#b45309', shipped: '#2563eb', delivered: '#16a34a', cancelled: '#b91c1c' };
+    const ORDER_EMAIL_STATUSES = ['received', 'in_production', 'delivered']; // shipped uses the shipped-email modal
+    const orderListEl = document.getElementById('order-list');
+    const orderFilterEl = document.getElementById('order-filter');
+    const orderRefreshBtn = document.getElementById('order-refresh-btn');
+    const orderStatusModal = document.getElementById('order-status-modal');
+    const orderStatusTitleEl = document.getElementById('order-status-title');
+    const orderStatusTextEl = document.getElementById('order-status-text');
+    const orderStatusDateEl = document.getElementById('order-status-date');
+    const orderStatusDateWrap = document.getElementById('order-status-date-wrap');
+    const orderStatusEmailEl = document.getElementById('order-status-email');
+    const orderStatusEmailWrap = document.getElementById('order-status-email-wrap');
+    const orderStatusPreviewBtn = document.getElementById('order-status-preview-btn');
+    const orderStatusSaveBtn = document.getElementById('order-status-save-btn');
+    const orderStatusCancelBtn = document.getElementById('order-status-cancel-btn');
+    const ordersById = new Map();
+    let pendingOrderStatus = null; // { id, status, resend }
+
+    function orderDateLabel(value) {
+      const day = String(value || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return '';
+      return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function orderItemLabel(o) {
+      return `${o.item_name || 'Item'}${o.size_label ? ` (${o.size_label})` : ''}`;
+    }
+
+    function orderActionButtons(o) {
+      const id = Number(o.id || 0);
+      if (Number(o.is_digital)) return '<div style="font-size:.85rem; color:var(--muted); text-align:right;">Pattern download: nothing to ship</div>';
+      const btn = (action, label) => `<button type="button" class="btn invoice-action-btn" data-order-action="${action}" data-id="${id}">${label}</button>`;
+      const s = o.status;
+      const out = [];
+      if (s === 'received') out.push(btn('status:in_production', 'In Production'));
+      if (s === 'received' || s === 'in_production') out.push(btn('shipped', 'Mark Shipped'));
+      if (s === 'shipped') out.push(btn('status:delivered', 'Mark Delivered'));
+      if (s !== 'cancelled') out.push(btn('email', 'Email Customer'));
+      const options = Object.keys(ORDER_STATUS_LABELS).filter((x) => x !== s).map((x) => `<option value="${x}">${ORDER_STATUS_LABELS[x]}</option>`).join('');
+      out.push(`<select class="order-status-select" data-id="${id}" aria-label="Change status of ${escAttr(o.order_number)}" style="max-width:150px;"><option value="">Change status…</option>${options}</select>`);
+      return `<div style="display:flex; gap:.24rem; flex-wrap:wrap; justify-content:flex-end; align-items:center;">${out.join('')}</div>`;
+    }
+
+    async function refreshOrderList() {
+      if (!orderListEl) return;
+      orderListEl.textContent = 'Loading orders…';
+      try {
+        const data = await fetchAdminJson(`${ORDERS_API_URL}?status=${encodeURIComponent(orderFilterEl?.value || 'open')}`);
+        const list = data.orders || [];
+        ordersById.clear();
+        list.forEach((o) => ordersById.set(Number(o.id), o));
+        orderListEl.innerHTML = list.length ? list.map((o) => {
+          const status = Number(o.is_digital) ? 'Pattern PDF' : (ORDER_STATUS_LABELS[o.status] || o.status);
+          const color = Number(o.is_digital) ? 'var(--muted)' : (ORDER_STATUS_COLORS[o.status] || 'var(--muted)');
+          const tracking = o.tracking_number ? `<div style="font-size:.85rem; margin-top:.14rem;">Tracking: ${o.tracking_url ? `<a href="${escAttr(o.tracking_url)}" target="_blank" rel="noopener noreferrer">${escHtml(`${o.tracking_carrier ? `${o.tracking_carrier} ` : ''}${o.tracking_number}`)}</a>` : escHtml(o.tracking_number)}</div>` : '';
+          const emailed = o.last_email_status ? `<div style="font-size:.85rem; margin-top:.14rem; color:#16a34a;">Last email: ${escHtml(ORDER_STATUS_LABELS[o.last_email_status] || o.last_email_status)}, ${escHtml(orderDateLabel(o.last_email_at))}</div>` : '';
+          return `<div class="tax-row" data-id="${Number(o.id || 0)}"><div>${escHtml(o.order_number || '—')}<div style="font-size:.88rem; color:var(--muted); margin-top:.08rem;">${escHtml(orderItemLabel(o))} · Ordered ${escHtml(orderDateLabel(o.order_date))}<br>Customer: ${escHtml(o.customer_name || '—')}${o.customer_email ? ` - Email: ${escHtml(o.customer_email)}` : ''}</div>${tracking}${emailed}</div><div class="amt">${qMoney(Number(o.amount_cents || 0) / 100)}</div><div style="font-weight:700; color:${color};">${escHtml(status)}</div>${orderActionButtons(o)}</div>`;
+        }).join('') : 'No orders here yet.';
+      } catch (err) {
+        orderListEl.textContent = err.message || 'Failed to load orders.';
+      }
+    }
+
+    // status: the one to move to (or the current one when resend is true, to email it again).
+    function openOrderStatusModal(id, status, { resend = false } = {}) {
+      const o = ordersById.get(Number(id));
+      if (!o) return;
+      if (status === 'shipped') {
+        openInvoiceShippedModal(o.id, 'order', resend ? { carrier: o.tracking_carrier, trackingNumber: o.tracking_number, shipDate: String(o.shipped_at || '').slice(0, 10), trackingUrl: o.tracking_url } : {});
+        return;
+      }
+      pendingOrderStatus = { id: Number(o.id), status, resend };
+      const label = ORDER_STATUS_LABELS[status] || status;
+      const hasEmail = ORDER_EMAIL_STATUSES.includes(status);
+      const forward = !resend && ((o.status === 'received' && status === 'in_production') || (o.status === 'shipped' && status === 'delivered'));
+      if (orderStatusTitleEl) orderStatusTitleEl.textContent = resend ? `Email ${o.order_number}: ${label}` : `${o.order_number}: ${label}`;
+      if (orderStatusTextEl) orderStatusTextEl.textContent = resend
+        ? `Send ${o.customer_email || 'the customer'} the "${label}" email again.`
+        : `${orderItemLabel(o)} for ${o.customer_name || o.customer_email || 'the customer'}. Changes the status from ${ORDER_STATUS_LABELS[o.status] || o.status} to ${label}.`;
+      const existingDate = status === 'in_production' ? o.in_production_at : status === 'delivered' ? o.delivered_at : '';
+      if (orderStatusDateEl) orderStatusDateEl.value = String(existingDate || '').slice(0, 10) || nowEtParts().date;
+      if (orderStatusDateWrap) orderStatusDateWrap.style.display = (status === 'in_production' || status === 'delivered') && !resend ? '' : 'none';
+      if (orderStatusEmailEl) orderStatusEmailEl.checked = resend || forward;
+      if (orderStatusEmailWrap) orderStatusEmailWrap.style.display = hasEmail && !resend ? 'flex' : 'none';
+      if (orderStatusPreviewBtn) orderStatusPreviewBtn.style.display = hasEmail ? '' : 'none';
+      if (orderStatusSaveBtn) orderStatusSaveBtn.textContent = resend ? 'Send Email' : 'Save';
+      orderStatusModal?.classList.add('active');
+      orderStatusModal?.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeOrderStatusModal() {
+      pendingOrderStatus = null;
+      orderStatusModal?.classList.remove('active');
+      orderStatusModal?.setAttribute('aria-hidden', 'true');
+    }
+
+    async function previewOrderStatusEmail() {
+      if (!pendingOrderStatus) return;
+      try {
+        const data = await fetchAdminJson(ORDER_EMAIL_PREVIEW_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pendingOrderStatus.id, status: pendingOrderStatus.status }) });
+        openDocPreviewModal(data.subject || 'Email Preview', `<iframe title="Email preview" srcdoc="${escAttr(data.html || '')}" style="width:100%; height:60vh; border:1px solid var(--border,#ccc); border-radius:8px; background:#fff;"></iframe>`);
+      } catch (err) {
+        openErrorModal(err.message || String(err));
+      }
+    }
+
+    async function saveOrderStatus() {
+      if (!pendingOrderStatus) return;
+      const { id, status, resend } = pendingOrderStatus;
+      const o = ordersById.get(id) || {};
+      const sendEmail = ORDER_EMAIL_STATUSES.includes(status) && (resend || !!orderStatusEmailEl?.checked);
+      const keepDate = String((status === 'in_production' ? o.in_production_at : status === 'delivered' ? o.delivered_at : '') || '').slice(0, 10);
+      const date = resend ? keepDate : (orderStatusDateEl?.value || '');
+      const oldText = orderStatusSaveBtn.textContent;
+      orderStatusSaveBtn.disabled = true;
+      orderStatusSaveBtn.textContent = sendEmail ? 'Sending…' : 'Saving…';
+      try {
+        await fetchAdminJson(ORDER_STATUS_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status, sendEmail, date: date || undefined }) });
+        closeOrderStatusModal();
+        openSuccessModal(sendEmail ? `Saved, and the "${ORDER_STATUS_LABELS[status]}" email was sent to the customer.` : `Order marked ${ORDER_STATUS_LABELS[status]}.`, sendEmail ? 'Email Sent ✅' : 'Order Updated ✅');
+      } catch (err) {
+        openErrorModal(err.message || String(err));
+      } finally {
+        orderStatusSaveBtn.disabled = false;
+        orderStatusSaveBtn.textContent = oldText;
+        await refreshOrderList();
+      }
+    }
+
+    orderListEl?.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-order-action]');
+      if (!btn) return;
+      const id = Number(btn.getAttribute('data-id') || 0);
+      const action = btn.getAttribute('data-order-action');
+      const o = ordersById.get(id);
+      if (!o) return;
+      if (action === 'shipped') openOrderStatusModal(id, 'shipped');
+      else if (action === 'email') openOrderStatusModal(id, o.status, { resend: true });
+      else if (action.startsWith('status:')) openOrderStatusModal(id, action.slice(7));
+    });
+    orderListEl?.addEventListener('change', (e) => {
+      const select = e.target.closest('.order-status-select');
+      if (!select || !select.value) return;
+      const status = select.value;
+      select.value = '';
+      openOrderStatusModal(Number(select.getAttribute('data-id')), status);
+    });
+    orderFilterEl?.addEventListener('change', refreshOrderList);
+    orderRefreshBtn?.addEventListener('click', refreshOrderList);
+    orderStatusCancelBtn?.addEventListener('click', closeOrderStatusModal);
+    orderStatusModal?.addEventListener('click', (e) => { if (e.target === orderStatusModal) closeOrderStatusModal(); });
+    orderStatusPreviewBtn?.addEventListener('click', previewOrderStatusEmail);
+    orderStatusSaveBtn?.addEventListener('click', saveOrderStatus);
 
     function populateNotesYearSelects() {
       const years = [];
@@ -4775,6 +4985,7 @@
       adminSectionTabBtns.forEach((btn) => btn.classList.toggle('active', btn.getAttribute('data-admin-tab') === tab));
       const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
       show('stats-card', tab === 'stats');
+      show('orders-card', tab === 'orders');
       show('notes-card', tab === 'notes');
       show('booking-controls-card', false);
       show('tax-ledger-card', tab === 'tax');
@@ -4787,6 +4998,7 @@
       if (tab === 'stats' && adminUnlocked) loadStatsData();
       if (tab === 'notes' && adminUnlocked) refreshAdminNotes();
       if (tab === 'invoices' && adminUnlocked) refreshInvoiceList();
+      if (tab === 'orders' && adminUnlocked) refreshOrderList();
       if (tab === 'quotes' && adminUnlocked) refreshQuoteList();
       updateFloatingAddButtons();
     }

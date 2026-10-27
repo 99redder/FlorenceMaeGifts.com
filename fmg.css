@@ -819,6 +819,70 @@ body.ask-k-open .order-help-fab {
   background: var(--askk-k-bubble);
 }
 
+/* "Email my status" field under K's message (order updates go to the buyer's inbox). */
+.ask-k-lookup {
+  align-self: stretch;
+  padding: 11px 12px 9px;
+  border: 1px solid var(--askk-border);
+  border-radius: 14px;
+  background: var(--askk-k-bubble);
+}
+
+.ask-k-lookup-label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 13.5px;
+}
+
+.ask-k-lookup-row {
+  display: flex;
+  gap: 6px;
+}
+
+.ask-k-lookup input[type=email] {
+  flex: 1;
+  box-sizing: border-box;
+  width: auto;
+  min-width: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--askk-border);
+  border-radius: 10px;
+  background: var(--askk-field-bg);
+  color: var(--askk-text);
+  font-family: 'Lora', serif;
+  font-size: 14.5px;
+}
+
+.ask-k-lookup input[type=email]:focus {
+  border-color: var(--askk-accent);
+  outline: 2px solid rgba(254, 102, 102, 0.25);
+  background: var(--askk-field-bg);
+}
+
+.ask-k-lookup button {
+  flex: none;
+  padding: 8px 13px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FE6666 0%, #FF6699 100%);
+  color: #fff;
+  font-family: 'Varela Round', sans-serif;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.ask-k-lookup button:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.ask-k p.ask-k-lookup-note {
+  margin: 6px 0 0;
+  color: var(--askk-muted);
+  font-size: 12px;
+}
+
 .ask-k-turnstile {
   display: flex;
   justify-content: center;
