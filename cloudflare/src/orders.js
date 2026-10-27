@@ -314,6 +314,18 @@ export async function sendOrderUpdateEmail(env, order, status, sendEmail) {
   return ok;
 }
 
+/**
+ * A pattern order is complete once its download email has gone out: status 'delivered'
+ * ("Download sent" in admin), dated the first time. Safe to call again on Stripe retries.
+ */
+export async function markDownloadSent(env, id, date = easternDate()) {
+  await env.DB.prepare(`UPDATE shop_orders SET status = 'delivered', delivered_at = COALESCE(delivered_at, ?2),
+      confirmation_sent_at = COALESCE(confirmation_sent_at, datetime('now')),
+      last_email_status = COALESCE(last_email_status, 'download'), last_email_at = COALESCE(last_email_at, datetime('now')),
+      updated_at = datetime('now')
+    WHERE id = ?1 AND is_digital = 1`).bind(id, date).run();
+}
+
 export async function markOrderEmailed(env, id, status) {
   await env.DB.prepare("UPDATE shop_orders SET last_email_status = ?2, last_email_at = datetime('now'), updated_at = datetime('now') WHERE id = ?1").bind(id, status).run();
 }
@@ -390,7 +402,7 @@ function shopOrderBlocks(o, today) {
   const tracking = [];
   let status;
   if (o.status === 'cancelled') status = 'Cancelled';
-  else if (o.is_digital) status = 'PDF pattern: the download link was emailed right after checkout. If it has expired, reply to this email and Megan will send the file again.';
+  else if (o.is_digital) status = `PDF pattern: the download link was emailed ${o.delivered_at ? longDate(o.delivered_at) : 'right after checkout'}. If it has expired, reply to this email and Megan will send you a new one.`;
   else if (o.status === 'delivered') status = `Delivered${o.delivered_at ? ` ${longDate(o.delivered_at)}` : ''}`;
   else if (o.status === 'shipped') status = shippedText(o.shipped_at, o.tracking_carrier);
   else if (o.status === 'in_production') status = makingText(o, today, 'Megan is making it now.');

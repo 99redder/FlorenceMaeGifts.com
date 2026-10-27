@@ -6,6 +6,7 @@
 // GET  /api/accounts/orders         → handleAdminOrdersList() — Admin: site checkout orders (shop_orders, orders.js)
 // POST /api/accounts/orders/status (+ /email/preview)   → Admin: move a shop order to received / in_production (with an estimated ship date) / delivered / cancelled, optionally emailing the customer
 // POST /api/accounts/orders/shipped (+ /preview)        → Admin: mark a shop order shipped with tracking and send the shipped email
+// POST /api/accounts/orders/resend-download              → Admin: email a pattern buyer a fresh download link (the old one expired)
 // POST /api/create-checkout-session → handleStoreCheckoutSession() — Create Stripe checkout session for shop items (priceId)
 // POST /api/stripe-webhook      → handleStripeWebhook()   — Stripe payment confirmation: shop orders (pattern downloads), invoice payments, auto-inserts tax income
 // POST /api/admin/login         → handleAdminLogin()      — Admin: create signed HttpOnly session cookie
@@ -37,7 +38,7 @@
 import { sendEmail, emailConfigured } from './email.js';
 import { handleEmailEventBatch } from './email-events.js';
 import { handleAskK, handleDailySummary, handleOrderStatus, ASK_K_TURNSTILE_ACTION } from './ask-k.js';
-import { recordShopOrder, sendShopOrderConfirmation, sendOrderStatusEmail, ensureShopOrdersTable, itemLabel, ORDER_STATUSES, ORDER_EMAIL_STATUSES, buildOrderUpdateEmail, sendOrderUpdateEmail, markOrderEmailed, easternDate, orderShipEstimate } from './orders.js';
+import { recordShopOrder, sendShopOrderConfirmation, sendOrderStatusEmail, ensureShopOrdersTable, itemLabel, ORDER_STATUSES, ORDER_EMAIL_STATUSES, buildOrderUpdateEmail, sendOrderUpdateEmail, markOrderEmailed, markDownloadSent, easternDate, orderShipEstimate } from './orders.js';
 
 // Module-level caches — safe because account IDs and setup state are stable within a Worker isolate.
 const _acctIdCache = new Map();
@@ -104,7 +105,7 @@ export default {
       const isTaxRead = ['/api/tax/transactions','/api/tax/summary','/api/tax/export.csv','/api/tax/receipt'].includes(url.pathname) && request.method === 'GET';
       const isTaxWrite = ['/api/tax/expense','/api/tax/income','/api/tax/owner-transfer','/api/tax/expense/update','/api/tax/income/update','/api/tax/expense/delete','/api/tax/income/delete','/api/tax/receipt/upload'].includes(url.pathname) && request.method === 'POST';
       const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail','/api/accounts/notes','/api/admin/notes','/api/accounts/orders'].includes(url.pathname) && request.method === 'GET';
-      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/shipped','/api/accounts/invoices/shipped/preview','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes','/api/accounts/orders/shipped','/api/accounts/orders/shipped/preview','/api/accounts/orders/status','/api/accounts/orders/email/preview'].includes(url.pathname) && request.method === 'POST';
+      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/shipped','/api/accounts/invoices/shipped/preview','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes','/api/accounts/orders/shipped','/api/accounts/orders/shipped/preview','/api/accounts/orders/status','/api/accounts/orders/email/preview','/api/accounts/orders/resend-download'].includes(url.pathname) && request.method === 'POST';
       const isQuotePublic = ['/api/quote/accept','/api/quote/deny'].includes(url.pathname) && ['GET', 'POST'].includes(request.method);
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
@@ -351,6 +352,10 @@ export default {
 
     if (url.pathname === '/api/accounts/orders/status' && request.method === 'POST') {
       return handleAdminOrderStatus(request, env, corsHeaders, url);
+    }
+
+    if (url.pathname === '/api/accounts/orders/resend-download' && request.method === 'POST') {
+      return handleAdminOrderResendDownload(request, env, corsHeaders, url);
     }
 
     if (url.pathname === '/api/accounts/orders/email/preview' && request.method === 'POST') {
@@ -991,6 +996,7 @@ async function handleStripeWebhook(request, env, corsHeaders) {
             customerName,
             orderNumber: shopOrder?.order_number || null
           });
+          if (shopOrder && await downloadEmailWasSent(env, sessionId)) await markDownloadSent(env, shopOrder.id, shopOrder.order_date);
         }
 
         if (incomeId) {
@@ -1227,6 +1233,16 @@ async function hasOrderConfirmationBeenSent(env, sessionId) {
   }
 }
 
+// True only once the download email actually went out (not while sending, or after a failure).
+async function downloadEmailWasSent(env, sessionId) {
+  if (!env.DOWNLOAD_TOKENS || !sessionId) return false;
+  try {
+    return JSON.parse((await env.DOWNLOAD_TOKENS.get(`order-confirmation-sent:${sessionId}`)) || '{}').status === 'sent';
+  } catch {
+    return false;
+  }
+}
+
 async function markOrderConfirmationSent(env, sessionId, status = 'sent') {
   if (!env.DOWNLOAD_TOKENS || !sessionId) return;
   try {
@@ -1380,7 +1396,7 @@ async function handleDownload(request, env, corsHeaders) {
   });
 }
 
-async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl, itemName, orderNumber = null }) {
+async function sendOrderConfirmationEmail(env, { customerEmail, customerName, downloadUrl, itemName, orderNumber = null, resend = false }) {
   if (!emailConfigured(env)) {
     console.error('Order confirmation email skipped: no email provider configured');
     return false;
@@ -1419,17 +1435,17 @@ async function sendOrderConfirmationEmail(env, { customerEmail, customerName, do
   const emailBody = {
     from: fromEmail,
     to: [customerEmail],
-    subject: `Your Florence Mae Gifts Order Confirmation - ${displayItemName}`,
+    subject: resend ? `Your new Florence Mae Gifts download link - ${displayItemName}` : `Your Florence Mae Gifts Order Confirmation - ${displayItemName}`,
     reply_to: supportEmail,
     html: `<p>Hi ${safeName},</p>
-<p>Thank you for your order! Your payment for <strong>${safeItemName}</strong> was successful.</p>
+<p>${resend ? `Here is a fresh download link for <strong>${safeItemName}</strong>.` : `Thank you for your order! Your payment for <strong>${safeItemName}</strong> was successful.`}</p>
 ${orderNumber ? `<p>Order number: <strong>${escapeHtml(orderNumber)}</strong></p>\n` : ''}${downloadSection}
 <p>Questions? Reply to this email or contact us at ${escapeHtml(supportEmail)}.</p>
 <p>— Florence Mae Gifts</p>`,
     text: [
       `Hi ${displayName},`,
       '',
-      `Thank you for your order! Your payment for ${displayItemName} was successful.`,
+      resend ? `Here is a fresh download link for ${displayItemName}.` : `Thank you for your order! Your payment for ${displayItemName} was successful.`,
       '',
       ...(orderNumber ? [`Order number: ${orderNumber}`, ''] : []),
       downloadText,
@@ -3881,6 +3897,44 @@ async function handleAdminOrderStatus(request, env, corsHeaders, url) {
     if (!emailed) return json({ ok: false, error: 'Status saved, but the email to the customer failed. Try "Email customer" again.' }, 502, corsHeaders);
   }
   return json({ ok: true, id, status, emailed }, 200, corsHeaders);
+}
+
+// The DOWNLOAD_FILE_MAP name for a pattern order. Stripe got the full listing name ("… (PDF
+// Download Only)"); shop_orders keeps the short one, so match either.
+function downloadItemNameFor(env, order) {
+  let fileMap = {};
+  try { fileMap = JSON.parse(env.DOWNLOAD_FILE_MAP || '{}') || {}; } catch { return ''; }
+  const want = String(order.item_name || '').trim().toLowerCase();
+  return Object.keys(fileMap).find((name) => {
+    const n = name.trim().toLowerCase();
+    return n === want || n.replace(/\s*\(pdf download only\)\s*$/, '') === want;
+  }) || '';
+}
+
+// Email a pattern buyer a new download link (theirs expired or ran out of downloads).
+// Always a fresh link: no checkout session is passed, so the old one isn't reused.
+async function handleAdminOrderResendDownload(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+  let data;
+  try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
+  await ensureShopOrdersTable(env);
+  const order = await env.DB.prepare('SELECT * FROM shop_orders WHERE id = ?1 AND is_digital = 1').bind(Number(data.id || 0)).first();
+  if (!order) return json({ ok: false, error: 'Pattern order not found' }, 404, corsHeaders);
+  if (!order.customer_email) return json({ ok: false, error: 'This order has no customer email' }, 400, corsHeaders);
+  const itemName = downloadItemNameFor(env, order);
+  if (!itemName && !hasDownloadFileMapping(env, '', order.price_id)) return json({ ok: false, error: 'No download file is set up for this pattern (DOWNLOAD_FILE_MAP).' }, 400, corsHeaders);
+  const downloadUrl = await createDownloadTokenForPurchase(env, { itemName, priceId: order.price_id, customerEmail: order.customer_email });
+  if (!downloadUrl) return json({ ok: false, error: 'The new link could not be made. Check that the PDF is in the R2 bucket.' }, 502, corsHeaders);
+  const sent = await sendOrderConfirmationEmail(env, {
+    customerEmail: order.customer_email, customerName: order.customer_name, downloadUrl,
+    itemName: order.item_name, orderNumber: order.order_number, resend: true
+  });
+  if (!sent) return json({ ok: false, error: 'The new link was made, but the email failed. Try again in a few minutes.' }, 502, corsHeaders);
+  await markOrderEmailed(env, order.id, 'download');
+  await markDownloadSent(env, order.id, order.order_date);
+  return json({ ok: true, id: order.id }, 200, corsHeaders);
 }
 
 // HTML of the email a status change would send, for the admin preview.

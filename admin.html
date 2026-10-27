@@ -4789,6 +4789,8 @@
     const ORDER_STATUS_LABELS = { received: 'Order Received', in_production: 'In Production', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' };
     const ORDER_STATUS_COLORS = { received: '#6b7280', in_production: '#b45309', shipped: '#2563eb', delivered: '#16a34a', cancelled: '#b91c1c' };
     const ORDER_EMAIL_STATUSES = ['received', 'in_production', 'delivered']; // shipped uses the shipped-email modal
+    const ORDER_EMAIL_LABELS = { ...ORDER_STATUS_LABELS, download: 'Download Link' };
+    const ORDER_RESEND_DOWNLOAD_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/orders/resend-download');
     const orderListEl = document.getElementById('order-list');
     const orderFilterEl = document.getElementById('order-filter');
     const orderRefreshBtn = document.getElementById('order-refresh-btn');
@@ -4819,7 +4821,7 @@
 
     function orderActionButtons(o) {
       const id = Number(o.id || 0);
-      if (Number(o.is_digital)) return '<div style="font-size:.85rem; color:var(--muted); text-align:right;">Pattern download: nothing to ship</div>';
+      if (Number(o.is_digital)) return `<div style="display:flex; gap:.24rem; flex-wrap:wrap; justify-content:flex-end; align-items:center;"><span style="font-size:.85rem; color:var(--muted);">Pattern: nothing to ship</span><button type="button" class="btn invoice-action-btn" data-order-action="resend-download" data-id="${id}">Send New Download Link</button></div>`;
       const btn = (action, label) => `<button type="button" class="btn invoice-action-btn" data-order-action="${action}" data-id="${id}">${label}</button>`;
       const s = o.status;
       const out = [];
@@ -4841,11 +4843,12 @@
         ordersById.clear();
         list.forEach((o) => ordersById.set(Number(o.id), o));
         orderListEl.innerHTML = list.length ? list.map((o) => {
-          const status = Number(o.is_digital) ? 'Pattern PDF' : (ORDER_STATUS_LABELS[o.status] || o.status);
-          const color = Number(o.is_digital) ? 'var(--muted)' : (ORDER_STATUS_COLORS[o.status] || 'var(--muted)');
+          const downloadSent = Number(o.is_digital) && o.status === 'delivered';
+          const status = Number(o.is_digital) ? (downloadSent ? `Download sent${o.delivered_at ? ` ${orderDateLabel(o.delivered_at)}` : ''}` : 'Download email not sent') : (ORDER_STATUS_LABELS[o.status] || o.status);
+          const color = Number(o.is_digital) ? (downloadSent ? ORDER_STATUS_COLORS.delivered : ORDER_STATUS_COLORS.cancelled) : (ORDER_STATUS_COLORS[o.status] || 'var(--muted)');
           const tracking = o.tracking_number ? `<div style="font-size:.85rem; margin-top:.14rem;">Tracking: ${o.tracking_url ? `<a href="${escAttr(o.tracking_url)}" target="_blank" rel="noopener noreferrer">${escHtml(`${o.tracking_carrier ? `${o.tracking_carrier} ` : ''}${o.tracking_number}`)}</a>` : escHtml(o.tracking_number)}</div>` : '';
           const shipsBy = ['received', 'in_production'].includes(o.status) && o.ship_estimate ? `<div style="font-size:.85rem; margin-top:.14rem;">Ships by ${escHtml(orderDateLabel(o.ship_estimate.by))}${o.ship_estimate.custom ? '' : ' (estimate)'}</div>` : '';
-          const emailed = o.last_email_status ? `<div style="font-size:.85rem; margin-top:.14rem; color:#16a34a;">Last email: ${escHtml(ORDER_STATUS_LABELS[o.last_email_status] || o.last_email_status)}, ${escHtml(orderDateLabel(o.last_email_at))}</div>` : '';
+          const emailed = o.last_email_status ? `<div style="font-size:.85rem; margin-top:.14rem; color:#16a34a;">Last email: ${escHtml(ORDER_EMAIL_LABELS[o.last_email_status] || o.last_email_status)}, ${escHtml(orderDateLabel(o.last_email_at))}</div>` : '';
           return `<div class="tax-row" data-id="${Number(o.id || 0)}"><div>${escHtml(o.order_number || '—')}<div style="font-size:.88rem; color:var(--muted); margin-top:.08rem;">${escHtml(orderItemLabel(o))} · Ordered ${escHtml(orderDateLabel(o.order_date))}<br>Customer: ${escHtml(o.customer_name || '—')}${o.customer_email ? ` - Email: ${escHtml(o.customer_email)}` : ''}</div>${shipsBy}${tracking}${emailed}</div><div class="amt">${qMoney(Number(o.amount_cents || 0) / 100)}</div><div style="font-weight:700; color:${color};">${escHtml(status)}</div>${orderActionButtons(o)}</div>`;
         }).join('') : 'No orders here yet.';
       } catch (err) {
@@ -4923,6 +4926,24 @@
       }
     }
 
+    // A fresh 24-hour link for a pattern buyer whose link expired; the email matches the checkout one.
+    async function resendDownloadLink(o, btn) {
+      if (!window.confirm(`Email ${o.customer_email || 'the customer'} a new download link for ${o.order_number}?\n\nThe new link works for 24 hours and up to 3 downloads.`)) return;
+      const oldText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      try {
+        await fetchAdminJson(ORDER_RESEND_DOWNLOAD_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: Number(o.id) }) });
+        openSuccessModal(`A new download link was emailed to ${o.customer_email}.`, 'Download Link Sent ✅');
+      } catch (err) {
+        openErrorModal(err.message || String(err));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = oldText;
+        await refreshOrderList();
+      }
+    }
+
     orderListEl?.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-order-action]');
       if (!btn) return;
@@ -4930,6 +4951,10 @@
       const action = btn.getAttribute('data-order-action');
       const o = ordersById.get(id);
       if (!o) return;
+      if (action === 'resend-download') {
+        resendDownloadLink(o, btn);
+        return;
+      }
       if (action === 'shipped') openOrderStatusModal(id, 'shipped');
       else if (action === 'email') openOrderStatusModal(id, o.status, { resend: true });
       else if (action.startsWith('status:')) openOrderStatusModal(id, action.slice(7));

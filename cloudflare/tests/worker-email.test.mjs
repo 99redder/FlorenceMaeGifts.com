@@ -593,6 +593,10 @@ test('a pattern order is recorded as digital and its download email carries the 
   await worker.fetch(await signedWebhook(downloadPurchase('cs_test_dl_num')), env, ctx);
   const order = await env.DB.prepare("SELECT * FROM shop_orders WHERE stripe_session_id = 'cs_test_dl_num'").first();
   assert.equal(order.is_digital, 1);
+  // Nothing to make or ship: it's done ("Download sent") once the download email is out.
+  assert.equal(order.status, 'delivered');
+  assert.equal(order.delivered_at, order.order_date);
+  assert.equal(order.last_email_status, 'download');
   assert.equal(env.EMAIL.sent.length, 1, 'only the download email, no second confirmation');
   assert.ok(env.EMAIL.sent[0].text.includes(`Order number: ${order.order_number}`));
   assert.ok(env.EMAIL.sent[0].html.includes(order.order_number));
@@ -667,7 +671,7 @@ test('admin: an order moves through in production, shipped and delivered, emaili
   res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'delivered', sendEmail: false, date: '2026-11-13' }, admin), env, ctx);
   assert.equal(res.status, 200);
   assert.equal(sent(), count, 'no email unless asked for');
-  [order] = await list('delivered');
+  order = (await list('delivered')).find((o) => !o.is_digital); // patterns are "delivered" (download sent) too
   assert.equal(order.delivered_at, '2026-11-13');
   res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'delivered', sendEmail: true, date: '2026-11-13' }, admin), env, ctx);
   assert.equal(res.status, 200);
@@ -682,5 +686,39 @@ test('admin: an order moves through in production, shipped and delivered, emaili
   res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'lost' }, admin), env, ctx);
   assert.equal(res.status, 400);
   res = await worker.fetch(post('/api/accounts/orders/status', { id: order.id, status: 'received' }), env, ctx);
+  assert.equal(res.status, 401, 'admin only');
+});
+
+test('admin: a pattern buyer can be sent a fresh download link', async (t) => {
+  quietConsole(t);
+  guardNetwork(t, stripeStubs);
+  const env = baseEnv();
+  await worker.fetch(await signedWebhook(downloadPurchase('cs_test_dl_resend')), env, ctx);
+  await worker.fetch(await signedWebhook(hatPurchase('cs_test_hat_resend')), env, ctx);
+  const admin = await adminCookie(env);
+  const pattern = await env.DB.prepare("SELECT * FROM shop_orders WHERE stripe_session_id = 'cs_test_dl_resend'").first();
+  const hat = await env.DB.prepare("SELECT * FROM shop_orders WHERE stripe_session_id = 'cs_test_hat_resend'").first();
+  const firstLink = env.EMAIL.sent.find((m) => m.to.includes('crafter@example.net')).text.match(/https:\/\/www\.florencemaegifts\.com\/api\/download\?token=[A-Za-z0-9_-]+/)[0];
+  const before = env.EMAIL.sent.length;
+
+  let res = await worker.fetch(post('/api/accounts/orders/resend-download', { id: pattern.id }, admin), env, ctx);
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.equal(env.EMAIL.sent.length, before + 1);
+  const mail = env.EMAIL.sent.at(-1);
+  assert.deepEqual(mail.to, ['crafter@example.net']);
+  assert.equal(mail.subject, 'Your new Florence Mae Gifts download link - Four Star Ball Crochet Baby Hat Pattern - Beginner Level');
+  assert.match(mail.text, /^Hi Casey Crafter,/);
+  assert.ok(mail.text.includes('Here is a fresh download link for Four Star Ball Crochet Baby Hat Pattern - Beginner Level.'));
+  assert.ok(mail.text.includes(`Order number: ${pattern.order_number}`));
+  const newLink = mail.text.match(/https:\/\/www\.florencemaegifts\.com\/api\/download\?token=[A-Za-z0-9_-]+/)[0];
+  assert.notEqual(newLink, firstLink, 'a new link, not the expired one');
+  const download = await worker.fetch(new Request(newLink.replace('https://www.florencemaegifts.com', 'https://worker.example')), env, ctx);
+  assert.equal(download.status, 200, 'the new link works');
+  const after = await env.DB.prepare('SELECT last_email_status FROM shop_orders WHERE id = ?1').bind(pattern.id).first();
+  assert.equal(after.last_email_status, 'download');
+
+  res = await worker.fetch(post('/api/accounts/orders/resend-download', { id: hat.id }, admin), env, ctx);
+  assert.equal(res.status, 404, 'hats and sets have no download');
+  res = await worker.fetch(post('/api/accounts/orders/resend-download', { id: pattern.id }), env, ctx);
   assert.equal(res.status, 401, 'admin only');
 });
