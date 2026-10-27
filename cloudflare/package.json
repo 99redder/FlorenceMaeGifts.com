@@ -1,0 +1,12 @@
+{
+  "name": "fmg-stripe-api",
+  "private": true,
+  "description": "Cloudflare Worker for florencemaegifts.com/api/*: Stripe checkout, pattern downloads, contact form, Ask K, admin and accounting.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.136.0"
+  }
+}

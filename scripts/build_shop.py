@@ -15,6 +15,8 @@ IDs, images, handling time and the return policy. This script regenerates:
                           sales-map.json via scripts/sales_map.py (between markers)
   sitemap.xml             pages + product images
   merchant-feed.xml       Google Merchant Center feed (products with "merchantFeed": true)
+  cloudflare/src/ask-k-knowledge.js  what Ask K knows: listings, policies, reviews summary and
+                          scripts/ask_k_notes.md (deploy the worker after it changes)
 
 Never hand-edit the generated files. A file's "Last Updated" header date only
 changes when its content changes, so rebuilding is always safe.
@@ -23,7 +25,7 @@ import html
 import json
 import re
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import sales_map
@@ -31,7 +33,7 @@ import sales_map
 ROOT = Path(__file__).resolve().parent.parent
 TODAY = date.today()
 CREATED = '6 October 2026'
-CSS_VERSION = '20261027d'
+CSS_VERSION = '20261027e'
 
 CATEGORIES = {
     'baby-sets': {
@@ -389,7 +391,7 @@ def page(shop, rel_path, title, description, body, header_desc, *, image=None, o
   <meta name="twitter:description" content="%(description)s">
   <meta name="twitter:image" content="%(image)s">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://www.googletagmanager.com https://static.cloudflareinsights.com; object-src 'none';">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://www.googletagmanager.com https://static.cloudflareinsights.com https://challenges.cloudflare.com; object-src 'none';">
 
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=GT-T9CPSQ8R"></script>
@@ -412,6 +414,7 @@ def page(shop, rel_path, title, description, body, header_desc, *, image=None, o
   <script src="includeHTML.js" defer></script>
   <script src="site.js" defer></script>
   <script src="footer.js?v=%(css)s" defer></script>
+  <script src="ask-k.js?v=%(css)s" defer></script>
   <script src="shop.js?v=%(css)s" defer></script>
 
 %(ld)s
@@ -978,6 +981,85 @@ def build_feed(shop):
 GOOGLE_VERIFICATION_FILE = 'google3d348162492de5b6.html'
 
 
+# ---------- Ask K knowledge ----------
+
+def us_long(d):
+    return '%s %d, %d' % (d.strftime('%B'), d.day, d.year)
+
+
+def worker_var(name):
+    """A [vars] value from cloudflare/wrangler.toml.example (the real wrangler.toml is git-ignored)."""
+    m = re.search(r'^%s = "([^"]*)"' % name, (ROOT / 'cloudflare' / 'wrangler.toml.example').read_text(), re.M)
+    if not m:
+        sys.exit('cloudflare/wrangler.toml.example has no %s' % name)
+    return m.group(1)
+
+
+def build_ask_k(shop):
+    """Ask K's grounded knowledge for the worker (cloudflare/src/ask-k.js), as a JS string module."""
+    ship, ret = shop.site['shipping'], shop.site['returns']
+    etsy = json.loads((ROOT / 'reviews.json').read_text())['etsy']
+    # Rush windows stay listed for 45 days after they end, for questions about orders placed in them.
+    windows = [w for w in shop.site['handlingTimes']
+               if not w.get('through') or date.fromisoformat(w['through']) >= TODAY - timedelta(days=45)]
+    handling, after = [], None
+    for w in windows:
+        if w.get('through'):
+            who = 'Orders placed %sthrough %s' % ('after %s and ' % us_long(after) if after else '',
+                                                   us_long(date.fromisoformat(w['through'])))
+            after = date.fromisoformat(w['through'])
+        else:
+            who = 'Orders placed after %s' % us_long(after) if after else 'All orders'
+        note = re.search(r'\(([^)]*)\)', w['label'])
+        handling.append('- %s%s: %d–%d business days to make.'
+                        % (who, ' (%s)' % note.group(1) if note else '', w['minDays'], w['maxDays']))
+    notes = (ROOT / 'scripts' / 'ask_k_notes.md').read_text().strip().format(
+        download_hours=int(worker_var('DOWNLOAD_TOKEN_TTL_SECONDS')) // 3600,
+        download_uses=worker_var('DOWNLOAD_TOKEN_MAX_USES'))
+
+    out = ['# Florence Mae Gifts', '', notes, '',
+           '## Processing (make) time before an order ships', '', *handling, '',
+           '## Shipping', '',
+           '- Shipping is free on every physical item.',
+           '- Orders ship by %s, usually %d–%d business days in transit.' % (ship['carrier'], ship['transitMinDays'], ship['transitMaxDays']),
+           '- Shipping is to all 50 U.S. states only. There is no international shipping.',
+           '- Pattern PDFs are digital and nothing is mailed.', '',
+           '## Returns and refunds', '',
+           '- Returns are accepted within %d days of delivery for items that are new and unused.' % ret['days'],
+           '- Returns are by mail to: %s.' % ', '.join(ret['addressLines']),
+           '- The buyer pays return shipping; there is no return label. No restocking fee.',
+           '- The refund goes to the original payment method within %d business days of the returned item arriving, after it is inspected.' % ret['refundBusinessDays'],
+           '- No exchanges: to get a different size or item, return the original for a refund and place a new order.',
+           '- Starting a return: send Megan a message (topic: return or refund) first.', '',
+           '## Safety', '',
+           '- Hats: %s' % shop.safety['hat'],
+           '- Sets and other garments: %s' % shop.safety['garment'], '',
+           '## Reviews', '',
+           '- %s stars from %d Etsy reviews; Etsy Star Seller. Reviews: %s/reviews.html' % (etsy['rating'], etsy['count'], shop.base), '',
+           '## Pages', '',
+           '- Shop (every listing): %s/#shop' % shop.base,
+           *['- %s: %s/%s' % (CATEGORIES[k]['name'], shop.base, CATEGORIES[k]['file']) for k in CATEGORY_ORDER],
+           '- Shipping & Returns: %s/shipping-returns.html' % shop.base,
+           '- About Megan: %s/about.html' % shop.base,
+           '- Terms of Use: %s/terms.html' % shop.base, '',
+           '## Listings (%d)' % len(shop.products)]
+    for p in shop.products:
+        prices = '; '.join('%s %s' % (t['label'], money(t['price'])) for t in p['sizes']) if p.get('sizes') \
+            else '%s (PDF download)' % money(p['price'])
+        out += ['', '### %s' % shop.base_name(p),
+                '- Page: %s' % shop.url(p),
+                '- Category: %s' % CATEGORIES[p['category']]['name'],
+                '- %s: %s' % ('Sizes and prices' if p.get('sizes') else 'Price', prices)]
+        if p.get('color'):
+            out.append('- Color: %s' % p['color'])
+        out.append('- Description: %s' % strip_tags(p['detailsHtml']))
+    text = '\n'.join(out) + '\n'
+    write_page('cloudflare/src/ask-k-knowledge.js',
+               '// Ask K\'s shop knowledge (cloudflare/src/ask-k.js), generated by scripts/build_shop.py from\n'
+               '// products.json, reviews.json and scripts/ask_k_notes.md. Do not hand-edit; deploy the worker\n'
+               '// after it changes.\nexport default %s;\n' % json.dumps(text, ensure_ascii=False))
+
+
 def main():
     shop = Shop(json.loads((ROOT / 'products.json').read_text()))
     if not (ROOT / GOOGLE_VERIFICATION_FILE).exists():
@@ -999,6 +1081,7 @@ def main():
     write_page('terms.html', legal_page(shop, 'modal-terms', 'terms.html', 'Terms of Use | Florence Mae Gifts',
                                         'Florence Mae Gifts website terms of use.'))
     build_reviews(shop)
+    build_ask_k(shop)
     for static in ('about.html', 'disclaimers.html'):
         m = DATE_LINE.search((ROOT / static).read_text())
         try:

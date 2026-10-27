@@ -14,3 +14,6 @@ private/
 __pycache__/
 # Layout preview with made-up places: python3 scripts/sales_map.py --preview
 sales-map-preview.html
+
+# The worker's npm packages (cloudflare/package.json); wrangler bundles them on deploy.
+node_modules/

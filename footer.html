@@ -37,38 +37,70 @@
                 <a href="/llms.txt" target="_blank" rel="noopener">AI Navigation</a>
         </div>
 
-        <!-- Floating help button on every page; opens the contact modal on "Question about my order" -->
-        <button type="button" class="order-help-fab" data-open-modal="modal-contact" data-contact-topic="order">
+        <!-- Floating help button on every page; opens the Ask K chat (ask-k.js). If that script
+             hasn't loaded, data-open-modal still opens the contact modal on "Question about my order". -->
+        <button type="button" class="order-help-fab" data-ask-k-open aria-controls="ask-k" aria-expanded="false" data-open-modal="modal-contact" data-contact-topic="order">
           <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01" stroke-width="2.6"/></svg>
           <span class="order-help-long">Need help with an order?</span>
           <span class="order-help-short">Order help</span>
         </button>
+
+        <!-- Ask K: order-help chat (ask-k.js, styles in fmg.css "ASK K"). Answers come from /api/ask-k;
+             when K can't help it opens #modal-contact with the chat attached. -->
+        <section id="ask-k" class="ask-k" role="dialog" aria-modal="false" aria-labelledby="ask-k-title" hidden>
+          <div class="ask-k-head">
+            <img class="ask-k-avatar" src="/images/favicon.png" alt="" width="40" height="38">
+            <div class="ask-k-heading">
+              <p id="ask-k-title" class="ask-k-title">Ask K</p>
+              <p class="ask-k-sub">Florence Mae Gifts order help</p>
+            </div>
+            <button type="button" class="ask-k-close" data-ask-k-close aria-label="Close Ask K">&times;</button>
+          </div>
+          <p class="ask-k-skip">Rather talk to Megan? <a href="#modal-contact" data-ask-k-skip>Send her a message</a></p>
+          <div id="ask-k-log" class="ask-k-log" aria-live="polite"></div>
+          <div id="ask-k-chips" class="ask-k-chips">
+            <button type="button">When will my order ship?</button>
+            <button type="button">Which size should I get?</button>
+            <button type="button">How do returns work?</button>
+            <button type="button">My pattern link expired</button>
+          </div>
+          <div id="ask-k-turnstile" class="ask-k-turnstile"></div>
+          <form id="ask-k-form" class="ask-k-form">
+            <label for="ask-k-input" class="ask-k-sr">Your question</label>
+            <textarea id="ask-k-input" rows="1" maxlength="600" placeholder="Ask about your order, sizes, shipping..." autocomplete="off"></textarea>
+            <button type="submit" id="ask-k-send" class="ask-k-send" aria-label="Send">
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </form>
+          <p class="ask-k-fine">K is an AI helper and can make mistakes. Please don't type card numbers. <a href="/privacy.html" target="_blank" rel="noopener">Privacy</a></p>
+        </section>
 
         <!-- Privacy Policy Modal -->
         <div id="modal-privacy" class="footer-modal">
           <div class="footer-modal-content">
             <span class="footer-modal-close" data-close-modal="modal-privacy">&times;</span>
             <h3 style="margin-top:0">Privacy Policy</h3>
-            <p><strong>Last Updated: October 26, 2026</strong></p>
+            <p><strong>Last Updated: October 27, 2026</strong></p>
 
             <p>Florence Mae Gifts, LLC ("we," "us," or "our") operates the website <a href="https://www.florencemaegifts.com">https://www.florencemaegifts.com</a> (the "Site"). This Privacy Policy describes what information we collect when you visit the Site or place an order, how we use it, and who we share it with.</p>
 
             <p><strong>Information We Collect</strong><br>
             <em>When you place an order:</em> your name, email address, billing address, shipping address, the items and sizes you ordered, and the amount paid. Payment is handled by Stripe on its own secure checkout page. We never see or store your full card number.<br>
             <em>When you use the contact form:</em> your name, email address, and your message, plus anything else you choose to add, such as a phone number, an order number, or your child's age and head size for sizing.<br>
+            <em>When you use the Ask K chat:</em> the questions you type and the answers. If Ask K opens the contact form for you, the chat is sent along with your message.<br>
             <em>Automatically:</em> like most websites, our hosting providers record basic technical information such as IP address, browser type, and the pages requested, for security and reliability.</p>
 
             <p><strong>How We Use Your Information</strong><br>
             We use your information to make and ship your order, to email your order confirmation, shipping updates, and digital download links, to answer your questions and custom requests, to process returns and refunds, and to keep the business and tax records the law requires. We do not sell your personal information, and we do not use it for advertising.</p>
 
             <p><strong>Who We Share It With</strong><br>
-            We share information only with the service providers that help us run the shop, and only as needed for them to do their job: Stripe (payment processing and sales tax calculation), our email delivery provider (order and contact emails), our website hosting and security providers, Google (purchase measurement, described under Cookies and Tracking), and the U.S. Postal Service (delivering your package). We may also disclose information when required by law.</p>
+            We share information only with the service providers that help us run the shop, and only as needed for them to do their job: Stripe (payment processing and sales tax calculation), our email delivery provider (order and contact emails), Anthropic (its Claude AI writes the answers in the Ask K chat), our website hosting and security providers, Google (purchase measurement, described under Cookies and Tracking), and the U.S. Postal Service (delivering your package). We may also disclose information when required by law.</p>
 
             <p><strong>How Long We Keep It</strong><br>
-            We keep order records for as long as needed for accounting, tax, and legal purposes. Contact form messages are kept only as long as needed to respond to you and to keep a record of your request.</p>
+            We keep order records for as long as needed for accounting, tax, and legal purposes. Contact form messages are kept only as long as needed to respond to you and to keep a record of your request. We do not save Ask K chats, except one you send us with the contact form, which is kept like any other message.</p>
 
             <p><strong>Cookies and Tracking</strong><br>
-            The Site uses browser localStorage to remember your theme preference (light or dark mode). We use the Google tag to measure how many visits from Google's free product listings lead to an order. It may set cookies in your browser and, when an order is completed, sends Google the order total and the item purchased. It does not send your name, email address, shipping address, or payment details, and we do not run advertising or sell this data. Google handles this information under its own privacy policy. Our hosting provider, Cloudflare, counts page visits and measures page loading speed without using cookies or identifying individual visitors. Stripe sets its own cookies on its checkout page to process payments and prevent fraud. Fonts on the Site are loaded from Google Fonts, which may collect usage data in accordance with Google's privacy policy.</p>
+            The Site uses browser localStorage to remember your theme preference (light or dark mode), and session storage to keep your Ask K chat while you move between pages; it is cleared when you close the tab. When you open Ask K, Cloudflare Turnstile checks that the chat is being used by a person and not a bot. We use the Google tag to measure how many visits from Google's free product listings lead to an order. It may set cookies in your browser and, when an order is completed, sends Google the order total and the item purchased. It does not send your name, email address, shipping address, or payment details, and we do not run advertising or sell this data. Google handles this information under its own privacy policy. Our hosting provider, Cloudflare, counts page visits and measures page loading speed without using cookies or identifying individual visitors. Stripe sets its own cookies on its checkout page to process payments and prevent fraud. Fonts on the Site are loaded from Google Fonts, which may collect usage data in accordance with Google's privacy policy.</p>
 
             <p><strong>Your Choices</strong><br>
             You can ask us what personal information we hold about you, or ask us to correct or delete it, by contacting us through the contact form on the Site. We will honor your request unless we need to keep the information for legal, tax, or order-related reasons.</p>
@@ -267,6 +299,9 @@
               <div class="contact-note" data-topics="return" hidden>
                 <p>Returns are accepted within 30 days for new, unused items, and the buyer pays return shipping. The return address and full details are on our <a href="/shipping-returns.html" target="_blank" rel="noopener">Shipping &amp; Returns</a> page.</p>
               </div>
+
+              <p id="contact-askk-note" class="contact-hint contact-hint-block" hidden>Your chat with Ask K is included, so Megan can see what you already asked.</p>
+              <input type="hidden" id="contact-askk-chat" name="askKChat">
 
               <div class="contact-field">
                 <label for="contact-message" id="contact-message-label">Your message</label>

@@ -1,5 +1,6 @@
 // ===== ROUTE HANDLER INDEX =====
 // POST /api/contact                 → handleContact()        — Form submissions (domain offers, questions) + email (email.js)
+// POST /api/ask-k                   → handleAskK() (ask-k.js) — Public: Ask K order-help chat (Claude), hands off to the contact form
 // POST /api/create-checkout-session → handleStoreCheckoutSession() — Create Stripe checkout session for shop items (priceId)
 // POST /api/stripe-webhook      → handleStripeWebhook()   — Stripe payment confirmation: shop orders (pattern downloads), invoice payments, auto-inserts tax income
 // POST /api/admin/login         → handleAdminLogin()      — Admin: create signed HttpOnly session cookie
@@ -30,6 +31,7 @@
 
 import { sendEmail, emailConfigured } from './email.js';
 import { handleEmailEventBatch } from './email-events.js';
+import { handleAskK, ASK_K_TURNSTILE_ACTION } from './ask-k.js';
 
 // Module-level caches — safe because account IDs and setup state are stable within a Worker isolate.
 const _acctIdCache = new Map();
@@ -102,7 +104,7 @@ export default {
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
       const isCheckoutSessionDetailsRead = url.pathname === '/api/checkout-session-details' && request.method === 'GET';
       const isHealthRead = url.pathname === '/api/health' && request.method === 'GET';
-      const isPostRoute = ['/api/contact', '/api/create-checkout-session'].includes(url.pathname) && request.method === 'POST';
+      const isPostRoute = ['/api/contact', '/api/create-checkout-session', '/api/ask-k'].includes(url.pathname) && request.method === 'POST';
       const isAdminSessionRoute = (url.pathname === '/api/admin/verify-session' && request.method === 'GET')
         || (url.pathname === '/api/admin/login' && request.method === 'POST')
         || (url.pathname === '/api/admin/logout' && request.method === 'POST')
@@ -124,6 +126,15 @@ export default {
 
     if (url.pathname === '/api/contact') {
       return handleContact(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/api/ask-k' && request.method === 'POST') {
+      return handleAskK(request, env, {
+        reply: (payload, status) => json(payload, status, corsHeaders),
+        ip: getClientIp(request),
+        verifyTurnstile: (token) => verifyTurnstile(env, request, token, ASK_K_TURNSTILE_ACTION),
+        notify: (subject, text) => sendAskKAlert(env, subject, text)
+      });
     }
 
     if (url.pathname === '/api/admin/verify-session' && request.method === 'GET') {
@@ -416,7 +427,7 @@ const CONTACT_DETAIL_FIELDS = [
 
 /**
  * POST /api/contact — Process contact form submissions and email them (email.js)
- * @param {Request} request - JSON body: {name, email, message, mode, topic?, orderNumber?, item?, pieceType?, size?, childAge?, headSize?, neededBy?, phone?, offer?, website? (honeypot)}
+ * @param {Request} request - JSON body: {name, email, message, mode, topic?, orderNumber?, item?, pieceType?, size?, childAge?, headSize?, neededBy?, phone?, askKChat?, offer?, website? (honeypot)}
  * @param {Object} env - Worker env (EMAIL binding or RESEND_API_KEY, TO_EMAIL, FROM_EMAIL)
  * @param {Object} corsHeaders
  * @returns {Response} {ok: true} or {ok: false, error: string}
@@ -466,6 +477,8 @@ async function handleContact(request, env, corsHeaders) {
     .filter(([, value]) => value)
     .map(([label, value]) => `${label}: ${value}`);
   const orderNumber = oneLine(data.orderNumber, 60);
+  // Sent when the form was opened from Ask K, so Megan sees what was already asked.
+  const askKChat = (data.askKChat || '').toString().replace(/\r/g, '').trim().slice(0, 8000);
 
   const subject = mode === 'offer'
     ? `Domain Offer: florencemaegifts.com (${offer || 'no amount'})`
@@ -489,6 +502,7 @@ async function handleContact(request, env, corsHeaders) {
       '',
       'Message:',
       message.slice(0, 5000),
+      ...(askKChat ? ['', 'Their chat with Ask K before sending this:', askKChat] : []),
       '',
       'Reply to this email to answer them directly.'
     ].join('\n');
@@ -1639,6 +1653,15 @@ async function verifyTurnstile(env, request, token, expectedAction) {
     console.error('Turnstile siteverify failed', err?.message || err);
     return false;
   }
+}
+
+// Ask K alerts (budget spent, credit or key problems) go to Chris: ASKK_ALERT_TO,
+// else EMERGENCY_NOTIFY_EMAIL, else the shop inbox.
+async function sendAskKAlert(env, subject, text) {
+  const to = (env.ASKK_ALERT_TO || env.EMERGENCY_NOTIFY_EMAIL || env.CONTACT_TO_EMAIL || env.TO_EMAIL || '').toString().trim();
+  if (!to || !emailConfigured(env)) return;
+  const res = await sendEmail(env, { from: env.RESEND_FROM_EMAIL || env.FROM_EMAIL, to: [to], subject, text });
+  if (!res.ok) console.error('Ask K alert email failed', await res.text());
 }
 
 async function handleEmergencyVerify(request, env, corsHeaders) {

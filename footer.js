@@ -75,10 +75,20 @@
     return button.getAttribute("data-item-name").replace(/\s*\(Multiple Sizes Available\)\s*$/i, "");
   }
 
-  function openContactModal(topic, opener) {
+  // Ask K's chat to send along with the message (ask-k.js); empty when the form was opened any other way.
+  function setAskKChat(chat) {
+    var field = document.getElementById("contact-askk-chat");
+    var note = document.getElementById("contact-askk-note");
+    if (field) field.value = chat || "";
+    if (note) note.hidden = !chat;
+  }
+
+  // extras (from Ask K): { message, chat } - message is typed into the message box.
+  function openContactModal(topic, opener, extras) {
     var modal = document.getElementById("modal-contact");
     var form = document.getElementById("contact-form");
     if (!modal || !form) return;
+    extras = extras || {};
 
     var topicSelect = document.getElementById("contact-topic");
     if (topicSelect) {
@@ -88,6 +98,9 @@
     var itemField = document.getElementById("contact-item");
     var item = itemNameNear(opener);
     if (itemField && item) itemField.value = item;
+    var messageField = document.getElementById("contact-message");
+    if (messageField && extras.message) messageField.value = extras.message;
+    setAskKChat(extras.chat);
 
     modal.style.display = "block";
     modal.setAttribute("aria-hidden", "false");
@@ -126,6 +139,7 @@
         if (submitButton) submitButton.disabled = true;
         sendForm("contact", payload).then(function() {
           contactForm.reset();
+          setAskKChat("");
           applyContactTopic(contactForm);
           contactStatus.textContent = "";
           closeModal("modal-contact");
