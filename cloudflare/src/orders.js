@@ -206,9 +206,10 @@ const greetingHtml = (name) => `<p style="margin:0 0 12px;">Hi ${escapeHtml(name
 const paraHtml = (text) => `<p style="margin:0 0 14px;white-space:pre-wrap;color:#374151;">${escapeHtml(text)}</p>`;
 const detailsHtml = (rows) => `<div style="margin:6px 0 14px;background:#fff5f5;border:1px solid #fecdd3;border-radius:10px;padding:14px 16px;color:#111827;">${rows.map(([label, value]) => `<div style="margin:0 0 4px;"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</div>`).join('')}</div>`;
 const buttonHtml = (url, label) => `<div style="margin:12px 0 18px;text-align:center;"><a href="${escapeHtml(url)}" style="display:inline-block;background:#FE6666;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:700;">${escapeHtml(label)}</a></div>`;
+const noteHtml = (text) => `<p style="margin:18px 0 0;color:#6b7280;font-size:12px;">${escapeHtml(text)}</p>`;
 const linkHtml = (url, label) => `<p style="margin:0 0 14px;color:#374151;">${escapeHtml(label)}: <a href="${escapeHtml(url)}" style="color:#2563eb;">${escapeHtml(url)}</a></p>`;
 
-// Blocks → { html, text }. Block kinds: ['p', text] ['details', rows] ['button', url, label] ['link', url, label]
+// Blocks → { html, text }. Block kinds: ['p', text] ['details', rows] ['button', url, label] ['link', url, label] ['note', text] (small print)
 function render(title, name, blocks) {
   const html = [greetingHtml(name)];
   const text = [`Hi ${name || 'there'},`, ''];
@@ -217,6 +218,7 @@ function render(title, name, blocks) {
     if (kind === 'details') { html.push(detailsHtml(a)); text.push(...a.map(([l, v]) => `${l}: ${v}`), ''); }
     if (kind === 'button') { html.push(buttonHtml(a, b)); text.push(`${b}: ${a}`, ''); }
     if (kind === 'link') { html.push(linkHtml(a, b)); text.push(`${b}: ${a}`, ''); }
+    if (kind === 'note') { html.push(noteHtml(a)); text.push(a, ''); }
   }
   text.push('Florence Mae Gifts, LLC', SITE);
   return { html: emailShell(title, html.join('')), text: text.join('\n') };
@@ -463,7 +465,8 @@ export function buildOrderStatusEmail({ shop, invoices, narrowed = false, missed
   }
   blocks.push(
     ['p', 'Questions? Just reply to this email.'],
-    ['p', "You're getting this because someone asked our order help chat for an update on orders placed with this email address. If that wasn't you, you can ignore it: nothing about your orders was shown in the chat."],
+    // Plain and neutral: "if that wasn't you, ignore this" reads like a security alert and made Gmail flag the email.
+    ['note', 'Sent because an order update was requested in the help chat on florencemaegifts.com.'],
   );
   const one = narrowed && shown.length === 1 ? (shop[0]?.order_number || invoices[0]?.invoice_number) : '';
   return { subject: `Your Florence Mae Gifts order status${one ? ` (${one})` : ''}`, ...render(several ? 'Your Orders' : 'Your Order Status', null, blocks) };

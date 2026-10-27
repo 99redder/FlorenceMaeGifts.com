@@ -93,6 +93,8 @@ test('the order-status email describes each status honestly, with tracking only 
   assert.ok(text.includes('Status: Waiting for payment'));
   assert.doesNotMatch(text, /<[a-z]/i);
   assert.match(mail.html, /images\/banner3\.png/);
+  assert.ok(text.includes('Sent because an order update was requested in the help chat on florencemaegifts.com.'));
+  assert.doesNotMatch(text, /If that wasn't you|someone asked/i, 'no security-alert wording (Gmail flagged it)');
   assert.equal(buildOrderStatusEmail({ shop: [], invoices: [] }), null);
 });
 
