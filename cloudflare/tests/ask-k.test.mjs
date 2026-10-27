@@ -471,11 +471,13 @@ test('Order updates need the bot check, a real address, and are limited per addr
   assert.ok(first.data.pass, 'a passed check returns a conversation pass');
   assert.equal((await statusRequest(env, { email: 'not-an-email', pass: first.data.pass })).status, 400);
 
+  // The first email, a resend and one more are fine; a fourth within the hour is not.
   await statusRequest(env, { email: 'parent@example.org', pass: first.data.pass }, '198.51.100.40');
-  const third = await statusRequest(env, { email: 'PARENT@example.org', pass: first.data.pass }, '198.51.100.41');
-  assert.equal(third.status, 200);
-  assert.match(third.data.reply, /already emailed order updates for that address recently/);
-  assert.equal(env.EMAIL.sent.length, 2, 'two per address per hour, whoever asks');
+  await statusRequest(env, { email: 'parent@example.org', pass: first.data.pass }, '198.51.100.41');
+  const fourth = await statusRequest(env, { email: 'PARENT@example.org', pass: first.data.pass }, '198.51.100.42');
+  assert.equal(fourth.status, 200);
+  assert.match(fourth.data.reply, /already emailed order updates for that address recently/);
+  assert.equal(env.EMAIL.sent.length, 3, 'three per address per hour, whoever asks');
 });
 
 test('K asks for the order lookup box instead of guessing about a website order', async (t) => {
@@ -486,6 +488,7 @@ test('K asks for the order lookup box instead of guessing about a website order'
   const schema = answerCalls(calls)[0].body.output_config.format.schema;
   assert.ok(schema.required.includes('lookup'));
   assert.match(answerCalls(calls)[0].body.system[0].text, /Orders placed on Etsy can't be looked up here/);
+  assert.match(answerCalls(calls)[0].body.system[0].text, /never mention limits, waiting or how many emails can be sent/);
 });
 
 test('An order number narrows the order-status email to that order', async (t) => {

@@ -64,12 +64,14 @@ const IP_LIMITS = [
 ];
 const TOPICS = ['general', 'order', 'custom', 'sizing', 'pattern', 'return'];
 // Order-status emails: per visitor address and conversation, plus per order email
-// address so nobody can use the chat to flood someone's inbox.
+// address so nobody can use the chat to flood someone's inbox. Three an hour leaves room
+// for the first email, a resend ("I deleted it, send it again") and a mistyped order number.
 const STATUS_LIMITS = [
-  { name: 'status-ip', limit: 5, windowSecs: 3600 },
-  { name: 'status-email', limit: 2, windowSecs: 3600 },
-  { name: 'status-email-day', limit: 4, windowSecs: 24 * 3600 },
+  { name: 'status-ip', limit: 6, windowSecs: 3600 },
+  { name: 'status-email', limit: 3, windowSecs: 3600 },
+  { name: 'status-email-day', limit: 6, windowSecs: 24 * 3600 },
 ];
+const STATUS_PER_CONVERSATION = 4;
 const STATUS_REPLY = "Thanks! If that email address has orders from this website, I've just emailed their status and tracking to it. It can take a minute or two, so check your spam folder too. Orders placed on Etsy aren't included: you'll find those under Purchases in your Etsy account, and you can message Megan there.";
 const STATUS_LIMITED = "We've already emailed order updates for that address recently. Please check that inbox (and its spam folder), or try again in an hour.";
 
@@ -250,7 +252,7 @@ Off-topic requests: if the visitor asks for anything that isn't about Florence M
 
 You can't see orders or accounts and you can't change anything. Never say you looked something up, cancelled, changed, refunded or sent anything; Megan does all of that.
 
-Order updates by email: when the visitor wants the status, shipping date or tracking of an order they placed on this website, or of a custom order Megan invoiced them for, set lookup to true and say you can email the latest status and tracking to the email address they ordered with, using the box that appears below your message (an order number is optional there; with one, the email covers just that order). Don't ask them to type their email in the chat, and don't promise that an email will arrive (only orders placed with that address are sent). Orders placed on Etsy can't be looked up here: tell them to check Purchases in their Etsy account and to message Megan through Etsy (lookup false). If you don't know where they ordered, ask. Otherwise lookup is false.
+Order updates by email: when the visitor wants the status, shipping date or tracking of an order they placed on this website, or of a custom order Megan invoiced them for, set lookup to true and say you can email the latest status and tracking to the email address they ordered with, using the box that appears below your message (an order number is optional there; with one, the email covers just that order). Don't ask them to type their email in the chat, and don't promise that an email will arrive (only orders placed with that address are sent). If they didn't get the email, deleted it or want it sent again, set lookup to true and say they can request it again with the box below, and to check their spam folder; never mention limits, waiting or how many emails can be sent, because you can't see that (the box tells them if there's a problem). Orders placed on Etsy can't be looked up here: tell them to check Purchases in their Etsy account and to message Megan through Etsy (lookup false). If you don't know where they ordered, ask. Otherwise lookup is false.
 
 Hand off to Megan (handoff true) when:
 - the visitor needs something about one specific order that an order-status email won't solve: a damaged or wrong item, a package that tracking shows as delivered but never arrived, changing a size, color or address, or cancelling;
@@ -505,7 +507,7 @@ export async function handleOrderStatus(request, env, { reply, ip, verifyTurnsti
 
   const emailKey = (await sha256Hex(email)).slice(0, 32);
   const keys = { 'status-ip': ip, 'status-email': emailKey, 'status-email-day': emailKey };
-  for (const l of [...STATUS_LIMITS, { name: 'status-conv', limit: 3, windowSecs: PASS_TTL_SECS }]) {
+  for (const l of [...STATUS_LIMITS, { name: 'status-conv', limit: STATUS_PER_CONVERSATION, windowSecs: PASS_TTL_SECS }]) {
     const key = l.name === 'status-conv' ? visitor.conversationId : keys[l.name];
     if (await overLimit(env, `${l.name}:${key}`, l.limit, l.windowSecs)) {
       await addDaily(env, 'ratelimited', 0, 1);
