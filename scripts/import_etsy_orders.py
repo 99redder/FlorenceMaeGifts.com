@@ -67,6 +67,10 @@ COUNTRY_ALIASES = {
     'the netherlands': 'NL', 'czech republic': 'CZ', 'republic of ireland': 'IE', 'hong kong sar': 'HK',
     'macau': 'MO', 'the bahamas': 'BS', 'trinidad': 'TT', 'uae': 'AE',
 }
+# Buyer misspellings of a real town, fixed before counting: (country code, norm(city as typed)) -> correct name.
+CITY_FIXES = {
+    ('AU', 'rockview'): 'Rockyview',  # QLD, near Rockhampton; no Rockview exists there
+}
 US_TERRITORIES = {'PR': 'Puerto Rico', 'GU': 'Guam', 'VI': 'U.S. Virgin Islands', 'AS': 'American Samoa',
                   'MP': 'Northern Mariana Islands', 'AA': 'Armed Forces Americas', 'AE': 'Armed Forces Europe',
                   'AP': 'Armed Forces Pacific'}
@@ -202,6 +206,7 @@ def build_places(orders, countries):
         if month:
             months.append(month)
         city = tidy_city(o['city'])
+        city = CITY_FIXES.get((code, norm(city)), city)
         if re.search(r'\d', city):
             # A number in the city field usually means part of a street address landed there. Never publish it.
             print('note    dropped a city value with digits in it (%s); counted under its state or country' % code)

@@ -360,11 +360,13 @@ a.reviews-etsy-button:hover {
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
+  container-type: inline-size;
 }
 
+/* Shrinks with the tile so "11,650 mi" fits five across on desktop; phones use the fixed size below */
 .sales-map-stat-value {
   font-family: 'Varela Round', sans-serif;
-  font-size: 1.75rem;
+  font-size: clamp(1.2rem, 19cqi, 1.75rem);
   font-weight: 700;
   line-height: 1.1;
   white-space: nowrap;
