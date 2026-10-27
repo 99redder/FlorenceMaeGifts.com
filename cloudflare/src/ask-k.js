@@ -24,6 +24,10 @@
 // When Claude can't answer (budget spent, credit gone, key rejected, outage)
 // K says so and hands off to the contact form; Chris gets one email per
 // reason per day.
+//
+// POST /internal/daily-summary (handleDailySummary) reports one day's counts
+// and dollars to Eastern Shore AI's daily Ask K email, through its FMG_ASKK
+// service binding, with the same contract as just-in-case's ask-k-worker.
 
 import Anthropic from '@anthropic-ai/sdk';
 import ASK_K_KNOWLEDGE from './ask-k-knowledge.js';
@@ -98,8 +102,9 @@ async function setMeta(env, key, value) {
     .bind(key, String(value)).run();
 }
 
-// provider: 'claude' (answers + topic checks, with spend), or a counter such as
-// 'offtopic' / 'unavailable' / 'unverified' / 'ratelimited' (questions only).
+// provider: 'claude' (answers + topic checks, with spend; questions = answers),
+// or a counter: 'error' (Claude failed or refused for billing/key), 'budget'
+// (a spend cap was reached), 'offtopic', 'unverified', 'ratelimited'.
 async function addDaily(env, provider, cost = 0, questions = 0) {
   try {
     await env.DB.prepare(`INSERT INTO askk_daily (day, provider, spent, questions) VALUES (?1, ?2, ?3, ?4)
@@ -355,6 +360,7 @@ async function claudeAnswer(env, client, question, history) {
     try {
       const response = await createMessage(client, { ...params, model });
       await addDaily(env, 'claude', costOf(PRICE.answer, response.usage), 1);
+      await env.DB.prepare("DELETE FROM askk_meta WHERE key = 'credit_out'").run();
       if (tried.size > 1) await setMeta(env, `models:${ANSWER_FAMILY}`, JSON.stringify(models.filter(m => m === model || !tried.has(m))));
       if (response.stop_reason === 'refusal') return { reply: OFF_TOPIC_REPLY, handoff: false, topic: 'general', summary: '' };
       return parseAnswer((response.content || []).filter(b => b.type === 'text').map(b => b.text).join(''), question);
@@ -397,7 +403,8 @@ async function unavailable(env, notify, reason, question) {
     key: ['the ANTHROPIC_API_KEY secret on fmg-stripe-api is missing or was rejected', 'Check the key in the fmg-ask-k workspace, then: npx wrangler secret put ANTHROPIC_API_KEY --name fmg-stripe-api'],
     error: ['Claude returned an error or is down', 'It answers again on its own once Claude is back. Details are in Workers Logs for fmg-stripe-api.'],
   }[reason] || ['Claude was unavailable', ''];
-  await addDaily(env, 'unavailable', 0, 1);
+  await addDaily(env, reason.startsWith('budget') ? 'budget' : 'error', 0, 1);
+  if (reason === 'credit') await setMeta(env, 'credit_out', Date.now());
   await notifyOnce(env, notify, reason, 'Ask K is sending visitors to the contact form',
     `Ask K on florencemaegifts.com can't answer right now because ${why[0]}. Until then it tells visitors it can't answer and opens the contact form for them.\n\n${why[1]}`);
   return { reply: UNAVAILABLE_REPLY, handoff: true, topic: guessTopic(question), summary: question };
@@ -478,4 +485,58 @@ export async function handleAskK(request, env, { reply, ip, verifyTurnstile, not
 
   const out = await answer(env, question, cleanHistory(data.history), notify);
   return reply({ ok: true, ...out, ...(pass ? { pass } : {}) }, 200);
+}
+
+// ── Daily usage (read by Eastern Shore AI's daily Ask K email) ─
+// Same contract as just-in-case's ask-k-worker: POST { day: "YYYY-MM-DD" } with
+// X-Summary-Token = SUMMARY_TOKEN returns that Eastern day's counts and dollars
+// and the month to date; no question text. FMG has no prepaid balance, so
+// `credit` reports this month's budget instead: loaded = ASKK_MONTHLY_BUDGET,
+// spent = this month's estimated spend so far, and the same levels (out once
+// the cap is reached or Claude refused for billing, until it answers again).
+
+function creditLevel(row) {
+  const loaded = Number(row?.loaded) || 0;
+  const remaining = Math.max(0, loaded - (Number(row?.spent) || 0));
+  const pct = loaded > 0 ? (remaining / loaded) * 100 : 0;
+  const out = !!row?.out_of_credit || (loaded > 0 && remaining <= 0);
+  return loaded <= 0 ? 'unset' : out ? 'out' : pct <= 5 ? 'critical' : pct <= 20 ? 'low' : 'ok';
+}
+
+const dollars = n => Math.round((Number(n) || 0) * 10000) / 10000;
+
+// Constant-time compare; an unset secret never matches.
+function tokenMatches(secret, header) {
+  const expected = String(secret || '');
+  return !!expected && sameText(expected, String(header || ''));
+}
+
+export async function handleDailySummary(request, env, reply) {
+  if (!tokenMatches(env.SUMMARY_TOKEN, request.headers.get('X-Summary-Token'))) {
+    return new Response('Not Found', { status: 404 });
+  }
+  let body;
+  try { body = await request.json(); } catch { body = null; }
+  const day = String(body?.day || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return reply({ error: 'day must be YYYY-MM-DD' }, 400);
+  try {
+    await ensureTables(env);
+    const count = async (provider, column) => (await env.DB.prepare(`SELECT ${column} AS v FROM askk_daily WHERE day = ?1 AND provider = ?2`).bind(day, provider).first('v')) || 0;
+    const mtd = await env.DB.prepare("SELECT COALESCE(SUM(spent), 0) AS s FROM askk_daily WHERE provider = 'claude' AND day >= ?1 AND day <= ?2")
+      .bind(`${day.slice(0, 7)}-01`, day).first('s');
+    const loaded = budget(env, 'ASKK_MONTHLY_BUDGET', DEFAULT_MONTHLY_BUDGET);
+    const spent = (await claudeSpent(env)).month;
+    const outOfCredit = !!(await getMeta(env, 'credit_out'));
+    return reply({
+      day,
+      answers: Number(await count('claude', 'questions')),
+      errors: Number(await count('error', 'questions')),
+      est_spent: dollars(await count('claude', 'spent')),
+      mtd_est_spent: dollars(mtd),
+      credit: { loaded: dollars(loaded), spent: dollars(spent), level: creditLevel({ loaded, spent, out_of_credit: outOfCredit }) },
+    }, 200);
+  } catch (e) {
+    console.error('Ask K daily summary failed:', e);
+    return reply({ error: 'Summary unavailable' }, 500);
+  }
 }

@@ -336,3 +336,75 @@ test('Messages sent from Ask K include the chat for Megan', async (t) => {
   assert.equal(mail.subject, 'Florence Mae Gifts: Question about an order from Pat Buyer');
   assert.match(mail.text, /Message:\nCan it ship sooner\?\n\nTheir chat with Ask K before sending this:\nVisitor: When will my Shadow Monster hat ship/);
 });
+
+// ── /internal/daily-summary (Eastern Shore AI's daily Ask K email, same contract as just-in-case) ──
+
+const SUMMARY_TOKEN = 'summary-secret';
+
+function summary(env, body, token = SUMMARY_TOKEN) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token !== null) headers['X-Summary-Token'] = token;
+  return worker.fetch(new Request('https://fmg-stripe-api.internal/internal/daily-summary', { method: 'POST', headers, body: JSON.stringify(body) }), env);
+}
+
+test('Answers and Claude errors are counted per Eastern day for the daily summary', async (t) => {
+  quietConsole(t);
+  const calls = fakeApis(t);
+  const env = baseEnv({ SUMMARY_TOKEN });
+  const pass = (await ask(env, { message: ON_TOPIC, turnstileToken: passToken() })).data.pass;
+  await ask(env, { message: ON_TOPIC, pass });
+  await ask(env, { message: 'Write me a Python script', pass });
+
+  let body = await (await summary(env, { day: easternDay() })).json();
+  assert.equal(body.answers, 2);
+  assert.equal(body.errors, 0);
+  assert.ok(body.est_spent > 0);
+  assert.equal(body.mtd_est_spent, body.est_spent);
+  assert.deepEqual(body.credit, { loaded: 20, spent: body.est_spent, level: 'ok' });
+  assert.equal(answerCalls(calls).length, 2);
+
+  // A billing refusal is an error and marks the budget "out" until Claude answers again.
+  calls.messages.length = 0;
+  t.mock.method(globalThis, 'fetch', async (input, init) => {
+    if (String(input?.url || input).startsWith('https://api.anthropic.com/v1/messages')) {
+      return new Response(JSON.stringify({ type: 'error', error: { type: 'billing_error', message: 'no credit' } }), { status: 402, headers: { 'content-type': 'application/json' } });
+    }
+    throw new Error('unexpected network call');
+  });
+  await ask(env, { message: ON_TOPIC, pass }, '198.51.100.20');
+  t.mock.restoreAll();
+  body = await (await summary(env, { day: easternDay() })).json();
+  assert.equal(body.errors, 1);
+  assert.equal(body.credit.level, 'out');
+
+  await ask(env, { message: ON_TOPIC, pass }, '198.51.100.21');
+  body = await (await summary(env, { day: easternDay() })).json();
+  assert.equal(body.answers, 3);
+  assert.equal(body.credit.level, 'ok');
+});
+
+test('The daily summary returns that day, the month to date and the monthly budget, and nothing else', async (t) => {
+  const env = baseEnv({ SUMMARY_TOKEN, ASKK_MONTHLY_BUDGET: '20' });
+  env.DB.sqlite.exec(`INSERT INTO askk_daily (day, provider, spent, questions) VALUES
+    ('2025-02-28', 'claude', 5, 9), ('2025-03-01', 'claude', 0.5, 3), ('2025-03-14', 'claude', 0.25, 4),
+    ('2025-03-14', 'error', 0, 1), ('2025-03-14', 'offtopic', 0, 6), ('2025-03-15', 'claude', 3, 7)`);
+  env.DB.sqlite.prepare("INSERT INTO askk_daily (day, provider, spent, questions) VALUES (?, 'claude', 17, 50)").run(easternDay());
+  const res = await summary(env, { day: '2025-03-14' });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), {
+    day: '2025-03-14', answers: 4, errors: 1, est_spent: 0.25, mtd_est_spent: 0.75,
+    credit: { loaded: 20, spent: 17, level: 'low' }
+  });
+
+  const quiet = await (await summary(env, { day: '2020-01-01' })).json();
+  assert.deepEqual({ ...quiet, credit: undefined }, { day: '2020-01-01', answers: 0, errors: 0, est_spent: 0, mtd_est_spent: 0, credit: undefined });
+});
+
+test('The daily summary needs SUMMARY_TOKEN and a YYYY-MM-DD day', async (t) => {
+  const env = baseEnv({ SUMMARY_TOKEN });
+  for (const token of [null, '', 'wrong-token']) assert.equal((await summary(env, { day: '2026-10-27' }, token)).status, 404);
+  assert.equal((await summary(baseEnv(), { day: '2026-10-27' }, '')).status, 404, 'an unset secret never matches');
+  const bad = await summary(env, { day: 'yesterday' });
+  assert.equal(bad.status, 400);
+  assert.deepEqual(await bad.json(), { error: 'day must be YYYY-MM-DD' });
+});

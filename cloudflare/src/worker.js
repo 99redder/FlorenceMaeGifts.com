@@ -1,6 +1,7 @@
 // ===== ROUTE HANDLER INDEX =====
 // POST /api/contact                 → handleContact()        — Form submissions (domain offers, questions) + email (email.js)
 // POST /api/ask-k                   → handleAskK() (ask-k.js) — Public: Ask K order-help chat (Claude), hands off to the contact form
+// POST /internal/daily-summary      → handleDailySummary() (ask-k.js) — X-Summary-Token: one day's Ask K counts and dollars for ESA's daily email
 // POST /api/create-checkout-session → handleStoreCheckoutSession() — Create Stripe checkout session for shop items (priceId)
 // POST /api/stripe-webhook      → handleStripeWebhook()   — Stripe payment confirmation: shop orders (pattern downloads), invoice payments, auto-inserts tax income
 // POST /api/admin/login         → handleAdminLogin()      — Admin: create signed HttpOnly session cookie
@@ -31,7 +32,7 @@
 
 import { sendEmail, emailConfigured } from './email.js';
 import { handleEmailEventBatch } from './email-events.js';
-import { handleAskK, ASK_K_TURNSTILE_ACTION } from './ask-k.js';
+import { handleAskK, handleDailySummary, ASK_K_TURNSTILE_ACTION } from './ask-k.js';
 
 // Module-level caches — safe because account IDs and setup state are stable within a Worker isolate.
 const _acctIdCache = new Map();
@@ -104,18 +105,20 @@ export default {
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
       const isCheckoutSessionDetailsRead = url.pathname === '/api/checkout-session-details' && request.method === 'GET';
       const isHealthRead = url.pathname === '/api/health' && request.method === 'GET';
+      // Server to server (ESA's FMG_ASKK service binding); the SUMMARY_TOKEN header is the check.
+      const isInternalSummary = url.pathname === '/internal/daily-summary' && request.method === 'POST';
       const isPostRoute = ['/api/contact', '/api/create-checkout-session', '/api/ask-k'].includes(url.pathname) && request.method === 'POST';
       const isAdminSessionRoute = (url.pathname === '/api/admin/verify-session' && request.method === 'GET')
         || (url.pathname === '/api/admin/login' && request.method === 'POST')
         || (url.pathname === '/api/admin/logout' && request.method === 'POST')
         || (url.pathname === '/api/admin/emergency/status' && request.method === 'GET')
         || (['/api/admin/emergency/request', '/api/admin/emergency/verify'].includes(url.pathname) && request.method === 'POST');
-      if (!isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead && !isAdminSessionRoute && !isHealthRead) {
+      if (!isTaxRead && !isTaxWrite && !isAccountsRead && !isAccountsWrite && !isPostRoute && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead && !isAdminSessionRoute && !isHealthRead && !isInternalSummary) {
         return json({ ok: false, error: 'Method not allowed' }, 405, corsHeaders);
       }
 
       // Public quote accept/deny, invoice landing, download, and checkout-session-details reads don't require strict origin check.
-      if (!originAllowed && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead && !isHealthRead) {
+      if (!originAllowed && !isQuotePublic && !isInvoicePublic && !isDownloadRead && !isCheckoutSessionDetailsRead && !isHealthRead && !isInternalSummary) {
         return json({ ok: false, error: 'Origin not allowed' }, 403, corsHeaders);
       }
     }
@@ -126,6 +129,10 @@ export default {
 
     if (url.pathname === '/api/contact') {
       return handleContact(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/internal/daily-summary' && request.method === 'POST') {
+      return handleDailySummary(request, env, (payload, status) => json(payload, status));
     }
 
     if (url.pathname === '/api/ask-k' && request.method === 'POST') {
