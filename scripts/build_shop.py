@@ -31,7 +31,7 @@ import sales_map
 ROOT = Path(__file__).resolve().parent.parent
 TODAY = date.today()
 CREATED = '6 October 2026'
-CSS_VERSION = '20261027c'
+CSS_VERSION = '20261027d'
 
 CATEGORIES = {
     'baby-sets': {
@@ -630,13 +630,12 @@ def build_index(shop):
     shop.rating_shown = False
     path = ROOT / 'index.html'
     src = path.read_text()
-    tabs = ['<div class="shop-category-tabs" role="tablist" aria-label="Shop categories">',
-            ' <button type="button" class="shop-category-tab active" data-category="all">All items</button>']
-    tabs += [' <button type="button" class="shop-category-tab" data-category="%s">%s</button>' % (c, CATEGORIES[c]['tab'])
+    # Real links to the category pages so crawlers (and cmd-click) reach them; shop.js filters in place on a plain click.
+    tabs = ['<nav class="shop-category-tabs" aria-label="Shop categories">',
+            ' <a href="./" class="shop-category-tab active" data-category="all" aria-current="true">All items</a>']
+    tabs += [' <a href="%s" class="shop-category-tab" data-category="%s">%s</a>' % (CATEGORIES[c]['file'], c, CATEGORIES[c]['tab'])
              for c in CATEGORY_ORDER]
-    tabs += ['</div>',
-             '<p class="shop-category-links">Browse by category: ' + ' | '.join(
-                 '<a href="%s">%s</a>' % (CATEGORIES[c]['file'], CATEGORIES[c]['name']) for c in CATEGORY_ORDER) + '</p>']
+    tabs += ['</nav>']
     listings = '\n\n'.join(card_html(shop, p, modal=True) + '\n\n' + modal_block_html(shop, p) for p in shop.products)
     grid = '\n'.join(tabs) + '\n\n' + listings
     ld = '\n'.join('  ' + jsonld(b).replace('\n', '\n  ') for b in (

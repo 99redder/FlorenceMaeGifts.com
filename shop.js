@@ -204,12 +204,16 @@
     document.addEventListener("click", function(event) {
       const categoryTab = event.target.closest(".shop-category-tab");
       if (categoryTab) {
+        // Tabs link to the category pages; let modified clicks open them in a new tab.
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) return;
         event.preventDefault();
         const category = categoryTab.getAttribute("data-category") || "all";
         document.querySelectorAll(".shop-category-tab").forEach(function(tab) {
           tab.classList.remove("active");
+          tab.removeAttribute("aria-current");
         });
         categoryTab.classList.add("active");
+        categoryTab.setAttribute("aria-current", "true");
         applyShopCategoryFilter(category);
         return;
       }

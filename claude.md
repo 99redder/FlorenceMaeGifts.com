@@ -64,6 +64,8 @@ The site uses a **client-side HTML include pattern** via `includeHTML.js`. Commo
 ### Page Layout
 
 - **Desktop**: single full-width content column (`.leftcolumn`); the right sidebar was removed 2026-10-27
+- **Page width**: `body` is 80% wide, capped at 1200px (2026-10-27) so wide screens don't leave long empty rows. Don't go below about 1150px: the `topnav.html` links need that much to stay on one line
+- **Shop category pills** on the home page are links to the category pages (`crochet-baby-sets.html` etc.), which keeps them crawlable; `shop.js` filters the grid in place on a plain click and lets cmd/ctrl-click open the page. The old "Browse by category" text links were removed
 - **Responsive breakpoints**: 1024px (tablet), 800px (mobile), 480px (small mobile)
 
 ## Styling & Theming

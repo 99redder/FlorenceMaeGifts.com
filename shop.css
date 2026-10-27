@@ -3,7 +3,7 @@
 ; Title: shop.css
 ; Author: Red
 ; Date Created: 6 October 2026
-; Last Updated: 6 October 2026
+; Last Updated: 27 October 2026
 ; Description: Shop listing, modal, checkout and product page styles (moved out of index.html so generated product pages share them)
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
@@ -121,19 +121,15 @@
   margin: 0 0 6px;
 }
 
-.shop-category-links {
-  font-size: 0.9rem;
-  margin: 4px 0 14px;
-}
-
 .shop-category-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 12px 0 6px;
+  margin: 12px 0 16px;
 }
 
 .shop-category-tab {
+  display: inline-block;
   border: 1px solid #ddd;
   background: #fff;
   border-radius: 999px;
@@ -141,9 +137,24 @@
   cursor: pointer;
   font-family: 'Lora', serif;
   font-size: 14px;
+  line-height: 1.2;
+  text-decoration: none;
 }
 
-.shop-category-tab.active {
+/* The tabs are links: beat the site-wide a:link / a:visited colours */
+a.shop-category-tab:link,
+a.shop-category-tab:visited {
+  color: #000;
+}
+
+a.shop-category-tab:hover {
+  border-color: #FE6666;
+  color: #000;
+}
+
+a.shop-category-tab.active:link,
+a.shop-category-tab.active:visited,
+a.shop-category-tab.active:hover {
   background: #FE6666;
   color: #fff;
   border-color: #FE6666;

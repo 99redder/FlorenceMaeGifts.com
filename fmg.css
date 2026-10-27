@@ -3,7 +3,7 @@
 ; Title: fmg.css
 ; Author: Red
 ; Date Created: 11 Jan 2023
-; Last Updated: 26 October 2026
+; Last Updated: 27 October 2026
 ; Description: This code establishes the styling for the entire site
 ; Sources Used: W3 Schools CSS Template https://www.w3schools.com/css/css_templates.asp
 ;=====================================
@@ -38,6 +38,7 @@ body {
   font-size: 16px;
   background-color: var(--background-color);
   width: 80%;
+  max-width: 1200px; /* stops the page sprawling on wide screens; the topnav links need about 1150px to stay on one line */
   margin: 0 auto;
   padding: 2px;
 }
