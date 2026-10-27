@@ -1,5 +1,5 @@
 {
-  "_readme": "Single source of truth for the shop. Edit this file, then run: python3 scripts/build_shop.py  (regenerates index.html shop grid, products/*.html, category pages, policy pages, sitemap.xml and merchant-feed.xml). Never hand-edit generated files. itemName is sent to Stripe/Worker (download mapping) - do not change it casually.",
+  "_readme": "Single source of truth for the shop. Edit this file, then run: python3 scripts/build_shop.py  (regenerates index.html shop grid, products/*.html, category pages, policy pages, sitemap.xml and merchant-feed.xml). Never hand-edit generated files. itemName is sent to Stripe/Worker (download mapping) - do not change it casually. proofNote (optional) is the short description shown beside a listing that has no review or sales count yet; featuredReview (optional) pins a review id for that spot.",
   "site": {
     "baseUrl": "https://www.florencemaegifts.com",
     "brand": "Florence Mae Gifts",
@@ -46,6 +46,7 @@
     {
       "id": "listing24",
       "slug": "crochet-shadow-monster-baby-hat",
+      "proofNote": "Black beanie with big yellow eyes and curly zigzag antennae · stretchy fit, 5 sizes",
       "title": "Crochet Shadow Monster Baby Hat (Multiple Sizes Available)",
       "itemName": "Crochet Shadow Monster Baby Hat (Multiple Sizes Available)",
       "category": "hats",
@@ -103,6 +104,7 @@
     {
       "id": "listing23",
       "slug": "crochet-luffy-inspired-baby-photo-set",
+      "proofNote": "Straw-style hat plus a red and blue onesie with gold-tone buttons · 3 baby sizes",
       "title": "Luffy Inspired Baby Photo Set",
       "itemName": "Luffy Inspired Baby Photo Set",
       "category": "baby-sets",
@@ -698,6 +700,7 @@
     {
       "id": "listing6",
       "slug": "chiaotzu-inspired-crochet-baby-photo-set",
+      "proofNote": "3-piece set: black beanie with red ball, diaper cover and bib",
       "title": "Chiaotzu Inspired Baby Photo Set Costume",
       "itemName": "Chiaotzu Inspired Baby Photo Set Costume",
       "category": "baby-sets",
@@ -749,6 +752,7 @@
     {
       "id": "listing7",
       "slug": "crochet-turtles-diaper-cover-baby-set",
+      "proofNote": "3-piece set: green beanie with tie-on mask, belted diaper cover and booties",
       "title": "Turtles Diaper Cover Baby Set Costume",
       "itemName": "Turtles Diaper Cover Baby Set Costume",
       "category": "baby-sets",
@@ -786,6 +790,7 @@
     {
       "id": "listing11",
       "slug": "goku-gohan-inspired-four-star-crochet-hat",
+      "proofNote": "Orange Four-Star beanie with blue brim · 8 sizes, newborn to youth",
       "title": "Goku Gohan Inspired Four Star Hat",
       "itemName": "Goku Gohan Inspired Four Star Hat",
       "category": "hats",
@@ -852,6 +857,7 @@
     {
       "id": "listing12",
       "slug": "crochet-santa-diaper-cover-baby-set",
+      "proofNote": "Santa hat with pom-pom, belted diaper cover and booties, made for first-Christmas photos",
       "title": "Santa Diaper Cover Set",
       "itemName": "Santa Diaper Cover Set",
       "category": "baby-sets",
@@ -889,6 +895,7 @@
     {
       "id": "listing13",
       "slug": "chiaotzu-inspired-crochet-baby-hat",
+      "proofNote": "Black beanie with a red ball on top · matches the Chiaotzu photo set",
       "title": "Chiaotzu Inspired Hat",
       "itemName": "Chiaotzu Inspired Hat",
       "category": "hats",
@@ -940,6 +947,7 @@
     {
       "id": "listing14",
       "slug": "chi-chi-inspired-crochet-baby-diaper-set",
+      "proofNote": "3-piece set: pink hat, blue diaper cover and pink booties with green cuffs",
       "title": "Chi Chi Dragon Ball Baby Diaper Set",
       "itemName": "Chi Chi Dragon Ball Baby Diaper Set",
       "category": "baby-sets",
@@ -976,6 +984,7 @@
     {
       "id": "listing15",
       "slug": "wheres-waldo-inspired-crochet-diaper-cover-set",
+      "proofNote": "Red pom-pom beanie, red and white striped diaper cover and brown booties",
       "title": "Where's Waldo Inspired Diaper Cover Baby Set",
       "itemName": "Where's Waldo Inspired Diaper Cover Baby Set",
       "category": "baby-sets",
@@ -1011,6 +1020,7 @@
     {
       "id": "listing16",
       "slug": "dumbo-inspired-crochet-diaper-cover-set",
+      "proofNote": "Big pink-lined ears, gray diaper cover and a ruffled collar for photos and baby showers",
       "title": "Dumbo Inspired Diaper Cover Baby Set",
       "itemName": "Dumbo Inspired Diaper Cover Baby Set",
       "category": "baby-sets",
@@ -1047,6 +1057,7 @@
     {
       "id": "listing17",
       "slug": "shenron-inspired-crochet-baby-hat",
+      "proofNote": "Green Four-Star beanie with red brim · 8 sizes, newborn to youth",
       "title": "Shenron Shenlong Gohan Inspired Hat",
       "itemName": "Shenron Shenlong Gohan Inspired Hat",
       "category": "hats",
@@ -1113,6 +1124,7 @@
     {
       "id": "listing18",
       "slug": "shenron-inspired-crochet-hat-photo-set",
+      "proofNote": "3-piece set: green Four-Star hat, diaper cover and booties",
       "title": "Shenron Shenlong Gohan Inspired Hat Photo Set",
       "itemName": "Shenron Shenlong Gohan Inspired Hat Photo Set",
       "category": "baby-sets",
@@ -1159,6 +1171,7 @@
     {
       "id": "listing19",
       "slug": "goku-inspired-crochet-baby-costume-onesie-hat",
+      "proofNote": "Complete costume: orange onesie with chest emblem plus a spiky-hair hat",
       "title": "Goku Inspired Costume with Baby Onesie and Hat",
       "itemName": "Goku Inspired Costume with Baby Onesie and Hat",
       "category": "baby-sets",

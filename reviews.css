@@ -286,9 +286,9 @@ a.reviews-etsy-button:hover {
    ============================================ */
 
 .sales-map {
-  /* No orders, then five shading steps of one pink hue, each about 0.075 OKLCH lightness darker */
-  --sm-land: #f1ebec;
-  --sm-edge: #ffffff;
+  /* No orders is white, then five shading steps of one pink hue: darker = more orders, in both themes */
+  --sm-land: #ffffff;
+  --sm-edge: #c4b4b7;
   --sm-c1: #f4c4c9;
   --sm-c2: #f1a1aa;
   --sm-c3: #e87f8d;
@@ -305,17 +305,8 @@ a.reviews-etsy-button:hover {
 }
 
 .dark-theme .sales-map {
-  /* Dark mode flips the anchor: more orders, lighter pink */
-  --sm-land: #4b4647;
-  --sm-edge: #303030;
-  --sm-c1: #7a4e53;
-  --sm-c2: #9f5a63;
-  --sm-c3: #c26875;
-  --sm-c4: #e37a89;
-  --sm-c5: #fb98a4;
-  --sm-dot: #fff0f2;
-  --sm-ring: #303030;
-  --sm-home: #ffffff;
+  /* Map colours stay the same as light mode (white = none, darker = more); only the borders change */
+  --sm-edge: #9a8c8e;
   --sm-bar: #ff7a83;
   --sm-track: #3f3838;
   --sm-muted: #cdbfbf;
@@ -574,6 +565,7 @@ a.reviews-etsy-button:hover {
   border-radius: 4px;
 }
 
+.sales-map-swatch.sm-c0 { background: var(--sm-land); box-shadow: inset 0 0 0 1px var(--sm-edge); }
 .sales-map-swatch.sm-c1 { background: var(--sm-c1); }
 .sales-map-swatch.sm-c2 { background: var(--sm-c2); }
 .sales-map-swatch.sm-c3 { background: var(--sm-c3); }

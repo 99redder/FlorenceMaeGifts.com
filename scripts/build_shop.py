@@ -31,7 +31,7 @@ import sales_map
 ROOT = Path(__file__).resolve().parent.parent
 TODAY = date.today()
 CREATED = '6 October 2026'
-CSS_VERSION = '20261027b'
+CSS_VERSION = '20261027c'
 
 CATEGORIES = {
     'baby-sets': {
@@ -149,6 +149,7 @@ class Shop:
         self.all_products = data['products']
         self.products = [p for p in self.all_products if not p.get('hidden')]
         self.proof = load_proof()
+        self.rating_shown = False
         self.validate()
 
     def validate(self):
@@ -505,19 +506,36 @@ def pick_review(p, reviews):
     return min(lst, key=lambda r: (len(r['text']) > QUOTE_MAX, abs(len(r['text']) - 130), r['id']))
 
 
+NEW_DAYS = 150        # an "added" date this recent gets a New tag in the panel
+
+
+def sizes_note(p):
+    labels = [t['label'] for t in p.get('sizes') or []]
+    if len(labels) > 1:
+        return '%d sizes, %s to %s' % (len(labels), labels[0], labels[-1])
+    return ''
+
+
 def proof_html(shop, p, indent):
-    """The panel to the right of a listing row: what has sold, what buyers said, or why to trust the shop."""
+    """The panel beside a listing: what has sold, what a buyer said, or a quick description.
+    The shop-wide rating appears at most once per page (shop.rating_shown is reset per page)."""
     proof = shop.proof
     sold = proof['sold'].get(listing_id(p) or '', 0)
     review = pick_review(p, proof['reviews'])
     stars = '<span class="shop-proof-stars" aria-hidden="true">\u2605\u2605\u2605\u2605\u2605</span>'
-    lines = []
+    added = date.fromisoformat(p['added']) if p.get('added') else None
+    is_new = bool(added and (TODAY - added).days <= NEW_DAYS)
     tags = []
+    if is_new:
+        tags.append('<span class="shop-proof-tag">New</span>')
     if sold >= BESTSELLER_AT:
         tags.append('<span class="shop-proof-tag">Bestseller</span>')
     if sold >= SOLD_AT:
         tags.append('<span class="shop-proof-sold">%s %s on Etsy</span>'
                     % ('{:,}'.format(sold), 'downloads' if p.get('digital') else 'sold'))
+    elif is_new:
+        tags.append('<span class="shop-proof-sold">Added %s</span>' % added.strftime('%B %Y'))
+    lines = []
     if tags:
         lines.append('%s <p class="shop-proof-stats">%s</p>' % (indent, ' '.join(tags)))
     if review:
@@ -525,12 +543,14 @@ def proof_html(shop, p, indent):
                      '\u201c%s\u201d <cite>\u2014 %s, Etsy review</cite></blockquote>'
                      % (indent, stars, esc(review_quote(review['text'])), esc(review['name'])))
     else:
-        etsy = proof['etsy']
-        lines.append('%s <p class="shop-proof-rating">%s <span>%s shop rating from %s Etsy reviews</span></p>'
-                     % (indent, stars, esc(etsy['rating']), '{:,}'.format(etsy['count'])))
-        if not tags:
-            lines.append('%s <p class="shop-proof-note">%s</p>' % (indent, 'Instant PDF download after checkout'
-                         if p.get('digital') else 'Handmade to order by Megan &middot; free U.S. shipping'))
+        note = p.get('proofNote') or ('Instant PDF download after checkout' if p.get('digital') else
+                                      'Handmade to order' + (' \u00b7 ' + sizes_note(p) if sizes_note(p) else ''))
+        lines.append('%s <p class="shop-proof-note">%s</p>' % (indent, esc(note)))
+        if not shop.rating_shown:
+            shop.rating_shown = True
+            etsy = proof['etsy']
+            lines.append('%s <p class="shop-proof-rating">%s <span>%s shop rating from %s Etsy reviews</span></p>'
+                         % (indent, stars, esc(etsy['rating']), '{:,}'.format(etsy['count'])))
     return '%s<div class="shop-proof">\n%s\n%s</div>' % (indent, '\n'.join(lines), indent)
 
 
@@ -607,6 +627,7 @@ def modal_block_html(shop, p):
 # ---------- pages ----------
 
 def build_index(shop):
+    shop.rating_shown = False
     path = ROOT / 'index.html'
     src = path.read_text()
     tabs = ['<div class="shop-category-tabs" role="tablist" aria-label="Shop categories">',
@@ -726,6 +747,7 @@ def build_reviews(shop):
 
 
 def product_page(shop, p):
+    shop.rating_shown = False
     cat = CATEGORIES[p['category']]
     name = shop.base_name(p)
     crumbs = [('Shop', ''), (cat['name'], cat['file']), (name, shop.rel(p))]
@@ -781,6 +803,7 @@ def product_page(shop, p):
 
 
 def category_page(shop, key):
+    shop.rating_shown = False
     cat = CATEGORIES[key]
     items = [p for p in shop.products if p['category'] == key]
     crumbs = [('Shop', ''), (cat['name'], cat['file'])]

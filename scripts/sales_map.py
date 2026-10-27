@@ -309,6 +309,7 @@ def busiest(places, key, label, project):
 def legend_html(caption, breaks, top, dots=True):
     out = ['     <figcaption class="sales-map-legend">',
            '      <span class="sales-map-legend-scale"><span class="sales-map-legend-title">%s</span>' % esc(caption)]
+    out.append('       <span class="sales-map-legend-step"><span class="sales-map-swatch sm-c0"></span>None</span>')
     for i, label in enumerate(class_labels(breaks, top), 1):
         out.append('       <span class="sales-map-legend-step"><span class="sales-map-swatch sm-c%d"></span>%s</span>'
                    % (i, esc(label)))
