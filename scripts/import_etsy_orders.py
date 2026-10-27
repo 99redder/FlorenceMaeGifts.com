@@ -82,7 +82,8 @@ def norm(text):
     """Loose match key for place names: no accents, case, punctuation; Saint -> st, Mount -> mt, Fort -> ft."""
     text = unicodedata.normalize('NFKD', text or '')
     text = ''.join(c for c in text if not unicodedata.combining(c)).lower().replace('&', ' and ')
-    text = re.sub(r"[^a-z0-9]+", ' ', text.replace("'", ''))
+    # Keep letters of any script (Japanese, Greek, ...) so towns written in them don't all collapse into one key.
+    text = re.sub(r"[\W_]+", ' ', text.replace("'", ''))
     words = {'saint': 'st', 'sainte': 'ste', 'mount': 'mt', 'fort': 'ft'}
     words = [words.get(w, w) for w in text.split()]
     if words[:2] == ['city', 'of']:
@@ -98,6 +99,18 @@ def tidy_city(text):
     if text and (text.isupper() or text.islower()):
         text = text.title()
     return text
+
+
+def parse_date(value):
+    """A date from Etsy's 10/22/26, or the other usual date spellings; None if it can't be read."""
+    value = (value or '').strip()
+    for candidate in (value, value.split(' ')[0]):
+        for fmt in ('%m/%d/%y', '%m/%d/%Y', '%Y-%m-%d', '%Y/%m/%d', '%B %d, %Y', '%b %d, %Y', '%d %B %Y'):
+            try:
+                return datetime.strptime(candidate, fmt).date()
+            except ValueError:
+                continue
+    return None
 
 
 def parse_month(value):
@@ -126,10 +139,11 @@ def column_map(header):
     return found
 
 
-def read_orders(paths):
-    """One dict per order (deduplicated by Order ID), plus counts of what was skipped."""
+def read_orders(paths, after=None):
+    """One dict per order (deduplicated by Order ID), plus counts of what was skipped.
+    With after (a date), orders sold on or before it are skipped: they are already counted."""
     orders, seen = [], set()
-    skipped = {'duplicate': 0, 'cancelled': 0}
+    skipped = {'duplicate': 0, 'cancelled': 0, 'already counted': 0}
     for path in paths:
         with open(path, newline='', encoding='utf-8-sig') as f:
             rows = list(csv.reader(f))
@@ -147,6 +161,11 @@ def read_orders(paths):
             if 'cancel' in get('status').lower():
                 skipped['cancelled'] += 1
                 continue
+            if after:
+                d = parse_date(get('date'))
+                if d is None or d <= after:
+                    skipped['already counted'] += 1
+                    continue
             order_id = get('order')
             if order_id:
                 if order_id in seen:
@@ -360,6 +379,9 @@ def main():
     ap.add_argument('--offline', action='store_true', help='use only gazetteers already in the cache')
     ap.add_argument('--cache', type=Path, default=CACHE_DIR, help='where downloaded gazetteers are kept')
     ap.add_argument('--out', type=Path, default=sales_map.DATA, help='output file (default: sales-map.json)')
+    ap.add_argument('--add', action='store_true',
+                    help='add only orders sold after the "through" date already in the output file to its counts '
+                         '(for updates: no need to keep or re-download older CSVs)')
     args = ap.parse_args()
 
     paths = args.csv or sorted(ORDERS_DIR.glob('*.csv'))
@@ -367,13 +389,43 @@ def main():
         sys.exit('No order CSVs. Save Etsy\'s order exports in %s (git-ignored) or pass their paths.'
                  % ORDERS_DIR.relative_to(ROOT))
     countries = Countries(sales_map.load_basemap())
-    orders, skipped = read_orders(paths)
-    places, unknown, no_address, months = build_places(orders, countries)
-
     old = sales_map.load_data(args.out)
+    after = None
+    if args.add:
+        if not old.get('through'):
+            sys.exit('--add needs a "through" date in %s; run a full import first' % args.out.name)
+        after = date.fromisoformat(old['through'])
+        print('adding  orders sold after %s to the counts in %s' % (after, args.out.name))
+    orders, skipped = read_orders(paths, after)
+    dates = [d for d in (parse_date(o['date']) for o in orders) if d]
+    places, unknown, no_address, months = build_places(orders, countries)
+    new_orders = sum(p['orders'] for p in places)
+    if args.add:
+        # Merge into what is already counted: same place adds up, new places are located below.
+        merged = {place_key(p): dict(p, lat=p.get('lat'), lon=p.get('lon')) for p in old.get('places', [])}
+        fresh = []
+        for p in places:
+            k = place_key(p)
+            if k in merged:
+                merged[k]['orders'] += p['orders']
+            else:
+                fresh.append(p)
+        if old.get('firstOrder'):
+            months.append(old['firstOrder'])
+        if old.get('lastOrder'):
+            months.append(old['lastOrder'])
+        no_address += old.get('ordersWithoutAddress', 0)
+
     previous = {place_key(p): (p['lat'], p['lon']) for p in old.get('places', [])
                 if p.get('lat') is not None and p.get('lon') is not None}
-    locate(places, previous, args.cache, args.offline)
+    if args.add:
+        locate(fresh, previous, args.cache, args.offline)
+        places = list(merged.values()) + fresh
+    else:
+        locate(places, previous, args.cache, args.offline)
+    through = max(dates) if dates else None
+    if args.add and old.get('through'):
+        through = max(filter(None, [through, date.fromisoformat(old['through'])]))
 
     places.sort(key=lambda p: (p['country'] != 'US', p['country'], p['region'], p['city'].lower()))
     data = {
@@ -381,11 +433,14 @@ def main():
                    'CSVs (kept out of the repo in private/etsy-orders/); rebuild the page with python3 '
                    'scripts/build_shop.py. Only town or city, region, country, rounded coordinates and an order '
                    'count per place: never names, addresses, ZIP codes, order IDs or money. A place with lat/lon '
-                   'null is counted but not drawn; type its coordinates in by hand and later imports keep them.',
+                   'null is counted but not drawn; type its coordinates in by hand and later imports keep them. '
+                   '"through" is the last sale date counted: to update, download only newer CSVs and run the '
+                   'importer with --add.',
         'source': 'Etsy orders',
         'asOf': date.today().isoformat(),
         'firstOrder': min(months) if months else None,
         'lastOrder': max(months) if months else None,
+        'through': through.isoformat() if through else None,
         'ordersWithoutAddress': no_address,
         'places': [{'city': p['city'], 'region': p['region'], 'country': p['country'], 'lat': p['lat'],
                     'lon': p['lon'], 'orders': p['orders']} for p in places],
@@ -393,6 +448,9 @@ def main():
     write_json(args.out, data)
 
     counted = sum(p['orders'] for p in places)
+    if args.add:
+        print('\nadded   %d new orders (%d already counted and skipped); counted through %s'
+              % (new_orders, skipped['already counted'], data['through']))
     off_map = [p for p in places if p['lat'] is None]
     print('\n%d orders counted across %d places in %d countries; %d without a shipping address '
           '(digital downloads); %d duplicate rows and %d cancelled orders skipped.'

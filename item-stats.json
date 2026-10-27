@@ -1,5 +1,5 @@
 {
- "_readme": "Quantity sold on Etsy per listing ID (listings in products.json only), used for the \"sold\" lines on the shop pages. Made by scripts/import_etsy_items.py from Etsy Order Items CSVs kept in private/etsy-items/ (git-ignored). No names, addresses, order IDs or money.",
+ "_readme": "Quantity sold on Etsy per listing ID (listings in products.json only), used for the \"sold\" lines on the shop pages. Made by scripts/import_etsy_items.py from Etsy Order Items CSVs kept in private/etsy-items/ (git-ignored). No names, addresses, order IDs or money. lastSale is the last sale date counted: to update, download only newer Order Items CSVs and run the importer with --add.",
  "asOf": "2026-10-27",
  "firstSale": "2022-09-26",
  "lastSale": "2026-10-26",

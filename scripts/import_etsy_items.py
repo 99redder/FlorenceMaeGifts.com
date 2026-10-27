@@ -2,6 +2,7 @@
 """Count how many of each listing has sold on Etsy, for the "sold" lines on the shop pages.
 
   python3 scripts/import_etsy_items.py     # every .csv in private/etsy-items/
+  python3 scripts/import_etsy_items.py --add new.csv   # add sales after "lastSale" to the saved counts
   python3 scripts/build_shop.py            # then rebuild the pages
 
 Input: Etsy's "Order Items" exports (Shop Manager > Settings > Options > Download
@@ -40,11 +41,20 @@ def sale_date(text):
 
 
 def main():
-    paths = [Path(a) for a in sys.argv[1:]] or sorted(ITEMS_DIR.glob('*.csv'))
+    args = sys.argv[1:]
+    add = '--add' in args
+    paths = [Path(a) for a in args if a != '--add'] or sorted(ITEMS_DIR.glob('*.csv'))
     if not paths:
         sys.exit('No Order Items CSVs. Save them in %s (git-ignored).' % ITEMS_DIR.relative_to(ROOT))
     wanted = {listing_id(p) for p in json.loads((ROOT / 'products.json').read_text())['products']} - {None}
     seen, sold, dates = set(), {}, []
+    after = None
+    if add:
+        old = json.loads(OUT.read_text())
+        after = date.fromisoformat(old['lastSale'])
+        sold = dict(old['sold'])
+        print('adding  items sold after %s to the counts in %s' % (after, OUT.name))
+    added = 0
     for path in paths:
         with open(path, newline='', encoding='utf-8-sig') as f:
             rows = list(csv.DictReader(f))
@@ -57,6 +67,8 @@ def main():
                 continue
             seen.add(key)
             d = sale_date(r.get('Sale Date'))
+            if after and (d is None or d <= after):
+                continue  # already counted
             if d:
                 dates.append(d)
             lid = (r.get('Listing ID') or '').strip()
@@ -66,16 +78,21 @@ def main():
                 except ValueError:
                     qty = 1
                 sold[lid] = sold.get(lid, 0) + qty
+                added += qty
     data = {
         '_readme': 'Quantity sold on Etsy per listing ID (listings in products.json only), used for the "sold" '
                    'lines on the shop pages. Made by scripts/import_etsy_items.py from Etsy Order Items CSVs kept '
-                   'in private/etsy-items/ (git-ignored). No names, addresses, order IDs or money.',
+                   'in private/etsy-items/ (git-ignored). No names, addresses, order IDs or money. lastSale is the '
+                   'last sale date counted: to update, download only newer Order Items CSVs and run the importer '
+                   'with --add.',
         'asOf': date.today().isoformat(),
-        'firstSale': min(dates).isoformat() if dates else None,
-        'lastSale': max(dates).isoformat() if dates else None,
+        'firstSale': old['firstSale'] if add else (min(dates).isoformat() if dates else None),
+        'lastSale': max(dates).isoformat() if dates else (old['lastSale'] if add else None),
         'sold': dict(sorted(sold.items(), key=lambda kv: (-kv[1], kv[0]))),
     }
     OUT.write_text(json.dumps(data, indent=1) + '\n')
+    if add:
+        print('added   %d items' % added)
     print('\n%d items across %d site listings, %s to %s' % (sum(sold.values()), len(sold),
                                                             data['firstSale'], data['lastSale']))
     print('wrote   %s; run python3 scripts/build_shop.py' % OUT.name)

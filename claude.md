@@ -606,3 +606,14 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 - Styles: "Beside each listing" block in `shop.css` (light + dark), plus a shared `.sr-only` helper. `shop.css` is `?v=20261027b` everywhere (`CSS_VERSION` in `build_shop.py` for generated pages; hand-set in `index.html`, `reviews.html`, `shop.html`).
 - Sales map: neither the World nor the US view draws town dots any more; hovering a country or state shows its total and its busiest city (or "Shipped to N towns and cities" when every town has one order), with a marker on that city.
 - Panel rules since 2026-10-27 (later the same day): the shop-rating line appears **once per page** (`shop.rating_shown`, reset in `build_index`, `category_page`, `product_page`). A product with no review gets its `proofNote` from `products.json` (a quick factual description), else "Handmade to order · N sizes, A to B" (patterns: "Instant PDF download after checkout"). An `added` date within `NEW_DAYS` (150) adds a "New" tag and "Added <Month Year>". Write a `proofNote` for every new listing.
+
+## Updating the sales map and sold counts (incremental, no old CSVs needed)
+
+- `sales-map.json` stores `through` (last sale date counted) and `item-stats.json` stores `lastSale`. Old CSVs are NOT needed for updates; the counts in those two files are the running totals.
+- To update: in Etsy Download Data request only the year(s) that contain new sales (CSV type "Orders" and "Order Items", month blank). Etsy emails a link per file. Save them in `private/etsy-orders/` and `private/etsy-items/`, then:
+  - `python3 scripts/import_etsy_orders.py --add private/etsy-orders/<new files>` (adds only orders sold after `through`; new towns get coordinates; check its "No coordinates" list)
+  - `python3 scripts/import_etsy_items.py --add private/etsy-items/<new files>` (adds only items sold after `lastSale`)
+  - `python3 scripts/build_shop.py`, check reviews.html and index.html, commit, push to main.
+- Running either importer WITHOUT `--add` rebuilds from scratch and needs every CSV since 2022.
+- Schedule: Jan 1 2027 (rest of 2026), Jul 1 2027 (Jan-Jun 2027), Jan 1 2028 (Jul-Dec 2027) - scheduled tasks set 2026-10-27.
+- Place keys keep letters of any script (fixed 2026-10-27: Japanese town names used to collapse into one place).
