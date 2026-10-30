@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addBusinessDays, handlingFor, shipEstimate, dateRange, describeItem, buildOrderUpdateEmail, buildOrderStatusEmail, normalizeOrderNumber } from '../src/orders.js';
-import { HANDLING_TIMES, PRICES } from '../src/shop-data.js';
+import { HANDLING_RUSHES, LONGEST_HANDLING, PRICES } from '../src/shop-data.js';
 
 const ORDER = {
   id: 1, order_number: 'FMG-ABC234', customer_name: 'Pat Parent', customer_email: 'parent@example.org',
@@ -20,16 +20,26 @@ test('business days skip weekends and U.S. federal holidays, including observed 
   assert.equal(addBusinessDays('2027-01-15', 1), '2027-01-19', 'Martin Luther King Jr. Day');
 });
 
-test('the handling window is picked by the order date', () => {
-  const seasonal = HANDLING_TIMES.find(w => w.through);
-  const standard = HANDLING_TIMES.find(w => !w.through);
-  if (seasonal) {
-    assert.deepEqual(handlingFor(seasonal.through), seasonal);
-    assert.deepEqual(handlingFor(addBusinessDays(seasonal.through, 1)), standard);
-  }
-  const est = shipEstimate('2026-11-02');
-  assert.equal(est.shipFrom, addBusinessDays('2026-11-02', handlingFor('2026-11-02').minDays));
-  assert.equal(est.shipBy, addBusinessDays('2026-11-02', handlingFor('2026-11-02').maxDays));
+test('each listing has its own handling time, found by price ID or item name', () => {
+  const priceFor = (item) => Object.entries(PRICES).find(([, v]) => v.item === item)[0];
+  const hat = 'Crochet Shadow Monster Baby Hat';
+  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Anything', price_id: priceFor(hat) }), { minDays: 5, maxDays: 7 });
+  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Monster Diaper Cover Baby Set Costume', price_id: 'price_retired_by_a_price_change' }), { minDays: 7, maxDays: 9 }, 'an old price ID falls back to the item name');
+  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Togepi Inspired Baby Photo Set', price_id: null }), { minDays: 5, maxDays: 10 });
+  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Alakazam Inspired Baby Photo Set' }), { minDays: 5, maxDays: 10 }, 'hidden listings keep their time');
+  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'A listing since deleted', price_id: null }), LONGEST_HANDLING);
+});
+
+test('a seasonal rush covers orders placed through its last day, then the listing time returns', () => {
+  const rush = HANDLING_RUSHES[0];
+  assert.deepEqual(handlingFor({ ...ORDER, order_date: rush.through }), rush);
+  assert.deepEqual(handlingFor({ ...ORDER, order_date: addBusinessDays(rush.through, 1) }), { minDays: 5, maxDays: 7 });
+});
+
+test('ship estimates count from the order date using the listing time', () => {
+  const est = shipEstimate(ORDER);
+  assert.equal(est.shipFrom, addBusinessDays(ORDER.order_date, 5));
+  assert.equal(est.shipBy, addBusinessDays(ORDER.order_date, 7));
   assert.ok(est.deliverBy > est.shipBy);
 });
 
@@ -81,7 +91,7 @@ test('the order-status email describes each status honestly, with tracking only 
   assert.equal(mail.subject, 'Your Florence Mae Gifts order status');
   const text = mail.text;
   assert.match(text, /^Hi there,/, 'no name: the request came from the chat');
-  assert.ok(text.includes(`Status: Order received. Estimated ship date: ${dateRange(shipEstimate('2026-11-02').shipFrom, shipEstimate('2026-11-02').shipBy)}.`));
+  assert.ok(text.includes(`Status: Order received. Estimated ship date: ${dateRange(shipEstimate(ORDER).shipFrom, shipEstimate(ORDER).shipBy)}.`));
   assert.match(text, /Status: Megan is making it now\. It's taking a little longer than our estimate/);
   assert.ok(text.includes('Status: Shipped November 12, 2026 by USPS'));
   assert.ok(text.includes('Track Your Package: https://tools.usps.com/go/TrackConfirmAction?tLabels=9400133333333333333333'));

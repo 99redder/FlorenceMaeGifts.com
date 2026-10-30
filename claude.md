@@ -475,7 +475,7 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 
 ### Adding or changing a listing
 
-1. Edit `products.json` (copy an existing product; add photos to `images/products/`).
+1. Edit `products.json` (copy an existing product; add photos to `images/products/`). Every physical listing needs a `handling` key; the build stops without one.
 2. Run `python3 scripts/build_shop.py`.
 3. New Stripe price IDs: update `STORE_ALLOWED_PRICE_IDS` before pushing (see the `fmg-etsy-price-match` skill, which now edits `products.json`).
 4. Update the footer date, commit the JSON and all generated files together.
@@ -489,8 +489,8 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 ### Policies (as given by Red, 2026-10-06)
 
 - **Returns**: within 30 days, mailed back to Florence Mae Gifts, LLC, PO Box 317, Parsonsburg, MD 21849; buyer pays return shipping; refund after the item is received and inspected.
-- **Handling**: 10–15 business days for orders through 31 Oct 2026 (Halloween rush), then the standard 5–7 business days; ships USPS Ground Advantage, free, US only.
-- `site.handlingTimes` in `products.json` holds both windows. **Rebuild on or after 1 Nov 2026** so the structured data and feed switch to 5–7 days (the on-page text already states both). For future seasonal rushes, add a window with a `through` date.
+- **Handling**: each listing has its own processing time since 2026-10-30 (see that update at the end of this file); ships USPS Ground Advantage, free, US only.
+- For future seasonal rushes, add a window to `site.handlingRushes` in `products.json` with a `through` date: it overrides every listing's time for orders placed through that date, and a rebuild after that date takes it off the site.
 
 ### Merchant Center
 
@@ -646,3 +646,12 @@ The February SEO pass predates the on-site shop. Listings had no URLs of their o
 - **Tests**: `tests/orders.test.mjs` (business days, holidays, date ranges, every status's wording, both emails' layout and text), plus website-order cases in `tests/worker-email.test.mjs` (webhook → order + one confirmation, pattern order number, success-page details, the admin status flow with emails) and `tests/ask-k.test.mjs` (identical replies, inbox-only email, drafts excluded, limits, the `lookup` flag).
 - The Just In Case app's Florence Mae Gifts guide (`business-guides.js` in the just-in-case repo) describes the admin tabs; it needs the Orders tab added.
 - **Test order** (2026-10-27): `FMG-NP9DT3` (`stripe_session_id` `test_order_not_a_sale`, customer name "TEST ORDER (not a real sale)", $0.00, Chris's Gmail) was added straight to `shop_orders` to try the statuses and emails. It never went through Stripe, so it has no income, journal or fee rows; that is also why it got no automatic confirmation ("Email Customer" sends it). Delete it when done: `npx wrangler d1 execute florence-mae-gifts-admin --remote --command "DELETE FROM shop_orders WHERE stripe_session_id = 'test_order_not_a_sale'"` from `cloudflare/`.
+
+## 2026-10-30 Update (Processing time per listing)
+
+- Each physical listing has `"handling"` in `products.json`, a key of `site.handlingTimes`: `5-7`, `7-9` or `1-2-weeks`. Pattern PDFs have none. To change a listing's time, change that one word and rebuild; to change a whole group's time, change it in `site.handlingTimes`. Then **deploy the worker**, because the order emails and Ask K read generated copies.
+- All times are in business days. "1–2 weeks" is shown to buyers in those words and counts as 5–10 business days for ship-date estimates, the structured data and the feed.
+- `site.handlingRushes` holds seasonal windows, which override every listing. The Halloween rush stays there with `through: 2026-10-29`, because Chris switched to the new times on 2026-10-30 instead of waiting for 31 October. Orders placed through 29 October keep their 10–15 business day estimate; orders from 30 October use the listing's time. Ask K keeps a rush in its knowledge for 45 days after it ends.
+- `shop-data.js` now has `handling` on each price ID, plus `HANDLING_RUSHES` and `LONGEST_HANDLING`. `handlingFor(order)` in `orders.js` looks up the rush, then the price ID, then the item name (a price change retires old price IDs), then the longest time, so an unlisted item is never promised too early.
+- `shipping-returns.html` lists every visible listing under its time. The category pages show one time only when every listing on the page shares it.
+- `merchant-feed.xml` carries `g:min_handling_time` / `g:max_handling_time` per listing, so Merchant Center follows the feed on its next fetch. If you add an item to the feed, its time goes with it.

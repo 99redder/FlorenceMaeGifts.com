@@ -1,20 +1,33 @@
 {
-  "_readme": "Single source of truth for the shop. Edit this file, then run: python3 scripts/build_shop.py  (regenerates index.html shop grid, products/*.html, category pages, policy pages, sitemap.xml and merchant-feed.xml). Never hand-edit generated files. itemName is sent to Stripe/Worker (download mapping) - do not change it casually. proofNote (optional) is the short description shown beside a listing that has no review or sales count yet; featuredReview (optional) pins a review id for that spot.",
+  "_readme": "Single source of truth for the shop. Edit this file, then run: python3 scripts/build_shop.py  (regenerates index.html shop grid, products/*.html, category pages, policy pages, sitemap.xml and merchant-feed.xml). Never hand-edit generated files. itemName is sent to Stripe/Worker (download mapping) - do not change it casually. handling (required on physical listings) is a key of site.handlingTimes, the time that listing takes to make; a handlingRushes window overrides it for every listing while it lasts. proofNote (optional) is the short description shown beside a listing that has no review or sales count yet; featuredReview (optional) pins a review id for that spot.",
   "site": {
     "baseUrl": "https://www.florencemaegifts.com",
     "brand": "Florence Mae Gifts",
     "legalName": "Florence Mae Gifts, LLC",
-    "handlingTimes": [
-      {
-        "through": "2026-10-31",
-        "minDays": 10,
-        "maxDays": 15,
-        "label": "Orders placed through October 31 (Halloween rush)"
-      },
-      {
+    "handlingTimes": {
+      "5-7": {
         "minDays": 5,
         "maxDays": 7,
-        "label": "Orders placed after October 31"
+        "text": "5–7 business days"
+      },
+      "7-9": {
+        "minDays": 7,
+        "maxDays": 9,
+        "text": "7–9 business days"
+      },
+      "1-2-weeks": {
+        "minDays": 5,
+        "maxDays": 10,
+        "text": "1–2 weeks"
+      }
+    },
+    "handlingRushes": [
+      {
+        "through": "2026-10-29",
+        "minDays": 10,
+        "maxDays": 15,
+        "text": "10–15 business days",
+        "label": "Orders placed through October 29 (Halloween rush)"
       }
     ],
     "shipping": {
@@ -50,6 +63,7 @@
       "title": "Crochet Shadow Monster Baby Hat (Multiple Sizes Available)",
       "itemName": "Crochet Shadow Monster Baby Hat (Multiple Sizes Available)",
       "category": "hats",
+      "handling": "5-7",
       "added": "2026-09-10",
       "etsyId": "4572971767",
       "sizes": [
@@ -108,6 +122,7 @@
       "title": "Luffy Inspired Baby Photo Set",
       "itemName": "Luffy Inspired Baby Photo Set",
       "category": "baby-sets",
+      "handling": "1-2-weeks",
       "added": "2026-08-03",
       "etsyId": "4548757985",
       "etsyUrl": "https://www.etsy.com/listing/4548757985/crochet-luffy-inspired-baby-photo-set",
@@ -150,6 +165,7 @@
       "title": "Alakazam Inspired Baby Photo Set",
       "itemName": "Alakazam Inspired Baby Photo Set",
       "category": "baby-sets",
+      "handling": "1-2-weeks",
       "hidden": true,
       "etsyId": "4463954202",
       "etsyUrl": "https://www.etsy.com/listing/4463954202/spoon-monster-baby-photo-set",
@@ -197,6 +213,7 @@
       "title": "Togepi Inspired Baby Photo Set",
       "itemName": "Togepi Inspired Baby Photo Set",
       "category": "baby-sets",
+      "handling": "1-2-weeks",
       "etsyId": "4461511893",
       "etsyUrl": "https://www.etsy.com/listing/4461511893/",
       "sizes": [
@@ -238,6 +255,7 @@
       "title": "Luffy Inspired Baby Straw Hat",
       "itemName": "Luffy Inspired Baby Straw Hat",
       "category": "hats",
+      "handling": "5-7",
       "etsyId": "1545236670",
       "etsyUrl": "https://www.etsy.com/listing/1545236670/crochet-luffy-inspired-baby-straw-hat",
       "sizes": [
@@ -299,6 +317,7 @@
       "title": "Gohan Inspired Crochet Hat",
       "itemName": "Gohan Inspired Crochet Hat",
       "category": "hats",
+      "handling": "5-7",
       "etsyId": "1362238271",
       "etsyUrl": "https://www.etsy.com/listing/1362238271/four-star-crochet-hat-multiple-sizes",
       "sizes": [
@@ -380,6 +399,7 @@
       "title": "Rumi Inspired Hat / Beanie",
       "itemName": "Rumi Inspired Hat / Beanie",
       "category": "hats",
+      "handling": "5-7",
       "etsyId": "4353397327",
       "etsyUrl": "https://www.etsy.com/listing/4353397327/rumi-crochet-hat-beanie-multiple-sizes",
       "sizes": [
@@ -456,6 +476,7 @@
       "title": "Goku Inspired Baby Hat",
       "itemName": "Goku Inspired Baby Hat",
       "category": "hats",
+      "handling": "5-7",
       "etsyId": "1502171000",
       "etsyUrl": "https://www.etsy.com/listing/1502171000/crochet-five-point-baby-hat-beanie",
       "sizes": [
@@ -532,6 +553,7 @@
       "title": "Trunks Inspired Beanie & Diaper Cover Photo Set Costume",
       "itemName": "Trunks Inspired Beanie & Diaper Cover Photo Set Costume",
       "category": "baby-sets",
+      "handling": "7-9",
       "etsyId": "1393719259",
       "etsyUrl": "https://www.etsy.com/listing/1393719259/crochet-baby-trunks-inspired-beanie",
       "sizes": [
@@ -573,6 +595,7 @@
       "title": "Majin Buu Inspired Diaper Cover Baby Set Costume",
       "itemName": "Majin Buu Inspired Diaper Cover Baby Set Costume",
       "category": "baby-sets",
+      "handling": "7-9",
       "etsyId": "1333363927",
       "etsyUrl": "https://www.etsy.com/listing/1333363927/crochet-majin-buu-inspired-diaper-cover",
       "sizes": [
@@ -656,6 +679,7 @@
       "title": "Monster Diaper Cover Baby Set Costume",
       "itemName": "Monster Diaper Cover Baby Set Costume",
       "category": "baby-sets",
+      "handling": "7-9",
       "etsyId": "1333420803",
       "etsyUrl": "https://www.etsy.com/listing/1333420803/crochet-monster-diaper-cover-baby-set",
       "sizes": [
@@ -704,6 +728,7 @@
       "title": "Chiaotzu Inspired Baby Photo Set Costume",
       "itemName": "Chiaotzu Inspired Baby Photo Set Costume",
       "category": "baby-sets",
+      "handling": "5-7",
       "etsyId": "1499468907",
       "etsyUrl": "https://www.etsy.com/listing/1499468907/chiaotzu-inspired-crochet-baby-photo-set",
       "sizes": [
@@ -756,6 +781,7 @@
       "title": "Turtles Diaper Cover Baby Set Costume",
       "itemName": "Turtles Diaper Cover Baby Set Costume",
       "category": "baby-sets",
+      "handling": "7-9",
       "etsyId": "1319434578",
       "etsyUrl": "https://www.etsy.com/listing/1319434578/crochet-turtles-diaper-cover-baby-set",
       "sizes": [
@@ -794,6 +820,7 @@
       "title": "Goku Gohan Inspired Four Star Hat",
       "itemName": "Goku Gohan Inspired Four Star Hat",
       "category": "hats",
+      "handling": "5-7",
       "etsyId": "1653974444",
       "etsyUrl": "https://www.etsy.com/listing/1653974444/",
       "sizes": [
@@ -861,6 +888,7 @@
       "title": "Santa Diaper Cover Set",
       "itemName": "Santa Diaper Cover Set",
       "category": "baby-sets",
+      "handling": "7-9",
       "etsyId": "1350699225",
       "etsyUrl": "https://www.etsy.com/listing/1350699225/",
       "sizes": [
@@ -899,6 +927,7 @@
       "title": "Chiaotzu Inspired Hat",
       "itemName": "Chiaotzu Inspired Hat",
       "category": "hats",
+      "handling": "5-7",
       "etsyId": "1487019103",
       "etsyUrl": "https://www.etsy.com/listing/1487019103/",
       "sizes": [
@@ -951,6 +980,7 @@
       "title": "Chi Chi Dragon Ball Baby Diaper Set",
       "itemName": "Chi Chi Dragon Ball Baby Diaper Set",
       "category": "baby-sets",
+      "handling": "7-9",
       "etsyId": "1344802029",
       "etsyUrl": "https://www.etsy.com/listing/1344802029/",
       "sizes": [
@@ -988,6 +1018,7 @@
       "title": "Where's Waldo Inspired Diaper Cover Baby Set",
       "itemName": "Where's Waldo Inspired Diaper Cover Baby Set",
       "category": "baby-sets",
+      "handling": "7-9",
       "etsyId": "1319445230",
       "etsyUrl": "https://www.etsy.com/listing/1319445230/",
       "sizes": [
@@ -1024,6 +1055,7 @@
       "title": "Dumbo Inspired Diaper Cover Baby Set",
       "itemName": "Dumbo Inspired Diaper Cover Baby Set",
       "category": "baby-sets",
+      "handling": "1-2-weeks",
       "etsyId": "1333051861",
       "etsyUrl": "https://www.etsy.com/listing/1333051861/",
       "sizes": [
@@ -1061,6 +1093,7 @@
       "title": "Shenron Shenlong Gohan Inspired Hat",
       "itemName": "Shenron Shenlong Gohan Inspired Hat",
       "category": "hats",
+      "handling": "5-7",
       "etsyId": "1666293099",
       "etsyUrl": "https://www.etsy.com/listing/1666293099/",
       "sizes": [
@@ -1128,6 +1161,7 @@
       "title": "Shenron Shenlong Gohan Inspired Hat Photo Set",
       "itemName": "Shenron Shenlong Gohan Inspired Hat Photo Set",
       "category": "baby-sets",
+      "handling": "7-9",
       "etsyId": "1666288759",
       "etsyUrl": "https://www.etsy.com/listing/1666288759/",
       "sizes": [
@@ -1175,6 +1209,7 @@
       "title": "Goku Inspired Costume with Baby Onesie and Hat",
       "itemName": "Goku Inspired Costume with Baby Onesie and Hat",
       "category": "baby-sets",
+      "handling": "1-2-weeks",
       "etsyId": "1516365699",
       "etsyUrl": "https://www.etsy.com/listing/1516365699/",
       "sizes": [

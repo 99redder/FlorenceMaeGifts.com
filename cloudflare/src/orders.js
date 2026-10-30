@@ -7,7 +7,7 @@
 // order was placed with, so a stranger who types someone's email into the chat
 // learns nothing.
 
-import { PRICES, HANDLING_TIMES, SHIPPING } from './shop-data.js';
+import { PRICES, HANDLING_RUSHES, LONGEST_HANDLING, SHIPPING } from './shop-data.js';
 
 const SITE = 'https://www.florencemaegifts.com';
 // No 0/O or 1/I/L, so a number read off a phone screen can't be mistyped.
@@ -86,16 +86,22 @@ export function addBusinessDays(isoDate, n) {
   return iso(d);
 }
 
-/** Handling window for an order placed on `orderDate` (seasonal windows end on their `through` date). */
-export function handlingFor(orderDate) {
-  return HANDLING_TIMES.find(w => !w.through || orderDate <= w.through) || HANDLING_TIMES[HANDLING_TIMES.length - 1];
+/**
+ * Handling window for an order: a seasonal rush covering its order date, else its listing's own
+ * time. A price change retires old price IDs, so an open order falls back to its item name.
+ */
+export function handlingFor(order) {
+  return HANDLING_RUSHES.find(w => order.order_date <= w.through)
+    || PRICES[order.price_id]?.handling
+    || Object.values(PRICES).find(p => p.item === order.item_name)?.handling
+    || LONGEST_HANDLING;
 }
 
 /** { shipFrom, shipBy, deliverBy } for a made-to-order item, all estimates. */
-export function shipEstimate(orderDate) {
-  const w = handlingFor(orderDate);
-  const shipBy = addBusinessDays(orderDate, w.maxDays);
-  return { shipFrom: addBusinessDays(orderDate, w.minDays), shipBy, deliverBy: addBusinessDays(shipBy, SHIPPING.transitMaxDays) };
+export function shipEstimate(order) {
+  const w = handlingFor(order);
+  const shipBy = addBusinessDays(order.order_date, w.maxDays);
+  return { shipFrom: addBusinessDays(order.order_date, w.minDays), shipBy, deliverBy: addBusinessDays(shipBy, SHIPPING.transitMaxDays) };
 }
 
 export function longDate(isoDate) {
@@ -239,15 +245,15 @@ export function dateRange(fromIso, toIso) {
   return `${part(from, { month: 'long', day: 'numeric' })} – ${sameMonth ? part(to, { day: 'numeric' }) : part(to, { month: 'long', day: 'numeric' })}, ${to.getUTCFullYear()}`;
 }
 
-function shipRange(orderDate) {
-  const est = shipEstimate(orderDate);
+function shipRange(order) {
+  const est = shipEstimate(order);
   return dateRange(est.shipFrom, est.shipBy);
 }
 
 /** The ship date Megan set at In Production (ship_by), else the handling-time estimate. */
 export function orderShipEstimate(order) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(order.ship_by || ''))) return { by: order.ship_by, label: longDate(order.ship_by), custom: true };
-  const est = shipEstimate(order.order_date);
+  const est = shipEstimate(order);
   return { from: est.shipFrom, by: est.shipBy, label: dateRange(est.shipFrom, est.shipBy), custom: false };
 }
 
@@ -264,7 +270,7 @@ export function buildOrderUpdateEmail(order, status) {
       subject: `Your Florence Mae Gifts order is confirmed (${num})`,
       ...render('Thank You for Your Order!', order.customer_name, [
         ['p', 'Thank you for your order! Megan will crochet it by hand, just for you.'],
-        ['details', [['Order Number', num], ['Item', item], ['Ordered', longDate(order.order_date)], ['Estimated Ship Date', shipRange(order.order_date)]]],
+        ['details', [['Order Number', num], ['Item', item], ['Ordered', longDate(order.order_date)], ['Estimated Ship Date', shipRange(order)]]],
         ['p', `Every piece is made to order. It ships free by ${SHIPPING.carrier}, which usually takes ${SHIPPING.transitMinDays}–${SHIPPING.transitMaxDays} business days, and we'll email you the tracking number when it's on its way.`],
         ['p', 'Want an update any time? Tap "Need help with an order?" on our website, or just reply to this email.'],
       ]),

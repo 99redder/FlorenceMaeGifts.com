@@ -4,156 +4,280 @@
 export const PRICES = {
   "price_1T0rvqCHBNzHMP0MImWHo2Gz": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Luffy Inspired Baby Straw Hat",
     "size": "0-3 months"
   },
   "price_1T0rvrCHBNzHMP0MZxai3lkP": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Luffy Inspired Baby Straw Hat",
     "size": "9-12 months"
   },
   "price_1T0rvrCHBNzHMP0MeleOmu6h": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Luffy Inspired Baby Straw Hat",
     "size": "6-9 months"
   },
   "price_1T0rvrCHBNzHMP0Ms5gSoeSQ": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Luffy Inspired Baby Straw Hat",
     "size": "12-18 months"
   },
   "price_1T0rvrCHBNzHMP0MuTqtdsmz": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Luffy Inspired Baby Straw Hat",
     "size": "3-6 months"
   },
   "price_1T0rvsCHBNzHMP0MAcyRqBrG": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Gohan Inspired Crochet Hat",
     "size": "9-12 months"
   },
   "price_1T0rvsCHBNzHMP0Mj6kO6cbP": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Gohan Inspired Crochet Hat",
     "size": "6-9 months"
   },
   "price_1T0rvsCHBNzHMP0MoJRbg0Fa": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Gohan Inspired Crochet Hat",
     "size": "0-3 months"
   },
   "price_1T0rvsCHBNzHMP0Mva6ziu9c": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Gohan Inspired Crochet Hat",
     "size": "3-6 months"
   },
   "price_1T0rvtCHBNzHMP0M3D955JOw": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Gohan Inspired Crochet Hat",
     "size": "adult"
   },
   "price_1T0rvtCHBNzHMP0MPXhDWY6n": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Gohan Inspired Crochet Hat",
     "size": "youth (small)"
   },
   "price_1T0rvtCHBNzHMP0MovYDn52X": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Gohan Inspired Crochet Hat",
     "size": "18-24 months"
   },
   "price_1T0rvtCHBNzHMP0MqmbAEVJy": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Gohan Inspired Crochet Hat",
     "size": "12-18 months"
   },
   "price_1T0rvtCHBNzHMP0MyTZnKph7": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Gohan Inspired Crochet Hat",
     "size": "youth (large)"
   },
   "price_1T0rvuCHBNzHMP0MHCS1UDDl": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Rumi Inspired Hat / Beanie",
     "size": "3-6 months"
   },
   "price_1T0rvuCHBNzHMP0MHUKr1lZ4": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Rumi Inspired Hat / Beanie",
     "size": "6-9 months"
   },
   "price_1T0rvuCHBNzHMP0MXKrcGa6g": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Rumi Inspired Hat / Beanie",
     "size": "0-3 months"
   },
   "price_1T0rvvCHBNzHMP0M2xN7x47N": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Rumi Inspired Hat / Beanie",
     "size": "youth (small)"
   },
   "price_1T0rvvCHBNzHMP0M5XfDpueb": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Rumi Inspired Hat / Beanie",
     "size": "12-18 months"
   },
   "price_1T0rvvCHBNzHMP0MbBAibQTq": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Rumi Inspired Hat / Beanie",
     "size": "18-24 months"
   },
   "price_1T0rvvCHBNzHMP0MiW4LCIoC": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Rumi Inspired Hat / Beanie",
     "size": "youth (large)"
   },
   "price_1T0rvvCHBNzHMP0MuesT8SJa": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Rumi Inspired Hat / Beanie",
     "size": "9-12 months"
   },
   "price_1T0rvwCHBNzHMP0MWwma9gSQ": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Rumi Inspired Hat / Beanie",
     "size": "adult"
   },
   "price_1T0rvxCHBNzHMP0MLGuo6qhr": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Inspired Baby Hat",
     "size": "6-9 months"
   },
   "price_1T0rvxCHBNzHMP0MNCG0tet0": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Inspired Baby Hat",
     "size": "3-6 months"
   },
   "price_1T0rvxCHBNzHMP0MbgXCpFxs": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Inspired Baby Hat",
     "size": "0-3 months"
   },
   "price_1T0rvyCHBNzHMP0MiBcq3Ckh": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Inspired Baby Hat",
     "size": "12-18 months"
   },
   "price_1T0rvyCHBNzHMP0MsfL1uIoy": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Trunks Inspired Beanie & Diaper Cover Photo Set Costume",
     "size": "0-3 months"
   },
   "price_1T0rvzCHBNzHMP0MC7oUMUT8": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Majin Buu Inspired Diaper Cover Baby Set Costume",
     "size": "0-3 months"
   },
   "price_1T0rvzCHBNzHMP0MDZrH0oOH": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Trunks Inspired Beanie & Diaper Cover Photo Set Costume",
     "size": "3-6 months"
   },
   "price_1T0rw0CHBNzHMP0MG0p8vqi4": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Majin Buu Inspired Diaper Cover Baby Set Costume",
     "size": "3-6 months"
   },
@@ -169,377 +293,666 @@ export const PRICES = {
   },
   "price_1T0rw1CHBNzHMP0M2qhnw4r6": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Monster Diaper Cover Baby Set Costume",
     "size": "3-6 months"
   },
   "price_1T0rw1CHBNzHMP0M7KkezoNo": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Monster Diaper Cover Baby Set Costume",
     "size": "0-3 months"
   },
   "price_1T0rw2CHBNzHMP0M4MVVepXa": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Chiaotzu Inspired Baby Photo Set Costume",
     "size": "9-12 months"
   },
   "price_1T0rw2CHBNzHMP0MOlQzXbau": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Chiaotzu Inspired Baby Photo Set Costume",
     "size": "3-6 months"
   },
   "price_1T0rw2CHBNzHMP0MRKXeQBrp": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Chiaotzu Inspired Baby Photo Set Costume",
     "size": "0-3 months"
   },
   "price_1T0rw2CHBNzHMP0MimCc5ozl": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Chiaotzu Inspired Baby Photo Set Costume",
     "size": "6-9 months"
   },
   "price_1T0rw3CHBNzHMP0MeqL5KhXv": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Turtles Diaper Cover Baby Set Costume",
     "size": "3-6 months"
   },
   "price_1T0rw3CHBNzHMP0Mj2vhHXJ0": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Turtles Diaper Cover Baby Set Costume",
     "size": "0-3 months"
   },
   "price_1T0rw3CHBNzHMP0MjNXv3GGm": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Turtles Diaper Cover Baby Set Costume",
     "size": "6-9 months"
   },
   "price_1T0rw4CHBNzHMP0M7MuA6Ybn": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Gohan Inspired Four Star Hat",
     "size": "9-12 months"
   },
   "price_1T0rw4CHBNzHMP0MBtkM51CS": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Gohan Inspired Four Star Hat",
     "size": "3-6 months"
   },
   "price_1T0rw4CHBNzHMP0MMcLFvdGs": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Gohan Inspired Four Star Hat",
     "size": "6-9 months"
   },
   "price_1T0rw4CHBNzHMP0MqxWbWDCW": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Gohan Inspired Four Star Hat",
     "size": "0-3 months"
   },
   "price_1T0rw5CHBNzHMP0M5ns1W7B4": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Gohan Inspired Four Star Hat",
     "size": "12-18 months"
   },
   "price_1T0rw5CHBNzHMP0MCJo2rXEl": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Gohan Inspired Four Star Hat",
     "size": "youth (small)"
   },
   "price_1T0rw5CHBNzHMP0MnFifzeCJ": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Gohan Inspired Four Star Hat",
     "size": "youth (large)"
   },
   "price_1T0rw5CHBNzHMP0MnjuR1UZ0": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Gohan Inspired Four Star Hat",
     "size": "18-24 months"
   },
   "price_1T0rw6CHBNzHMP0MMuwLJeGr": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Santa Diaper Cover Set",
     "size": "6-9 months"
   },
   "price_1T0rw6CHBNzHMP0MOPuxFFUe": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Gohan Inspired Four Star Hat",
     "size": "adult"
   },
   "price_1T0rw6CHBNzHMP0MlosBaZIE": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Santa Diaper Cover Set",
     "size": "3-6 months"
   },
   "price_1T0rw6CHBNzHMP0MxIQVwqYf": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Santa Diaper Cover Set",
     "size": "0-3 months"
   },
   "price_1T0rw7CHBNzHMP0M8W7r6fNa": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Chiaotzu Inspired Hat",
     "size": "0-3 months"
   },
   "price_1T0rw7CHBNzHMP0M9ZLdMnOe": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Chiaotzu Inspired Hat",
     "size": "9-12 months"
   },
   "price_1T0rw7CHBNzHMP0MUqbLyoqQ": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Chiaotzu Inspired Hat",
     "size": "6-9 months"
   },
   "price_1T0rw7CHBNzHMP0MnOSOOH5o": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Chiaotzu Inspired Hat",
     "size": "3-6 months"
   },
   "price_1T0rw8CHBNzHMP0M7kRkiuqf": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Chi Chi Dragon Ball Baby Diaper Set",
     "size": "3-6 months"
   },
   "price_1T0rw8CHBNzHMP0MTzhkS7I5": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Chi Chi Dragon Ball Baby Diaper Set",
     "size": "6-9 months"
   },
   "price_1T0rw8CHBNzHMP0MeMEtseum": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Chi Chi Dragon Ball Baby Diaper Set",
     "size": "0-3 months"
   },
   "price_1T0rw9CHBNzHMP0M3lI2TqGB": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Where's Waldo Inspired Diaper Cover Baby Set",
     "size": "3-6 months"
   },
   "price_1T0rw9CHBNzHMP0MFHnPOZ23": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Where's Waldo Inspired Diaper Cover Baby Set",
     "size": "6-9 months"
   },
   "price_1T0rw9CHBNzHMP0Muisegkgo": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Where's Waldo Inspired Diaper Cover Baby Set",
     "size": "0-3 months"
   },
   "price_1T0rwACHBNzHMP0M3KMlA24L": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Dumbo Inspired Diaper Cover Baby Set",
     "size": "3-6 months"
   },
   "price_1T0rwACHBNzHMP0ME8rldqDD": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Dumbo Inspired Diaper Cover Baby Set",
     "size": "0-3 months"
   },
   "price_1T0rwACHBNzHMP0MgTuOeFD5": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Dumbo Inspired Diaper Cover Baby Set",
     "size": "6-9 months"
   },
   "price_1T0rwBCHBNzHMP0MZBpeEbqw": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat",
     "size": "0-3 months"
   },
   "price_1T0rwBCHBNzHMP0MecQiIQjN": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat",
     "size": "3-6 months"
   },
   "price_1T0rwBCHBNzHMP0MiM5pJR9P": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat",
     "size": "6-9 months"
   },
   "price_1T0rwBCHBNzHMP0MwfljSTo0": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat",
     "size": "9-12 months"
   },
   "price_1T0rwCCHBNzHMP0M5kREbf2Z": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat",
     "size": "youth (small)"
   },
   "price_1T0rwCCHBNzHMP0MghYLz6fw": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat",
     "size": "18-24 months"
   },
   "price_1T0rwCCHBNzHMP0Mrz0VSnTm": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat",
     "size": "youth (large)"
   },
   "price_1T0rwCCHBNzHMP0Mt9w0l9zA": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat",
     "size": "12-18 months"
   },
   "price_1T0rwDCHBNzHMP0MD2IBymHv": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat Photo Set",
     "size": "0-3 months"
   },
   "price_1T0rwDCHBNzHMP0MfjAmyBIr": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat",
     "size": "adult"
   },
   "price_1T0rwDCHBNzHMP0Mk0BVEbtC": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat Photo Set",
     "size": "3-6 months"
   },
   "price_1T0rwECHBNzHMP0M9RMgPTUY": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Goku Inspired Costume with Baby Onesie and Hat",
     "size": "3-6 months"
   },
   "price_1T0rwECHBNzHMP0MBGJNH9dx": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Goku Inspired Costume with Baby Onesie and Hat",
     "size": "0-3 months"
   },
   "price_1T0rwECHBNzHMP0MHZuAJV1u": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Shenron Shenlong Gohan Inspired Hat Photo Set",
     "size": "6-9 months"
   },
   "price_1T0rwECHBNzHMP0MiN5mqg4C": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Goku Inspired Costume with Baby Onesie and Hat",
     "size": "6-9 months"
   },
   "price_1T5er4CHBNzHMP0M4QikgA7f": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Alakazam Inspired Baby Photo Set",
     "size": "9-12 months"
   },
   "price_1T5er4CHBNzHMP0MQ8aQbtg0": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Alakazam Inspired Baby Photo Set",
     "size": "6-9 months"
   },
   "price_1T5er4CHBNzHMP0MwAcUx4Mn": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Alakazam Inspired Baby Photo Set",
     "size": "3-6 months"
   },
   "price_1T7nv4CHBNzHMP0MiewapCbv": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Alakazam Inspired Baby Photo Set",
     "size": "0-3 months"
   },
   "price_1UD4QcCHBNzHMP0MlmxChb4o": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Inspired Baby Hat",
     "size": "9-12 months"
   },
   "price_1UD4QdCHBNzHMP0MFWkxnDTH": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Inspired Baby Hat",
     "size": "youth (small)"
   },
   "price_1UD4QdCHBNzHMP0MQXdAkqlB": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Inspired Baby Hat",
     "size": "youth (large)"
   },
   "price_1UD4QdCHBNzHMP0MWfFBL9H9": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Inspired Baby Hat",
     "size": "adult"
   },
   "price_1UD4QdCHBNzHMP0MundCAvnu": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Goku Inspired Baby Hat",
     "size": "18-24 months"
   },
   "price_1UEHGUCHBNzHMP0MyZoLodwp": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Crochet Shadow Monster Baby Hat",
     "size": "0-3 months"
   },
   "price_1UEHH5CHBNzHMP0M3pRzQbLj": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Crochet Shadow Monster Baby Hat",
     "size": "3-6 months"
   },
   "price_1UEHHGCHBNzHMP0MlQrvrRfQ": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Crochet Shadow Monster Baby Hat",
     "size": "6-9 months"
   },
   "price_1UEHHRCHBNzHMP0MmAwRCL6w": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Crochet Shadow Monster Baby Hat",
     "size": "9-12 months"
   },
   "price_1UEHHfCHBNzHMP0MVPpb5L19": {
     "digital": false,
+    "handling": {
+      "maxDays": 7,
+      "minDays": 5
+    },
     "item": "Crochet Shadow Monster Baby Hat",
     "size": "12-18 months"
   },
   "price_1UJKxvCHBNzHMP0MCt58zgpd": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Luffy Inspired Baby Photo Set",
     "size": "0-3 months"
   },
   "price_1UJKxwCHBNzHMP0MB42pNDBe": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Togepi Inspired Baby Photo Set",
     "size": "0-3 months"
   },
   "price_1UJKxyCHBNzHMP0MlVOowvwr": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Togepi Inspired Baby Photo Set",
     "size": "3-6 months"
   },
   "price_1UMXNCCHBNzHMP0MIA0X4SJf": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Luffy Inspired Baby Photo Set",
     "size": "3-6 months"
   },
   "price_1UMXNDCHBNzHMP0MYB9gnYQW": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Luffy Inspired Baby Photo Set",
     "size": "6-9 months"
   },
   "price_1UMXNDCHBNzHMP0MiQVmUvGr": {
     "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
     "item": "Togepi Inspired Baby Photo Set",
     "size": "6-9 months"
   },
   "price_1UMXNECHBNzHMP0MRO9k3Qqo": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Monster Diaper Cover Baby Set Costume",
     "size": "6-9 months"
   },
   "price_1UMXNFCHBNzHMP0MWEmnZvkk": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Trunks Inspired Beanie & Diaper Cover Photo Set Costume",
     "size": "6-9 months"
   },
   "price_1UMXNGCHBNzHMP0MPDnIZw5G": {
     "digital": false,
+    "handling": {
+      "maxDays": 9,
+      "minDays": 7
+    },
     "item": "Majin Buu Inspired Diaper Cover Baby Set Costume",
     "size": "6-9 months"
   }
 };
 
-export const HANDLING_TIMES = [
+export const HANDLING_RUSHES = [
   {
     "maxDays": 15,
     "minDays": 10,
-    "through": "2026-10-31"
-  },
-  {
-    "maxDays": 7,
-    "minDays": 5
+    "through": "2026-10-29"
   }
 ];
+
+export const LONGEST_HANDLING = {
+  "maxDays": 10,
+  "minDays": 5
+};
 
 export const SHIPPING = {
   "carrier": "USPS Ground Advantage",

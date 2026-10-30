@@ -17,8 +17,9 @@ IDs, images, handling time and the return policy. This script regenerates:
   merchant-feed.xml       Google Merchant Center feed (products with "merchantFeed": true)
   cloudflare/src/ask-k-knowledge.js  what Ask K knows: listings, policies, reviews summary and
                           scripts/ask_k_notes.md (deploy the worker after it changes)
-  cloudflare/src/shop-data.js  price ID -> item and size, handling and shipping times, for the
-                          worker's order records and emails (deploy the worker after it changes)
+  cloudflare/src/shop-data.js  price ID -> item, size and handling time, seasonal rushes and
+                          shipping times, for the worker's order records and emails (deploy the
+                          worker after it changes)
 
 Never hand-edit the generated files. A file's "Last Updated" header date only
 changes when its content changes, so rebuilding is always safe.
@@ -167,6 +168,9 @@ class Shop:
             seen_slugs.add(p['slug'])
             if p['category'] not in CATEGORIES:
                 sys.exit('products.json: %s has unknown category %s' % (p['id'], p['category']))
+            if not p.get('digital') and p.get('handling') not in self.site['handlingTimes']:
+                sys.exit('products.json: %s needs a "handling" from site.handlingTimes (%s)'
+                         % (p['id'], ', '.join(self.site['handlingTimes'])))
             tiers = p.get('sizes') or [{'price': p.get('price'), 'priceId': p.get('priceId')}]
             for t in tiers:
                 if not re.fullmatch(r'\d+\.\d{2}', str(t.get('price'))) or not str(t.get('priceId', '')).startswith('price_'):
@@ -176,25 +180,30 @@ class Shop:
                     sys.exit('products.json: %s image not found: %s' % (p['id'], img['src']))
 
     # handling time ---------------------------------------------------
-    def handling_windows(self):
-        """Handling windows that still apply today (expired seasonal ones are dropped)."""
-        live = [w for w in self.site['handlingTimes'] if not w.get('through') or w['through'] >= TODAY.isoformat()]
-        return live or self.site['handlingTimes'][-1:]
+    def handling_rush(self):
+        """The seasonal rush still on today, if any. It overrides every listing's own time."""
+        return next((w for w in self.site['handlingRushes'] if w['through'] >= TODAY.isoformat()), None)
 
-    def handling_now(self):
-        return self.handling_windows()[0]
+    def handling_tier(self, p):
+        return self.site['handlingTimes'][p['handling']]
 
-    def handling_short(self):
-        w = self.handling_now()
-        text = 'Made to order: ships in %d–%d business days' % (w['minDays'], w['maxDays'])
+    def handling_now(self, p):
+        return self.handling_rush() or self.handling_tier(p)
+
+    def handling_short(self, p):
+        w = self.handling_now(p)
+        text = 'Made to order: ships in %s' % w['text']
         if w.get('through'):
             d = date.fromisoformat(w['through'])
             text += ' (orders placed through %s %d)' % (d.strftime('%b'), d.day)
         return text
 
-    def handling_sentences(self):
-        return ['%s: %d–%d business days to make.' % (w['label'], w['minDays'], w['maxDays'])
-                for w in self.handling_windows()]
+    def handling_sentences(self, p):
+        rush, tier = self.handling_rush(), self.handling_tier(p)
+        if not rush:
+            return ['This item takes %s to make.' % tier['text']]
+        return ['%s: %s to make.' % (rush['label'], rush['text']),
+                'Orders placed after that: %s to make.' % tier['text']]
 
     # product accessors -----------------------------------------------
     def url(self, p):
@@ -243,8 +252,8 @@ class Shop:
 
 # ---------- structured data ----------
 
-def shipping_details(shop):
-    ship, w = shop.site['shipping'], shop.handling_now()
+def shipping_details(shop, p):
+    ship, w = shop.site['shipping'], shop.handling_now(p)
     return {
         '@type': 'OfferShippingDetails',
         'shippingRate': {'@type': 'MonetaryAmount', 'value': ship['cost'], 'currency': 'USD'},
@@ -292,7 +301,7 @@ def offer(shop, p, tier):
         'hasMerchantReturnPolicy': return_policy(shop, p.get('digital')),
     }
     if not p.get('digital'):
-        data['shippingDetails'] = shipping_details(shop)
+        data['shippingDetails'] = shipping_details(shop, p)
     return data
 
 
@@ -586,7 +595,7 @@ def buy_row_html(shop, p):
     return ('<p><span class="listing-free-shipping-badge" aria-label="Free Shipping">Free U.S. Shipping</span>'
             '<button class="start-stripe-order" %s>Buy Now</button>'
             '<span class="listing-us-only-note">Ships to all 50 U.S. States<br>No International Shipping Available</span>'
-            '<span class="listing-handling-note">%s</span></p>' % (attrs, esc(shop.handling_short())))
+            '<span class="listing-handling-note">%s</span></p>' % (attrs, esc(shop.handling_short(p))))
 
 
 def gallery_html(p, name, lazy, indent):
@@ -769,7 +778,7 @@ def product_page(shop, p):
         ship = shop.site['shipping']
         b.append('     <p>Every piece is handmade to order. %s Orders then ship free by %s (about %d–%d business days '
                  'in transit) to all 50 U.S. states. International shipping is not available.</p>'
-                 % (' '.join(esc(s) for s in shop.handling_sentences()), esc(ship['carrier']),
+                 % (' '.join(esc(s) for s in shop.handling_sentences(p)), esc(ship['carrier']),
                     ship['transitMinDays'], ship['transitMaxDays']))
         ret = shop.site['returns']
         b.append('     <p>Returns are accepted within %d days for items that are new and unused. The buyer pays return '
@@ -808,8 +817,10 @@ def category_page(shop, key):
             '    <h1 class="page-title">%s</h1>' % esc(cat['h1']),
             '    <p>%s</p>' % esc(cat['intro'])]
     if key != 'patterns':
+        times = {shop.handling_short(p) for p in items}
+        note = times.pop() + '.' if len(times) == 1 else 'Made to order: each listing shows its own processing time.'
         body.append('    <p>%s Free U.S. shipping on every order. <a href="shipping-returns.html">Shipping &amp; returns</a>.</p>'
-                    % esc(shop.handling_short() + '.'))
+                    % esc(note))
     body += [card_html(shop, p, indent='     ').replace('<div class="shop-listing"', '    <div class="shop-listing"', 1)
              .replace('\n</div>', '\n    </div>') for p in items]
     body.append('    <p>Also in the shop: %s | <a href="./">All items</a></p>' % others)
@@ -821,12 +832,17 @@ def category_page(shop, key):
 def shipping_returns_page(shop):
     ship, ret = shop.site['shipping'], shop.site['returns']
     address = '<br>'.join(esc(line) for line in ret['addressLines'])
-    handling = ''.join('<li>%s</li>' % esc(s) for s in shop.handling_sentences())
+    rush = shop.handling_rush()
+    handling = '<li>%s: %s to make, for every item.</li>' % (esc(rush['label']), esc(rush['text'])) if rush else ''
+    for key, tier in shop.site['handlingTimes'].items():
+        links = ', '.join('<a href="%s">%s</a>' % (shop.rel(p), esc(shop.base_name(p)))
+                          for p in shop.products if p.get('handling') == key)
+        handling += '<li><strong>%s:</strong> %s</li>' % (esc(tier['text']), links)
     body = '''    <article class="policy-page">
      <h1 class="page-title">Shipping &amp; Returns</h1>
 
      <h2 class="page-h2">Processing time</h2>
-     <p>Every Florence Mae Gifts item is handmade to order, so there is a make time before your order ships:</p>
+     <p>Every Florence Mae Gifts item is handmade to order, so there is a make time before your order ships. It depends on the item, and each listing shows its own:</p>
      <ul>%(handling)s</ul>
 
      <h2 class="page-h2">Shipping</h2>
@@ -917,11 +933,12 @@ def age_group(label):
 
 
 def build_feed(shop):
-    w, ship = shop.handling_now(), shop.site['shipping']
+    ship = shop.site['shipping']
     items = []
     for p in shop.products:
         if not p.get('merchantFeed') or p.get('digital'):
             continue
+        w = shop.handling_now(p)
         extra = ''.join('      <g:additional_image_link>%s/%s</g:additional_image_link>\n' % (shop.base, i['src'])
                         for i in p['images'][1:10])
         for tier in p['sizes']:
@@ -988,24 +1005,27 @@ def worker_var(name):
     return m.group(1)
 
 
+def days_text(tier):
+    """A handling time for Ask K, always with its business days ("1–2 weeks (5–10 business days)")."""
+    days = '%d–%d business days' % (tier['minDays'], tier['maxDays'])
+    return days if tier['text'] == days else '%s (%s)' % (tier['text'], days)
+
+
 def build_ask_k(shop):
     """Ask K's grounded knowledge for the worker (cloudflare/src/ask-k.js), as a JS string module."""
     ship, ret = shop.site['shipping'], shop.site['returns']
     etsy = json.loads((ROOT / 'reviews.json').read_text())['etsy']
     # Rush windows stay listed for 45 days after they end, for questions about orders placed in them.
-    windows = [w for w in shop.site['handlingTimes']
-               if not w.get('through') or date.fromisoformat(w['through']) >= TODAY - timedelta(days=45)]
+    rushes = [w for w in shop.site['handlingRushes'] if date.fromisoformat(w['through']) >= TODAY - timedelta(days=45)]
     handling, after = [], None
-    for w in windows:
-        if w.get('through'):
-            who = 'Orders placed %sthrough %s' % ('after %s and ' % us_long(after) if after else '',
-                                                   us_long(date.fromisoformat(w['through'])))
-            after = date.fromisoformat(w['through'])
-        else:
-            who = 'Orders placed after %s' % us_long(after) if after else 'All orders'
+    for w in rushes:
+        who = 'Orders placed %sthrough %s' % ('after %s and ' % us_long(after) if after else '',
+                                               us_long(date.fromisoformat(w['through'])))
+        after = date.fromisoformat(w['through'])
         note = re.search(r'\(([^)]*)\)', w['label'])
-        handling.append('- %s%s: %d–%d business days to make.'
-                        % (who, ' (%s)' % note.group(1) if note else '', w['minDays'], w['maxDays']))
+        handling.append('- %s%s, every item: %s to make.' % (who, ' (%s)' % note.group(1) if note else '', days_text(w)))
+    handling.append('- %s: the processing time listed with each item below, which depends on the item.'
+                    % ('Orders placed after %s' % us_long(after) if after else 'All orders'))
     notes = (ROOT / 'scripts' / 'ask_k_notes.md').read_text().strip().format(
         download_hours=int(worker_var('DOWNLOAD_TOKEN_TTL_SECONDS')) // 3600,
         download_uses=worker_var('DOWNLOAD_TOKEN_MAX_USES'))
@@ -1043,6 +1063,8 @@ def build_ask_k(shop):
                 '- Page: %s' % shop.url(p),
                 '- Category: %s' % CATEGORIES[p['category']]['name'],
                 '- %s: %s' % ('Sizes and prices' if p.get('sizes') else 'Price', prices)]
+        if not p.get('digital'):
+            out.append('- Processing time: %s to make.' % days_text(shop.handling_tier(p)))
         if p.get('color'):
             out.append('- Color: %s' % p['color'])
         out.append('- Description: %s' % strip_tags(p['detailsHtml']))
@@ -1054,22 +1076,27 @@ def build_ask_k(shop):
 
 
 def build_shop_data(shop):
-    """What the worker needs to describe an order: item and size by Stripe price ID (hidden
-    listings included, since their price IDs stay valid), and handling/shipping times."""
+    """What the worker needs to describe an order: item, size and handling time by Stripe price ID
+    (hidden listings included, since their price IDs stay valid), seasonal rushes, the longest
+    handling time for an item no longer listed, and shipping times."""
+    days = lambda w: {k: w[k] for k in ('minDays', 'maxDays')}
     prices = {}
     for p in shop.all_products:
         for t in shop.tiers(p):
             prices[t['priceId']] = {'item': shop.base_name(p), 'size': t.get('label') or '',
                                     'digital': bool(p.get('digital'))}
-    handling = [{k: w[k] for k in ('through', 'minDays', 'maxDays') if k in w} for w in shop.site['handlingTimes']]
+            if not p.get('digital'):
+                prices[t['priceId']]['handling'] = days(shop.handling_tier(p))
+    rushes = [{'through': w['through'], **days(w)} for w in shop.site['handlingRushes']]
+    longest = days(max(shop.site['handlingTimes'].values(), key=lambda w: w['maxDays']))
     ship = shop.site['shipping']
     shipping = {'carrier': ship['carrier'], 'transitMinDays': ship['transitMinDays'], 'transitMaxDays': ship['transitMaxDays']}
     dump = lambda v: json.dumps(v, indent=2, ensure_ascii=False, sort_keys=True)
     write_page('cloudflare/src/shop-data.js',
                '// Shop facts for the worker\'s order records and emails (cloudflare/src/orders.js), generated by\n'
                '// scripts/build_shop.py from products.json. Do not hand-edit; deploy the worker after it changes.\n\n'
-               'export const PRICES = %s;\n\nexport const HANDLING_TIMES = %s;\n\nexport const SHIPPING = %s;\n'
-               % (dump(prices), dump(handling), dump(shipping)))
+               'export const PRICES = %s;\n\nexport const HANDLING_RUSHES = %s;\n\nexport const LONGEST_HANDLING = %s;\n\n'
+               'export const SHIPPING = %s;\n' % (dump(prices), dump(rushes), dump(longest), dump(shipping)))
 
 
 def main():
@@ -1104,8 +1131,10 @@ def main():
             pass
     build_sitemap(shop)
     feed_items = build_feed(shop)
+    rush = shop.handling_rush()
     print('%d visible listings, %d hidden, %d merchant feed items. Handling now: %s'
-          % (len(shop.products), len(shop.all_products) - len(shop.products), feed_items, shop.handling_short()))
+          % (len(shop.products), len(shop.all_products) - len(shop.products), feed_items,
+             '%s (rush, every listing)' % rush['text'] if rush else 'each listing\'s own time'))
 
 
 if __name__ == '__main__':
