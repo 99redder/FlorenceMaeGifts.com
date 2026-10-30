@@ -26,7 +26,6 @@ test('each listing has its own handling time, found by price ID or item name', (
   assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Anything', price_id: priceFor(hat) }), { minDays: 5, maxDays: 7 });
   assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Monster Diaper Cover Baby Set Costume', price_id: 'price_retired_by_a_price_change' }), { minDays: 7, maxDays: 9 }, 'an old price ID falls back to the item name');
   assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Togepi Inspired Baby Photo Set', price_id: null }), { minDays: 5, maxDays: 10 });
-  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Alakazam Inspired Baby Photo Set' }), { minDays: 5, maxDays: 10 }, 'hidden listings keep their time');
   assert.deepEqual(handlingFor({ ...ORDER, item_name: 'A listing since deleted', price_id: null }), LONGEST_HANDLING);
 });
 

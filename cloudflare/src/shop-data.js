@@ -739,7 +739,7 @@ export const PRICES = {
       "minDays": 5
     },
     "item": "Alakazam Inspired Baby Photo Set",
-    "size": "9-12 months"
+    "size": "6-9 months"
   },
   "price_1T5er4CHBNzHMP0MQ8aQbtg0": {
     "digital": false,
@@ -748,18 +748,9 @@ export const PRICES = {
       "minDays": 5
     },
     "item": "Alakazam Inspired Baby Photo Set",
-    "size": "6-9 months"
-  },
-  "price_1T5er4CHBNzHMP0MwAcUx4Mn": {
-    "digital": false,
-    "handling": {
-      "maxDays": 10,
-      "minDays": 5
-    },
-    "item": "Alakazam Inspired Baby Photo Set",
     "size": "3-6 months"
   },
-  "price_1T7nv4CHBNzHMP0MiewapCbv": {
+  "price_1T5er4CHBNzHMP0MwAcUx4Mn": {
     "digital": false,
     "handling": {
       "maxDays": 10,
