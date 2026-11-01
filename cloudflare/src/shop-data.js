@@ -739,24 +739,6 @@ export const PRICES = {
       "minDays": 5
     },
     "item": "Alakazam Inspired Baby Photo Set",
-    "size": "6-9 months"
-  },
-  "price_1T5er4CHBNzHMP0MQ8aQbtg0": {
-    "digital": false,
-    "handling": {
-      "maxDays": 10,
-      "minDays": 5
-    },
-    "item": "Alakazam Inspired Baby Photo Set",
-    "size": "3-6 months"
-  },
-  "price_1T5er4CHBNzHMP0MwAcUx4Mn": {
-    "digital": false,
-    "handling": {
-      "maxDays": 10,
-      "minDays": 5
-    },
-    "item": "Alakazam Inspired Baby Photo Set",
     "size": "0-3 months"
   },
   "price_1UD4QcCHBNzHMP0MlmxChb4o": {
@@ -928,6 +910,24 @@ export const PRICES = {
       "minDays": 7
     },
     "item": "Majin Buu Inspired Diaper Cover Baby Set Costume",
+    "size": "6-9 months"
+  },
+  "price_1UX0GRCHBNzHMP0M9adSECCY": {
+    "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
+    "item": "Alakazam Inspired Baby Photo Set",
+    "size": "3-6 months"
+  },
+  "price_1UX0GSCHBNzHMP0MuaUbqcVe": {
+    "digital": false,
+    "handling": {
+      "maxDays": 10,
+      "minDays": 5
+    },
+    "item": "Alakazam Inspired Baby Photo Set",
     "size": "6-9 months"
   }
 };
