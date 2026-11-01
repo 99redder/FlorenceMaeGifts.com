@@ -2227,12 +2227,14 @@
       if (statsMonthlyGridEl) {
         const header = `<strong>Month</strong>${yoy.map(y => `<strong>${y.year}</strong>`).join('')}`;
         const rows = monthNames.map((name, idx) => `<strong>${name}</strong>${yoy.map(y => `<strong class="money-blur-target">${money(y.monthlyCents[idx])}</strong>`).join('')}`).join('');
+        // Uses each year's sales volume, not a sum of the rows: 2023 has no monthly breakdown.
+        const totals = `<div style="grid-column:1 / -1; border-top:1px solid var(--muted);"></div><strong>TOTAL</strong>${yoy.map(y => `<strong class="money-blur-target">${money(y.salesVolumeCents)}</strong>`).join('')}`;
         statsMonthlyGridEl.style.gridTemplateColumns = `auto repeat(${yoy.length}, auto)`;
         statsMonthlyGridEl.style.columnGap = '1rem';
         statsMonthlyGridEl.style.rowGap = '.32rem';
         statsMonthlyGridEl.style.fontSize = '1rem';
         statsMonthlyGridEl.style.justifyContent = 'start';
-        statsMonthlyGridEl.innerHTML = header + rows;
+        statsMonthlyGridEl.innerHTML = header + rows + totals;
       }
 
       if (statsSalesCountEl) statsSalesCountEl.textContent = String(current.salesCount);
