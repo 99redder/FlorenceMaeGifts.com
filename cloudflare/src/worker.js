@@ -104,8 +104,8 @@ export default {
     if (url.pathname !== '/api/stripe-webhook') {
       const isTaxRead = ['/api/tax/transactions','/api/tax/summary','/api/tax/export.csv','/api/tax/receipt'].includes(url.pathname) && request.method === 'GET';
       const isTaxWrite = ['/api/tax/expense','/api/tax/income','/api/tax/owner-transfer','/api/tax/expense/update','/api/tax/income/update','/api/tax/expense/delete','/api/tax/income/delete','/api/tax/receipt/upload'].includes(url.pathname) && request.method === 'POST';
-      const isAccountsRead = ['/api/accounts/list','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail','/api/accounts/notes','/api/admin/notes','/api/accounts/orders'].includes(url.pathname) && request.method === 'GET';
-      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/shipped','/api/accounts/invoices/shipped/preview','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes','/api/accounts/orders/shipped','/api/accounts/orders/shipped/preview','/api/accounts/orders/status','/api/accounts/orders/email/preview','/api/accounts/orders/resend-download'].includes(url.pathname) && request.method === 'POST';
+      const isAccountsRead = ['/api/accounts/list','/api/accounts/inventory-count','/api/accounts/summary','/api/accounts/journal','/api/accounts/statements','/api/accounts/invoices','/api/accounts/invoices/detail','/api/accounts/quotes','/api/accounts/quotes/detail','/api/accounts/notes','/api/admin/notes','/api/accounts/orders'].includes(url.pathname) && request.method === 'GET';
+      const isAccountsWrite = ['/api/accounts/journal','/api/accounts/rebuild-auto-journal','/api/accounts/year-close','/api/accounts/inventory-count','/api/accounts/inventory-count/delete','/api/accounts/invoices','/api/accounts/invoices/update','/api/accounts/invoices/status','/api/accounts/invoices/payment','/api/accounts/invoices/payment-link','/api/accounts/invoices/send','/api/accounts/invoices/shipped','/api/accounts/invoices/shipped/preview','/api/accounts/invoices/delete','/api/accounts/quotes','/api/accounts/quotes/update','/api/accounts/quotes/delete','/api/accounts/quotes/send','/api/accounts/quotes/convert','/api/accounts/notes','/api/admin/notes','/api/accounts/orders/shipped','/api/accounts/orders/shipped/preview','/api/accounts/orders/status','/api/accounts/orders/email/preview','/api/accounts/orders/resend-download'].includes(url.pathname) && request.method === 'POST';
       const isQuotePublic = ['/api/quote/accept','/api/quote/deny'].includes(url.pathname) && ['GET', 'POST'].includes(request.method);
       const isInvoicePublic = ['/invoice/payment-success','/invoice/payment-cancelled'].includes(url.pathname) && request.method === 'GET';
       const isDownloadRead = url.pathname === '/api/download' && request.method === 'GET';
@@ -411,6 +411,15 @@ export default {
 
     if (url.pathname === '/api/accounts/year-close' && request.method === 'POST') {
       return handleAccountsYearClose(request, env, corsHeaders, url);
+    }
+    if (url.pathname === '/api/accounts/inventory-count' && request.method === 'GET') {
+      return handleInventoryCountGet(request, env, corsHeaders, url);
+    }
+    if (url.pathname === '/api/accounts/inventory-count' && request.method === 'POST') {
+      return handleInventoryCountSave(request, env, corsHeaders, url);
+    }
+    if (url.pathname === '/api/accounts/inventory-count/delete' && request.method === 'POST') {
+      return handleInventoryCountDelete(request, env, corsHeaders, url);
     }
 
 
@@ -2033,9 +2042,14 @@ async function handleTaxSummary(request, env, corsHeaders, url) {
     ).bind(year).first(),
   ]);
   // incomeCents is revenue only: owner-funded rows are left out (reported as ownerFundedCents).
+  // expenseCents follows the year-end stock counts: stock carried in from last year's count is
+  // added and stock still on hand at this year's end is taken out, the same as the journal pair
+  // each saved count posts.
   const incomeCents = Number(incomeTotal?.total_cents || 0);
   const ownerFundedCents = Number(incomeTotal?.owner_funded_cents || 0);
-  const expenseCents = Number(expenseTotal?.total_cents || 0);
+  const ledgerExpenseCents = Number(expenseTotal?.total_cents || 0);
+  const stock = await inventoryAdjustment(env.DB, year);
+  const expenseCents = ledgerExpenseCents + stock.beginningCents - stock.endingCents;
   const ownerRetirementContributionCents = Number(ownerRetirementTotal?.total_cents || 0);
   return json({
     ok: true,
@@ -2044,6 +2058,8 @@ async function handleTaxSummary(request, env, corsHeaders, url) {
     expenseCents,
     netCents: incomeCents - expenseCents,
     ownerFundedCents,
+    ledgerExpenseCents,
+    stockOnHand: { startOfYearCents: stock.beginningCents, endOfYearCents: stock.endingCents },
     ownerRetirementContributionCents,
   }, 200, corsHeaders);
 }
@@ -3042,8 +3058,10 @@ async function handleAccountsYearClose(request, env, corsHeaders, url) {
   const incomeSummaryId = await ensureAccountByCode(env.DB, '3900', 'Income Summary', 'equity', 'credit');
   const ownerEquityId = await ensureAccountByCode(env.DB, '3000', 'Owner Equity', 'equity', 'credit');
 
+  const stockCount = await yearStockCountStatus(env.DB, year);
   const preview = {
     year,
+    stockCount,
     steps: [
       { step: 1, title: 'Close revenue accounts to Income Summary', amount_cents: incomeTotal },
       { step: 2, title: 'Close expense accounts to Income Summary', amount_cents: expenseTotal },
@@ -3052,6 +3070,16 @@ async function handleAccountsYearClose(request, env, corsHeaders, url) {
   };
 
   if (!apply) return json({ ok: true, preview }, 200, corsHeaders);
+
+  // Every year's close needs that year's stock count saved first, even when nothing was set
+  // aside (a count of 0), so made-ahead stock is never closed out as that year's expense.
+  if (!stockCount.saved) {
+    return json({
+      ok: false,
+      error: `Save the ${year} Year-End Stock Count first (leave every line at 0 if nothing is set aside), then run the close.`,
+      preview
+    }, 409, corsHeaders);
+  }
 
   const existing = await env.DB.prepare(`SELECT id FROM journal_entries WHERE source_type = 'year_close' AND source_id = ?1`).bind(Number(year)).all();
   for (const r of (existing.results || [])) {
@@ -3091,6 +3119,175 @@ async function handleAccountsYearClose(request, env, corsHeaders, url) {
   }
 
   return json({ ok: true, preview, applied: true }, 200, corsHeaders);
+}
+
+// ===== Year-end stock count =====
+// Megan makes best-sellers ahead and sets them aside (e.g. for the Halloween rush). Their materials
+// are booked as expenses when bought (yarn etc. post to 5200 Supplies Expense), so a saved count
+// of the finished items still unsold at the end of year Y posts:
+//   Y-12-31      Dr 1200 Finished stock on hand   Cr 5200 Supplies Expense
+//   (Y+1)-01-01  Dr 5200 Supplies Expense         Cr 1200 Finished stock on hand
+// Items are valued at their materials cost only (the admin works it out as listing price x that
+// year's materials share of sales). /api/tax/summary applies the same adjustment, and the
+// Year-End Close won't run until the year's count is saved (a count of 0 is fine).
+const INVENTORY_ACCOUNT = { code: '1200', name: 'Finished Stock on Hand (materials cost)', type: 'asset', side: 'debit' };
+const INVENTORY_EXPENSE_CODE = '5200';
+
+async function ensureInventoryCountsTable(db) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS inventory_counts (
+    year INTEGER PRIMARY KEY,
+    count_date TEXT NOT NULL,
+    lines_json TEXT NOT NULL,
+    total_cents INTEGER NOT NULL,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`).run();
+}
+
+/** Stock carried in (last year's count) and carried out (this year's count), in cents. */
+async function inventoryAdjustment(db, year) {
+  await ensureInventoryCountsTable(db);
+  const rows = await db.prepare(`SELECT year, total_cents FROM inventory_counts WHERE year IN (?1, ?2)`).bind(Number(year) - 1, Number(year)).all();
+  let beginningCents = 0;
+  let endingCents = 0;
+  for (const r of (rows.results || [])) {
+    if (Number(r.year) === Number(year)) endingCents = Number(r.total_cents || 0);
+    else beginningCents = Number(r.total_cents || 0);
+  }
+  return { beginningCents, endingCents };
+}
+
+/** Whether the year's stock count is saved (it is always required before the close). */
+async function yearStockCountStatus(db, year) {
+  await ensureInventoryCountsTable(db);
+  const row = await db.prepare(`SELECT total_cents, count_date FROM inventory_counts WHERE year = ?1`).bind(Number(year)).first();
+  return row
+    ? { saved: true, required: true, totalCents: Number(row.total_cents || 0), countDate: row.count_date }
+    : { saved: false, required: true };
+}
+
+function inventoryCountView(row) {
+  if (!row) return null;
+  let lines = [];
+  try { lines = JSON.parse(row.lines_json || '[]'); } catch { lines = []; }
+  return { year: Number(row.year), countDate: row.count_date, lines, totalCents: Number(row.total_cents || 0), notes: row.notes || '', updatedAt: row.updated_at };
+}
+
+async function deleteInventoryCountJournal(db, year) {
+  const rows = await db.prepare(`SELECT id FROM journal_entries WHERE source_type = 'inventory_count' AND source_id = ?1`).bind(Number(year)).all();
+  for (const r of (rows.results || [])) {
+    await db.prepare(`DELETE FROM journal_lines WHERE entry_id = ?1`).bind(r.id).run();
+    await db.prepare(`DELETE FROM journal_entries WHERE id = ?1`).bind(r.id).run();
+  }
+}
+
+async function yearCloseApplied(db, year) {
+  const row = await db.prepare(`SELECT COUNT(*) AS n FROM journal_entries WHERE source_type = 'year_close' AND source_id = ?1`).bind(Number(year)).first();
+  return Number(row?.n || 0) > 0;
+}
+
+/** GET /api/accounts/inventory-count?year=YYYY — the saved count (or null) and last year's total. */
+async function handleInventoryCountGet(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+  const year = (url.searchParams.get('year') || '').trim();
+  if (!/^\d{4}$/.test(year)) return json({ ok: false, error: 'Missing/invalid year' }, 400, corsHeaders);
+  await ensureInventoryCountsTable(env.DB);
+  const [row, prev] = await Promise.all([
+    env.DB.prepare(`SELECT * FROM inventory_counts WHERE year = ?1`).bind(Number(year)).first(),
+    env.DB.prepare(`SELECT total_cents FROM inventory_counts WHERE year = ?1`).bind(Number(year) - 1).first()
+  ]);
+  const accountingReady = await accountingTablesReady(env.DB);
+  return json({
+    ok: true,
+    year: Number(year),
+    count: inventoryCountView(row),
+    previousYearCents: prev ? Number(prev.total_cents || 0) : 0,
+    yearCloseApplied: accountingReady ? await yearCloseApplied(env.DB, year) : false
+  }, 200, corsHeaders);
+}
+
+/**
+ * POST /api/accounts/inventory-count — save (or replace) a year's count and re-post its journal pair.
+ * Body: { year, countDate: 'YYYY-MM-DD', lines: [{ item, qty, unitCents, basis? }], notes? }
+ * Lines with 0 on hand are dropped; a count with no lines is a valid "nothing set aside".
+ */
+async function handleInventoryCountSave(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+  const accountingReady = await ensureAccountingSetup(env.DB);
+  if (!accountingReady) return json({ ok: false, error: 'Accounting tables are not migrated yet. Run D1 migrations with --remote.' }, 503, corsHeaders);
+
+  let data;
+  try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
+  const year = String(data.year || '').trim();
+  if (!/^\d{4}$/.test(year) || Number(year) < 2000 || Number(year) > 2100) return json({ ok: false, error: 'Invalid year' }, 400, corsHeaders);
+  const countDate = String(data.countDate || `${year}-12-31`).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(countDate) || Number.isNaN(Date.parse(`${countDate}T00:00:00Z`))) {
+    return json({ ok: false, error: 'Invalid count date' }, 400, corsHeaders);
+  }
+  if (!Array.isArray(data.lines) || data.lines.length > 200) return json({ ok: false, error: 'Send up to 200 count lines' }, 400, corsHeaders);
+
+  const lines = [];
+  for (const raw of data.lines) {
+    const item = String(raw?.item || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+    const qty = Number(raw?.qty);
+    const unitCents = Number(raw?.unitCents);
+    if (!item) return json({ ok: false, error: 'Every line needs an item name' }, 400, corsHeaders);
+    if (!Number.isFinite(qty) || qty < 0 || qty > 100000) return json({ ok: false, error: `Invalid quantity for ${item}` }, 400, corsHeaders);
+    if (!Number.isInteger(unitCents) || unitCents < 0 || unitCents > 10000000) return json({ ok: false, error: `Invalid unit cost for ${item}` }, 400, corsHeaders);
+    if (qty === 0) continue;
+    const roundedQty = Math.round(qty * 100) / 100;
+    const basis = String(raw?.basis || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+    lines.push({ item, qty: roundedQty, unitCents, valueCents: Math.round(roundedQty * unitCents), ...(basis ? { basis } : {}) });
+  }
+  const totalCents = lines.reduce((sum, l) => sum + l.valueCents, 0);
+  const notes = String(data.notes || '').trim().slice(0, 1000);
+
+  await ensureInventoryCountsTable(env.DB);
+  await env.DB.prepare(`INSERT INTO inventory_counts (year, count_date, lines_json, total_cents, notes)
+      VALUES (?1, ?2, ?3, ?4, ?5)
+      ON CONFLICT(year) DO UPDATE SET count_date = excluded.count_date, lines_json = excluded.lines_json,
+        total_cents = excluded.total_cents, notes = excluded.notes, updated_at = datetime('now')`)
+    .bind(Number(year), countDate, JSON.stringify(lines), totalCents, notes || null).run();
+
+  await deleteInventoryCountJournal(env.DB, year);
+  if (totalCents > 0) {
+    const inventoryId = await ensureAccountByCode(env.DB, INVENTORY_ACCOUNT.code, INVENTORY_ACCOUNT.name, INVENTORY_ACCOUNT.type, INVENTORY_ACCOUNT.side);
+    const expenseId = await ensureAccountByCode(env.DB, INVENTORY_EXPENSE_CODE, 'Supplies Expense', 'expense', 'debit');
+    const nextYear = Number(year) + 1;
+    const post = async (date, memo, debitId, creditId) => {
+      const ins = await env.DB.prepare(`INSERT INTO journal_entries (entry_date, memo, source_type, source_id) VALUES (?1, ?2, 'inventory_count', ?3)`)
+        .bind(date, memo, Number(year)).run();
+      const entryId = Number(ins.meta?.last_row_id || 0);
+      await env.DB.prepare(`INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?1, ?2, ?3, 0), (?1, ?4, 0, ?3)`)
+        .bind(entryId, debitId, totalCents, creditId).run();
+    };
+    await post(`${year}-12-31`, `Finished stock on hand at the end of ${year} (year-end count, ${countDate})`, inventoryId, expenseId);
+    await post(`${nextYear}-01-01`, `Finished stock carried into ${nextYear} (from the ${year} year-end count)`, expenseId, inventoryId);
+  }
+
+  const row = await env.DB.prepare(`SELECT * FROM inventory_counts WHERE year = ?1`).bind(Number(year)).first();
+  return json({ ok: true, count: inventoryCountView(row), yearCloseApplied: await yearCloseApplied(env.DB, year) }, 200, corsHeaders);
+}
+
+/** POST /api/accounts/inventory-count/delete — remove a year's count and its journal pair. Body: { year } */
+async function handleInventoryCountDelete(request, env, corsHeaders, url) {
+  if (!env.DB) return json({ ok: false, error: 'DB binding missing' }, 500, corsHeaders);
+  const auth = await requireAdmin(request, env, corsHeaders, url);
+  if (!auth.ok) return auth.res;
+  let data;
+  try { data = await request.json(); } catch { return json({ ok: false, error: 'Invalid JSON' }, 400, corsHeaders); }
+  const year = String(data.year || '').trim();
+  if (!/^\d{4}$/.test(year)) return json({ ok: false, error: 'Invalid year' }, 400, corsHeaders);
+  await ensureInventoryCountsTable(env.DB);
+  await env.DB.prepare(`DELETE FROM inventory_counts WHERE year = ?1`).bind(Number(year)).run();
+  const accountingReady = await accountingTablesReady(env.DB);
+  if (accountingReady) await deleteInventoryCountJournal(env.DB, year);
+  return json({ ok: true, yearCloseApplied: accountingReady ? await yearCloseApplied(env.DB, year) : false }, 200, corsHeaders);
 }
 
 async function handleInvoiceCreate(request, env, corsHeaders, url) {

@@ -263,6 +263,13 @@ test('year-end close sums only its own year and a re-run replaces it', async (t)
     return Object.fromEntries(body.preview.steps.map((s) => [s.step, s.amount_cents]));
   };
   assert.deepEqual(await close(false), { 1: 80000, 2: 30000, 3: 50000 });
+  // The close needs the year's stock count first; nothing set aside is a count of 0.
+  const saved = await worker.fetch(new Request('https://worker.example/api/accounts/inventory-count', {
+    method: 'POST',
+    headers: { Origin: SITE, Cookie: cookie, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ year: 2026, lines: [] })
+  }), env, ctx);
+  assert.equal(saved.status, 200, await saved.clone().text());
   assert.deepEqual(await close(true), { 1: 80000, 2: 30000, 3: 50000 });
   assert.deepEqual(await close(true), { 1: 80000, 2: 30000, 3: 50000 }, 'a re-run sees the same balances');
   const open = db.prepare(`
@@ -270,4 +277,124 @@ test('year-end close sums only its own year and a re-run replaces it', async (t)
     JOIN journal_entries je ON je.id = jl.entry_id JOIN accounts a ON a.id = jl.account_id
     WHERE je.entry_date BETWEEN '2026-01-01' AND '2026-12-31' AND a.account_type IN ('income', 'expense')`).get();
   assert.equal(open.net, 0, '2026 revenue and expenses closed to zero, once');
+});
+
+// ---- Year-end stock count (made-ahead Halloween stock) ----
+const postJson = (path, cookie, body) => new Request(`https://worker.example${path}`, {
+  method: 'POST', headers: { Origin: SITE, Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+});
+
+test('stock count: the close is refused until it is saved, even as all zeros', async (t) => {
+  quietConsole(t);
+  const env = baseEnv();
+  const cookie = await adminCookie(env);
+  const closeEntries = () => env.DB.sqlite.prepare("SELECT COUNT(*) AS n FROM journal_entries WHERE source_type = 'year_close'").get().n;
+
+  let res = await worker.fetch(postJson('/api/accounts/year-close', cookie, { year: '2026', apply: false }), env, ctx);
+  let body = await res.json();
+  assert.equal(res.status, 200);
+  assert.deepEqual(body.preview.stockCount, { saved: false, required: true });
+
+  res = await worker.fetch(postJson('/api/accounts/year-close', cookie, { year: '2026', apply: true }), env, ctx);
+  body = await res.json();
+  assert.equal(res.status, 409, JSON.stringify(body));
+  assert.match(body.error, /Save the 2026 Year-End Stock Count first/);
+  assert.equal(closeEntries(), 0, 'nothing written');
+
+  // A year with no yarn bought at all still needs one: the rule is every year.
+  res = await worker.fetch(postJson('/api/accounts/year-close', cookie, { year: '2031', apply: true }), env, ctx);
+  assert.equal(res.status, 409);
+
+  res = await worker.fetch(postJson('/api/accounts/inventory-count', cookie, { year: 2026, lines: [{ item: 'Crochet Luffy Inspired Baby Straw Hat', qty: 0, unitCents: 250 }] }), env, ctx);
+  body = await res.json();
+  assert.equal(res.status, 200, JSON.stringify(body));
+  assert.equal(body.count.totalCents, 0);
+  assert.deepEqual(body.count.lines, []);
+  assert.equal(env.DB.sqlite.prepare("SELECT COUNT(*) AS n FROM journal_entries WHERE source_type = 'inventory_count'").get().n, 0, 'a zero count posts nothing');
+
+  res = await worker.fetch(postJson('/api/accounts/year-close', cookie, { year: '2026', apply: true }), env, ctx);
+  assert.equal(res.status, 200, await res.clone().text());
+});
+
+test('stock count: set-aside stock moves out of the year it was made and into the year it sells', async (t) => {
+  quietConsole(t);
+  const env = { ...baseEnv(), TAX_READ_TOKEN: 'tax-read-test-token' };
+  const cookie = await adminCookie(env);
+  const db = env.DB.sqlite;
+  db.prepare('INSERT INTO tax_income (income_date, source, category, amount_cents, notes) VALUES (?, ?, ?, ?, ?)').run('2026-10-01', 'Etsy', 'Product Sale', 1000000, 'sale');
+  db.prepare('INSERT INTO tax_expenses (expense_date, vendor, category, amount_cents) VALUES (?, ?, ?, ?)').run('2026-07-01', 'Joann', 'Yarn', 50000);
+
+  const lines = [
+    { item: 'Crochet Luffy Inspired Baby Straw Hat (Multiple Sizes Available)', qty: 40, unitCents: 250, basis: '$50.00 avg price × 5.00%' },
+    { item: 'Egg Baby Photo Set', qty: 20, unitCents: 450, basis: '$90.00 avg price × 5.00%' }
+  ];
+  // Made-up figures throughout: this repo is public, so no real FMG totals.
+  let res = await worker.fetch(postJson('/api/accounts/inventory-count', cookie, { year: 2026, countDate: '2026-12-31', lines, notes: 'Materials share 5.00% (yarn and craft materials ÷ sales in the 2026 Tax Ledger)' }), env, ctx);
+  let body = await res.json();
+  assert.equal(res.status, 200, JSON.stringify(body));
+  const total = 40 * 250 + 20 * 450;
+  assert.equal(body.count.totalCents, total);
+  assert.equal(body.count.lines[0].basis, '$50.00 avg price × 5.00%');
+  assert.match(body.count.notes, /Materials share 5\.00%/);
+
+  const pair = db.prepare(`SELECT je.entry_date, a.code, jl.debit_cents, jl.credit_cents FROM journal_entries je
+    JOIN journal_lines jl ON jl.entry_id = je.id JOIN accounts a ON a.id = jl.account_id
+    WHERE je.source_type = 'inventory_count' ORDER BY je.entry_date, a.code`).all().map((r) => ({ ...r }));
+  assert.deepEqual(pair, [
+    { entry_date: '2026-12-31', code: '1200', debit_cents: total, credit_cents: 0 },
+    { entry_date: '2026-12-31', code: '5200', debit_cents: 0, credit_cents: total },
+    { entry_date: '2027-01-01', code: '1200', debit_cents: 0, credit_cents: total },
+    { entry_date: '2027-01-01', code: '5200', debit_cents: total, credit_cents: 0 }
+  ]);
+
+  const summary = async (year) => (await worker.fetch(new Request(`https://worker.example/api/tax/summary?year=${year}`, {
+    headers: { Origin: SITE, 'X-Tax-Read-Token': 'tax-read-test-token' }
+  }), env, ctx)).json();
+  let s = await summary(2026);
+  assert.equal(s.ledgerExpenseCents, 50000);
+  assert.equal(s.expenseCents, 50000 - total);
+  assert.equal(s.netCents, 1000000 - (50000 - total));
+  assert.deepEqual(s.stockOnHand, { startOfYearCents: 0, endOfYearCents: total });
+  s = await summary(2027);
+  assert.equal(s.expenseCents, total);
+
+  res = await worker.fetch(new Request('https://worker.example/api/accounts/inventory-count?year=2027', { headers: { Origin: SITE, Cookie: cookie } }), env, ctx);
+  body = await res.json();
+  assert.equal(body.previousYearCents, total);
+  assert.equal(body.count, null);
+
+  res = await worker.fetch(postJson('/api/accounts/inventory-count/delete', cookie, { year: 2026 }), env, ctx);
+  assert.equal(res.status, 200);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM journal_entries WHERE source_type = 'inventory_count'").get().n, 0);
+  assert.equal((await summary(2026)).expenseCents, 50000);
+});
+
+test("stock count: the admin's materials share comes from the year's yarn and sales", () => {
+  const html = readFileSync(new URL('../../admin.html', import.meta.url), 'utf8');
+  const start = html.indexOf('    // ===== Stock count materials share =====');
+  const end = html.indexOf('    // Journal entries for a year, all of them');
+  assert.ok(start > 0 && end > start, 'materials share block found in admin.html');
+  const saleCategories = new Set(['product sale', 'service revenue']);
+  const { stockMaterialsShare, averageListingPriceCents } = new Function('isStatsSaleIncomeRow',
+    `${html.slice(start, end)}\nreturn { stockMaterialsShare, averageListingPriceCents };`
+  )((r) => saleCategories.has(String(r.category || '').toLowerCase()));
+
+  const mix = stockMaterialsShare({
+    expenses: [
+      { category: 'Yarn', amount_cents: 40000 },
+      { category: 'Other Craft Materials', amount_cents: 10000 },
+      { category: 'Shipping Costs', amount_cents: 99999 } // not materials
+    ],
+    income: [
+      { category: 'Product Sale', amount_cents: 950000 },
+      { category: 'Service Revenue', amount_cents: 50000 },
+      { category: 'Owner Funded (Non-Revenue)', amount_cents: 5000, is_owner_funded: 1 }, // not a sale
+      { category: 'Credit Card Bonus', amount_cents: 20000 } // not a sale
+    ]
+  });
+  assert.equal(mix.materialsCents, 50000);
+  assert.equal(mix.salesCents, 1000000);
+  assert.equal(mix.share, 0.05);
+  assert.equal(stockMaterialsShare({ expenses: [{ category: 'Yarn', amount_cents: 100 }], income: [] }).share, 0, 'no sales, no share');
+  assert.equal(averageListingPriceCents({ sizes: [{ price: '49.99' }, { price: '52.99' }, { price: '54.99' }] }), 5266);
 });

@@ -207,6 +207,34 @@
     .ledger-check { margin:.5rem 0 0; font-size:.85rem; color:var(--muted); }
     .ledger-check.bad { margin:.5rem 0; padding:.6rem .75rem; border:1px solid #dc2626; border-radius:8px; background:rgba(220,38,38,.12); color:var(--text); font-size:.95rem; }
     .ledger-check.bad strong { color:#dc2626; }
+    /* ===== Year-End Stock Count (Year-End Close tab) ===== */
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    .count-rules { margin:0 0 .8rem; padding:.75rem .9rem; border:1px solid var(--cyan); border-left:5px solid var(--cyan); border-radius:8px; background:rgba(254,102,102,.10); }
+    .count-rules p { margin:.2rem 0; color:var(--text); font-size:1.02rem; line-height:1.5; }
+    .count-rules-label { display:inline-block; min-width:5.6rem; margin-right:.35rem; padding:.05rem .45rem; border-radius:4px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; font-size:.8rem; color:#000; background:#FEA0AE; text-align:center; }
+    .count-rules-label.leave { background:#fecac4; }
+    .count-rules-label.must { background:#FE6666; color:#000; }
+    .stock-count-controls { display:flex; gap:.6rem; flex-wrap:wrap; align-items:flex-end; margin:.2rem 0 .6rem; }
+    .stock-count-controls > div { min-width:140px; }
+    .stock-count-controls .stock-share-hint { flex:1 1 260px; font-size:.85rem; color:var(--muted); align-self:center; }
+    .stock-count-status { margin:.2rem 0 .6rem; font-size:.95rem; color:var(--muted); }
+    .stock-count-status.saved { color:var(--text); }
+    .stock-count-status.warn { padding:.55rem .75rem; border:1px solid #d97706; border-radius:8px; background:rgba(217,119,6,.12); color:var(--text); }
+    .stock-count-table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; background:var(--card); }
+    .stock-count-table { width:100%; border-collapse:collapse; font-size:.95rem; }
+    .stock-count-table th { text-align:left; color:var(--muted); font-weight:600; padding:.45rem .5rem; border-bottom:1px solid var(--line); white-space:nowrap; }
+    .stock-count-table td { padding:.35rem .5rem; border-bottom:1px solid var(--line); vertical-align:middle; color:var(--text); }
+    .stock-count-table td.num, .stock-count-table th.num { text-align:right; white-space:nowrap; }
+    .stock-count-table input { padding:.35rem .45rem; }
+    .stock-count-table input.sc-qty { width:5rem; }
+    .stock-count-table input.sc-unit { width:6.5rem; text-align:right; }
+    .stock-count-table .sc-hint { display:block; font-size:.78rem; color:var(--muted); margin-top:.15rem; }
+    .stock-count-table .sc-hint.edited { color:#d97706; }
+    .stock-count-table tfoot td { font-weight:700; border-bottom:0; }
+    .stock-count-actions { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.65rem; }
+    #stock-count-share { width:6.5rem; }
+    .btn:disabled { opacity:.45; cursor:not-allowed; }
+    @media (max-width:760px) { .stock-count-table input, #stock-count-share { font-size:16px; } }
     .tax-summary-line.tax-summary-total { color:var(--text); font-weight:700; font-size:1.08rem; border-bottom:1px solid var(--line); padding-bottom:.35rem; margin-bottom:.3rem; }
     .tax-entry-wrap { margin-top:1rem; }
 
@@ -647,6 +675,47 @@
           <button type="button" class="btn" id="year-close-collapse-btn" aria-expanded="false">Expand</button>
         </div>
         <div id="year-close-body" class="admin-collapsible-body-collapsed">
+          <section class="admin-calendar-wrap" id="stock-count-section" style="margin-top:.5rem; grid-column:1 / -1;">
+            <div class="admin-calendar-title">Year-End Stock Count</div>
+            <p style="margin:.35rem 0 .5rem; color:var(--text); line-height:1.45;">
+              Count the finished items set aside to sell later (like the Halloween stock) that are still unsold at the end of the year, then save.
+              Their yarn was booked as an expense when it was bought; saving moves the materials cost of these items into next year, when they sell.
+              Each item is valued at its listing price times this year's materials share of sales, so there's no need to work out the yarn in each piece.
+            </p>
+            <div class="count-rules" role="note">
+              <p><span class="count-rules-label">Count</span> finished pieces set aside to sell later that are <strong>still unsold on Dec 31</strong>.</p>
+              <p><span class="count-rules-label leave">Leave out</span> pieces made for an order that's already paid for (they're sold), anything damaged, and loose yarn.</p>
+              <p><span class="count-rules-label must">Required</span> before the Year-End Close, even if nothing is set aside: then just save with every line at 0.</p>
+            </div>
+            <div class="stock-count-controls">
+              <div>
+                <label for="stock-count-year">Year</label>
+                <select id="stock-count-year"></select>
+              </div>
+              <div>
+                <label for="stock-count-date">Counted on</label>
+                <input type="date" id="stock-count-date" />
+              </div>
+              <div>
+                <label for="stock-count-share">Materials share of price (%)</label>
+                <input type="number" id="stock-count-share" min="0" max="100" step="0.01" inputmode="decimal" />
+              </div>
+              <div class="stock-share-hint" id="stock-count-share-hint"></div>
+            </div>
+            <div id="stock-count-status" class="stock-count-status" role="status">Loading…</div>
+            <div class="stock-count-table-wrap">
+              <table class="stock-count-table">
+                <thead><tr><th>Item</th><th class="num">Set aside</th><th class="num">Materials each</th><th class="num">Value</th><th><span class="sr-only">Remove</span></th></tr></thead>
+                <tbody id="stock-count-rows"></tbody>
+                <tfoot><tr><td colspan="3">Total set aside (materials cost)</td><td class="num" id="stock-count-total">$0.00</td><td></td></tr></tfoot>
+              </table>
+            </div>
+            <div class="stock-count-actions">
+              <button type="button" class="btn" id="stock-count-add-btn">Add a line</button>
+              <button type="button" class="btn btn-primary" id="stock-count-save-btn">Save count</button>
+              <button type="button" class="btn" id="stock-count-delete-btn" hidden>Delete count</button>
+            </div>
+          </section>
           <section class="admin-calendar-wrap" style="margin-top:.5rem; grid-column:1 / -1;">
             <p style="margin:.2rem 0 .65rem; color:var(--text); line-height:1.45;">
               Use this once per year (after final reconciliation) to create formal closing entries.
@@ -1579,6 +1648,27 @@
       };
     }
 
+    // ===== Stock count materials share =====
+    // The Year-End Stock Count values set-aside items at listing price x the year's materials share
+    // of sales: yarn and craft materials bought / product sales, from that year's Tax Ledger. One
+    // average share covers the little bits of accent yarn without working out each piece.
+    function stockMaterialsShare(ledger) {
+      const materialsCents = (ledger?.expenses || [])
+        .filter(r => /yarn|craft material/i.test(String(r.category || '')))
+        .reduce((sum, r) => sum + Number(r.amount_cents || 0), 0);
+      const salesCents = (ledger?.income || [])
+        .filter(r => Number(r.is_owner_funded || 0) !== 1 && isStatsSaleIncomeRow(r))
+        .reduce((sum, r) => sum + Number(r.amount_cents || 0), 0);
+      const share = salesCents > 0 && materialsCents > 0 ? materialsCents / salesCents : 0;
+      return { materialsCents, salesCents, share };
+    }
+
+    /** A listing's average size price, in cents (what one set-aside piece would sell for). */
+    function averageListingPriceCents(product) {
+      const prices = (product?.sizes || []).map(sz => Math.round(Number(sz.price) * 100)).filter(n => Number.isFinite(n) && n > 0);
+      return prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+    }
+
     // Journal entries for a year, all of them, or an error if the server sent fewer than it has.
     async function loadFullJournal(year) {
       const res = await fetch(`${ACCOUNTS_JOURNAL_API_URL}?year=${encodeURIComponent(String(year))}&limit=${FULL_YEAR_ROW_LIMIT}`, { credentials: 'same-origin' });
@@ -2412,6 +2502,7 @@
       yearCloseModal?.classList.add('active');
       yearCloseModal?.setAttribute('aria-hidden', 'false');
       yearCloseStepsEl.textContent = 'Loading preview…';
+      if (yearCloseApplyBtn) yearCloseApplyBtn.disabled = true; // until the preview says it can run
       try {
         const res = await fetch(ACCOUNTS_YEAR_CLOSE_API_URL, {
           method: 'POST',
@@ -2421,10 +2512,270 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Preview failed');
         const steps = data.preview?.steps || [];
-        yearCloseStepsEl.innerHTML = steps.map((s) => `<div style="padding:.35rem 0; border-bottom:1px dashed var(--line);"><strong>Step ${s.step}:</strong> ${escHtml(s.title)} <span style="float:right;">$${(Number(s.amount_cents||0)/100).toFixed(2)}</span></div>`).join('') || 'No close steps found.';
+        // The close needs the year's stock count saved first (the worker refuses it too).
+        const stock = data.preview?.stockCount;
+        const blocked = !!(stock && !stock.saved);
+        if (yearCloseApplyBtn) yearCloseApplyBtn.disabled = blocked;
+        const stockNote = !stock ? '' : stock.saved
+          ? `<div class="stock-count-status saved" style="margin:0 0 .5rem;">Includes the ${escHtml(year)} stock count: ${formatStockMoney(stock.totalCents)} set aside (counted ${escHtml(stock.countDate || '')}).</div>`
+          : `<div class="stock-count-status warn" style="margin:0 0 .5rem;" role="alert"><strong>Can't close ${escHtml(year)} yet:</strong> the Year-End Stock Count isn't saved. Save it on the Year-End Close tab first (all 0s is fine if nothing is set aside), then come back.</div>`;
+        yearCloseStepsEl.innerHTML = stockNote + (steps.map((s) => `<div style="padding:.35rem 0; border-bottom:1px dashed var(--line);"><strong>Step ${s.step}:</strong> ${escHtml(s.title)} <span style="float:right;">$${(Number(s.amount_cents||0)/100).toFixed(2)}</span></div>`).join('') || 'No close steps found.');
       } catch (e) {
         yearCloseStepsEl.textContent = `Could not load year-close preview: ${e.message || e}`;
+        if (yearCloseApplyBtn) yearCloseApplyBtn.disabled = false; // the worker still checks the count
       }
+    }
+
+    // ===== Year-End Stock Count =====
+    // Finished items set aside to sell later (the Halloween stock), counted at the end of a year and
+    // valued at materials cost (see "Stock count materials share" above). Saved to
+    // /api/accounts/inventory-count: the worker posts the Dec 31 adjustment and the Jan 1 carry-in,
+    // /api/tax/summary (Tax Planning tab) uses the total, and the Year-End Close won't run until the
+    // year's count is saved, even as all zeros.
+    const INVENTORY_COUNT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/accounts/inventory-count');
+    const stockCountState = { year: null, share: 0, autoShare: 0, rows: [], loading: false, products: null };
+    const formatStockMoney = (cents) => `$${(Number(cents || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const stockEl = (id) => document.getElementById(id);
+
+    function defaultStockCountYear() {
+      const today = nowEtParts().date;
+      const y = Number(today.slice(0, 4));
+      return Number(today.slice(5, 7)) <= 3 ? y - 1 : y; // Jan-Mar: still finishing last year
+    }
+
+    function fillStockCountYears() {
+      const sel = stockEl('stock-count-year');
+      if (!sel || sel.options.length) return;
+      const thisYear = Number(nowEtParts().date.slice(0, 4));
+      for (let y = thisYear; y >= 2026; y -= 1) sel.add(new Option(String(y), String(y)));
+      sel.value = String(Math.max(2026, defaultStockCountYear()));
+    }
+
+    function setStockCountStatus(html, kind = '') {
+      const el = stockEl('stock-count-status');
+      if (!el) return;
+      el.className = `stock-count-status${kind ? ` ${kind}` : ''}`;
+      el.innerHTML = html;
+    }
+
+    const stockRowSuggested = (row) => Math.round((Number(row.priceCents) || 0) * stockCountState.share);
+
+    function renderStockCountRows() {
+      const body = stockEl('stock-count-rows');
+      if (!body) return;
+      const pct = (stockCountState.share * 100).toFixed(2);
+      body.innerHTML = stockCountState.rows.map((row, i) => {
+        const suggested = stockRowSuggested(row);
+        if (!row.unitEdited) row.unitCents = suggested;
+        const value = Math.round((Number(row.qty) || 0) * (Number(row.unitCents) || 0));
+        const hint = !row.priceCents ? ''
+          : row.unitEdited && row.unitCents !== suggested
+            ? `<span class="sc-hint edited">your figure · ${formatStockMoney(row.priceCents)} × ${pct}% = ${formatStockMoney(suggested)} <a href="#" data-sc-reset="${i}">use it</a></span>`
+            : `<span class="sc-hint">${formatStockMoney(row.priceCents)} avg price × ${pct}%</span>`;
+        const name = row.custom
+          ? `<input type="text" data-sc-name="${i}" value="${escHtml(row.label)}" placeholder="Item name" aria-label="Item name" />`
+          : escHtml(row.label);
+        return `<tr>
+          <td>${name}</td>
+          <td class="num"><input class="sc-qty" type="number" min="0" step="1" inputmode="numeric" data-sc-qty="${i}" value="${row.qty ? escHtml(String(row.qty)) : ''}" placeholder="0" aria-label="${escHtml(row.label || 'Item')} set aside" /></td>
+          <td class="num"><input class="sc-unit" type="number" min="0" step="0.01" inputmode="decimal" data-sc-unit="${i}" value="${(Number(row.unitCents || 0) / 100).toFixed(2)}" aria-label="${escHtml(row.label || 'Item')} materials cost each" />${hint}</td>
+          <td class="num money-blur-target" data-sc-value="${i}">${formatStockMoney(value)}</td>
+          <td>${row.custom ? `<button type="button" class="btn" style="padding:.3rem .55rem; font-size:.85rem;" data-sc-remove="${i}">Remove</button>` : ''}</td>
+        </tr>`;
+      }).join('');
+      updateStockCountTotal();
+    }
+
+    function updateStockCountTotal() {
+      let total = 0;
+      stockCountState.rows.forEach((row, i) => {
+        const value = Math.round((Number(row.qty) || 0) * (Number(row.unitCents) || 0));
+        total += value;
+        const cell = document.querySelector(`[data-sc-value="${i}"]`);
+        if (cell) cell.textContent = formatStockMoney(value);
+      });
+      const totalEl = stockEl('stock-count-total');
+      if (totalEl) totalEl.textContent = formatStockMoney(total);
+      return total;
+    }
+
+    async function fetchStockCount(year) {
+      const res = await fetch(`${INVENTORY_COUNT_API_URL}?year=${encodeURIComponent(String(year))}`, { credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not load the stock count');
+      return data;
+    }
+
+    async function stockCountProducts() {
+      if (stockCountState.products) return stockCountState.products;
+      const res = await fetch(`${window.location.origin}/products.json`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Could not load the product list');
+      const data = await res.json();
+      // Physical listings only: pattern PDFs are never stock.
+      stockCountState.products = (data.products || []).filter(p => p.category !== 'patterns' && p.handling);
+      return stockCountState.products;
+    }
+
+    async function loadStockCount() {
+      if (!adminUnlocked || !stockEl('stock-count-section') || stockCountState.loading) return;
+      fillStockCountYears();
+      const year = Number(stockEl('stock-count-year')?.value || defaultStockCountYear());
+      stockCountState.loading = true;
+      setStockCountStatus('Loading…');
+      try {
+        const [countData, ledger, products] = await Promise.all([fetchStockCount(year), loadTaxYear(year), stockCountProducts()]);
+        const mix = stockMaterialsShare(ledger);
+        stockCountState.year = year;
+        stockCountState.autoShare = mix.share;
+        const saved = countData.count;
+        // A saved count keeps the share it was saved with (notes start "Materials share N%").
+        const savedShare = Number((saved?.notes || '').match(/Materials share ([\d.]+)%/)?.[1]);
+        stockCountState.share = Number.isFinite(savedShare) && saved ? savedShare / 100 : mix.share;
+        const shareEl = stockEl('stock-count-share');
+        if (shareEl) shareEl.value = (stockCountState.share * 100).toFixed(2);
+        const hintEl = stockEl('stock-count-share-hint');
+        if (hintEl) {
+          hintEl.textContent = mix.salesCents
+            ? `${year} so far: ${formatStockMoney(mix.materialsCents)} of yarn and craft materials ÷ ${formatStockMoney(mix.salesCents)} of sales = ${(mix.share * 100).toFixed(2)}%.`
+            : `No ${year} sales in the ledger yet, so type a share (last year's is a good guess).`;
+        }
+
+        const savedLines = [...(saved?.lines || [])];
+        stockCountState.rows = products.map((p) => {
+          const idx = savedLines.findIndex(l => l.item === p.title);
+          const line = idx >= 0 ? savedLines.splice(idx, 1)[0] : null;
+          return { key: p.id, label: p.title, priceCents: averageListingPriceCents(p), qty: line ? line.qty : 0, unitCents: line ? line.unitCents : 0, unitEdited: !!line, custom: false };
+        });
+        for (const line of savedLines) {
+          stockCountState.rows.push({ key: null, label: line.item, priceCents: 0, qty: line.qty, unitCents: line.unitCents, unitEdited: true, custom: true });
+        }
+        const dateEl = stockEl('stock-count-date');
+        if (dateEl) dateEl.value = saved?.countDate || `${year}-12-31`;
+        const deleteBtn = stockEl('stock-count-delete-btn');
+        if (deleteBtn) deleteBtn.hidden = !saved;
+        renderStockCountRows();
+
+        const carriedIn = Number(countData.previousYearCents || 0)
+          ? ` ${formatStockMoney(countData.previousYearCents)} of stock carried in from the ${year - 1} count.` : '';
+        if (saved) {
+          const closeNote = countData.yearCloseApplied ? ` The ${year} Year-End Close has been run; if you change this count, run it again.` : '';
+          setStockCountStatus(`Saved: <strong>${formatStockMoney(saved.totalCents)}</strong> of stock set aside at the end of ${year} (counted ${escHtml(saved.countDate)}). The ${year} Year-End Close can run.${carriedIn}${closeNote}`, 'saved');
+        } else {
+          setStockCountStatus(`No count saved for ${year} yet. Enter how many of each item are set aside (or leave them all at 0), then Save. The ${year} Year-End Close needs this first.${carriedIn}`, 'warn');
+        }
+      } catch (e) {
+        setStockCountStatus(`Could not load the stock count: ${escHtml(e.message || String(e))}`, 'warn');
+      } finally {
+        stockCountState.loading = false;
+      }
+    }
+
+    async function saveStockCount() {
+      const year = stockCountState.year;
+      if (!year) return;
+      const pct = (stockCountState.share * 100).toFixed(2);
+      const lines = stockCountState.rows
+        .filter(r => Number(r.qty) > 0)
+        .map(r => ({
+          item: String(r.label || '').trim(),
+          qty: Number(r.qty),
+          unitCents: Math.round(Number(r.unitCents) || 0),
+          basis: r.priceCents && !(r.unitEdited && r.unitCents !== stockRowSuggested(r)) ? `${formatStockMoney(r.priceCents)} avg price × ${pct}%` : 'entered by hand'
+        }));
+      if (lines.some(l => !l.item)) { openErrorModal('Give every extra line an item name.'); return; }
+      const auto = stockCountState.autoShare;
+      const notes = Math.abs(stockCountState.share - auto) < 0.00005
+        ? `Materials share ${pct}% (yarn and craft materials ÷ sales in the ${year} Tax Ledger)`
+        : `Materials share ${pct}% (set by hand; the ${year} Tax Ledger gave ${(auto * 100).toFixed(2)}%)`;
+      const btn = stockEl('stock-count-save-btn');
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch(INVENTORY_COUNT_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+          body: JSON.stringify({ year, countDate: stockEl('stock-count-date')?.value || `${year}-12-31`, lines, notes })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Save failed');
+        await loadStockCount();
+        if (data.yearCloseApplied) {
+          setStockCountStatus(`Saved: <strong>${formatStockMoney(data.count?.totalCents)}</strong> at the end of ${year}. The ${year} Year-End Close was already run, so run the Year-End Close Wizard again to include this count.`, 'warn');
+        }
+        openSuccessModal(`Stock count saved: ${formatStockMoney(data.count?.totalCents)} set aside at the end of ${year}.`, 'Stock Count Saved ✅');
+      } catch (e) {
+        openErrorModal(`Could not save the stock count: ${e.message || e}`);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function deleteStockCount() {
+      const year = stockCountState.year;
+      if (!year) return;
+      const ok = await openConfirmModal(`Delete the ${year} stock count? Its Dec 31 adjustment and Jan 1 carry-in come out of the books, and the ${year} Year-End Close can't be run again until a new count is saved.`, 'Delete Stock Count?', 'Delete');
+      if (!ok) return;
+      try {
+        const res = await fetch(`${INVENTORY_COUNT_API_URL}/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+          body: JSON.stringify({ year })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Delete failed');
+        await loadStockCount();
+      } catch (e) {
+        openErrorModal(`Could not delete the stock count: ${e.message || e}`);
+      }
+    }
+
+    function bindStockCount() {
+      const body = stockEl('stock-count-rows');
+      if (!body || body.dataset.bound) return;
+      body.dataset.bound = '1';
+      body.addEventListener('input', (e) => {
+        const t = e.target;
+        if (t.dataset.scQty !== undefined) {
+          stockCountState.rows[Number(t.dataset.scQty)].qty = Math.max(0, Number(t.value) || 0);
+          updateStockCountTotal();
+        } else if (t.dataset.scUnit !== undefined) {
+          const row = stockCountState.rows[Number(t.dataset.scUnit)];
+          row.unitCents = Math.max(0, Math.round((Number(t.value) || 0) * 100));
+          row.unitEdited = true;
+          updateStockCountTotal();
+        } else if (t.dataset.scName !== undefined) {
+          stockCountState.rows[Number(t.dataset.scName)].label = t.value;
+        }
+      });
+      body.addEventListener('change', (e) => { if (e.target.dataset.scUnit !== undefined) renderStockCountRows(); });
+      body.addEventListener('click', (e) => {
+        const reset = e.target.closest('[data-sc-reset]');
+        if (reset) {
+          e.preventDefault();
+          stockCountState.rows[Number(reset.dataset.scReset)].unitEdited = false;
+          renderStockCountRows();
+          return;
+        }
+        const remove = e.target.closest('[data-sc-remove]');
+        if (remove) {
+          stockCountState.rows.splice(Number(remove.dataset.scRemove), 1);
+          renderStockCountRows();
+        }
+      });
+      stockEl('stock-count-share')?.addEventListener('change', (e) => {
+        const pct = Number(e.target.value);
+        stockCountState.share = Number.isFinite(pct) && pct >= 0 ? Math.min(pct, 100) / 100 : stockCountState.autoShare;
+        // A new share re-prices every line that still uses the suggested figure.
+        stockCountState.rows.forEach((row) => { if (row.unitEdited && row.priceCents && row.unitCents === Math.round(row.priceCents * stockCountState.share)) row.unitEdited = false; });
+        renderStockCountRows();
+      });
+      stockEl('stock-count-add-btn')?.addEventListener('click', () => {
+        stockCountState.rows.push({ key: null, label: '', priceCents: 0, qty: 0, unitCents: 0, unitEdited: true, custom: true });
+        renderStockCountRows();
+        body.querySelector(`[data-sc-name="${stockCountState.rows.length - 1}"]`)?.focus();
+      });
+      stockEl('stock-count-save-btn')?.addEventListener('click', saveStockCount);
+      stockEl('stock-count-delete-btn')?.addEventListener('click', deleteStockCount);
+      stockEl('stock-count-year')?.addEventListener('change', loadStockCount);
     }
 
     function closeYearCloseWizard() {
@@ -2733,6 +3084,7 @@
 
     yearCloseCancelBtn?.addEventListener('click', closeYearCloseWizard);
     yearCloseApplyBtn?.addEventListener('click', applyYearCloseWizard);
+    bindStockCount();
     yearCloseModal?.addEventListener('click', (e) => { if (e.target === yearCloseModal) closeYearCloseWizard(); });
     auditCancelBtn?.addEventListener('click', closeAuditPackageModal);
     auditGenerateBtn?.addEventListener('click', generateAuditPackage);
@@ -3393,10 +3745,15 @@
       try {
         // allowIncomplete: the ledger still lists what did load, but the snapshot shows a red
         // warning in place of its quiet "checked" line, and imports refuse to run (see below).
-        const [data, summaryData] = await Promise.all([
+        const [data, summaryData, stockCount] = await Promise.all([
           loadTaxYear(year, { allowIncomplete: true }),
-          summaryYear === year ? null : loadTaxYear(summaryYear, { allowIncomplete: true })
-        ]).then(([d, sd]) => [d, sd || d]);
+          summaryYear === year ? null : loadTaxYear(summaryYear, { allowIncomplete: true }),
+          fetchStockCount(summaryYear).catch(() => null)
+        ]).then(([d, sd, sc]) => [d, sd || d, sc]);
+        // Year-end stock counts (Year-End Close tab): stock carried in from last year's count is
+        // this year's expense, and stock still set aside at this year's end is not.
+        const stockStartCents = Number(stockCount?.previousYearCents || 0);
+        const stockEndCents = Number(stockCount?.count?.totalCents || 0);
 
         const items = [
           ...(data.income || []).map(r => ({ type: 'income', ...r })),
@@ -3445,9 +3802,12 @@
           }).join('')
           : '<div class="tax-summary-line"><span>No income entries</span><strong>$0.00</strong></div>';
 
-        const expenseRows = sortedExpense.length
+        const expenseRows = (sortedExpense.length
           ? sortedExpense.map(([cat, cents]) => `<div class="tax-summary-line"><span>${cat}</span><strong>$${(cents/100).toFixed(2)}</strong></div>`).join('')
-          : '<div class="tax-summary-line"><span>No expense entries</span><strong>$0.00</strong></div>';
+          : '<div class="tax-summary-line"><span>No expense entries</span><strong>$0.00</strong></div>')
+          + (stockStartCents ? `<div class="tax-summary-line"><span>Stock carried in from the ${Number(summaryYear) - 1} count</span><strong>+$${(stockStartCents/100).toFixed(2)}</strong></div>` : '')
+          + (stockEndCents ? `<div class="tax-summary-line"><span>Stock still set aside at year-end (${escHtml(String(summaryYear))} count)</span><strong>&minus;$${(stockEndCents/100).toFixed(2)}</strong></div>` : '');
+        expenseTotal += stockStartCents - stockEndCents;
 
         taxSummaryListEl.innerHTML = `
           <div class="tax-summary-col">
@@ -5174,6 +5534,7 @@
       if (tab === 'invoices' && adminUnlocked) refreshInvoiceList();
       if (tab === 'orders' && adminUnlocked) refreshOrderList();
       if (tab === 'quotes' && adminUnlocked) refreshQuoteList();
+      if (tab === 'year-close' && adminUnlocked) loadStockCount();
       updateFloatingAddButtons();
     }
 
