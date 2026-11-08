@@ -2048,7 +2048,10 @@ async function handleTaxTransactions(request, env, corsHeaders, url) {
   const type = (url.searchParams.get('type') || 'all').trim();
   if (!/^\d{4}$/.test(year)) return json({ ok: false, error: 'Missing/invalid year' }, 400, corsHeaders);
 
-  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 200)));
+  // Every caller sums these rows (snapshot, stats, exports, audit package, import dedupe), so the
+  // default is the whole year. Until 2026-11-08 this was capped at 500 rows and 2026 silently lost
+  // its oldest ~560 expenses. `totals` lets the admin check it got every row (see loadTaxYear).
+  const limit = parseRowLimit(url.searchParams.get('limit'), TAX_TX_MAX_ROWS);
 
   const expensesP = (type === 'all' || type === 'expense')
     ? env.DB.prepare(
@@ -2070,14 +2073,45 @@ async function handleTaxTransactions(request, env, corsHeaders, url) {
       ).bind(year, limit).all()
     : Promise.resolve({ results: [] });
 
-  const [expenses, income] = await Promise.all([expensesP, incomeP]);
+  const totalsP = env.DB.prepare(
+    `SELECT 'expenses' AS kind, COUNT(*) AS count, COALESCE(SUM(amount_cents), 0) AS cents
+       FROM tax_expenses WHERE substr(expense_date,1,4) = ?1
+     UNION ALL
+     SELECT 'income', COUNT(*), COALESCE(SUM(amount_cents), 0)
+       FROM tax_income WHERE substr(income_date,1,4) = ?1`
+  ).bind(year).all();
+
+  const [expenses, income, totalsRes] = await Promise.all([expensesP, incomeP, totalsP]);
+  const expenseRows = expenses.results || [];
+  const incomeRows = income.results || [];
+  const totals = {};
+  for (const r of (totalsRes.results || [])) {
+    totals[r.kind] = { count: Number(r.count || 0), cents: Number(r.cents || 0) };
+  }
+  const complete = {
+    expenses: type === 'income' || expenseRows.length === totals.expenses.count,
+    income: type === 'expense' || incomeRows.length === totals.income.count
+  };
 
   return json({
     ok: true,
     year,
-    expenses: expenses.results || [],
-    income: income.results || []
+    expenses: expenseRows,
+    income: incomeRows,
+    totals,
+    complete
   }, 200, corsHeaders);
+}
+
+// Highest row count the admin list endpoints return in one response. A year of FMG books is
+// ~1,300 ledger rows, so this leaves decades of room while still bounding the response.
+const TAX_TX_MAX_ROWS = 50000;
+
+/** Parse a `limit` query value: blank means `max`, anything else is clamped to 1..max. */
+function parseRowLimit(raw, max) {
+  const n = Number(raw);
+  if (raw === null || raw === '' || !Number.isFinite(n)) return max;
+  return Math.max(1, Math.min(max, Math.floor(n)));
 }
 
 /**
@@ -2670,7 +2704,9 @@ async function handleAccountsJournal(request, env, corsHeaders, url) {
   const accountingReady = await ensureAccountingSetup(env.DB);
   if (!accountingReady) return json({ ok: false, error: 'Accounting tables are not migrated yet. Run D1 migrations with --remote.' }, 503, corsHeaders);
 
-  const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') || 200)));
+  // Blank limit = every entry in the period (the audit package's journal CSV needs them all);
+  // the Accounts tab asks for the newest 200 and shows "N of total".
+  const limit = parseRowLimit(url.searchParams.get('limit'), TAX_TX_MAX_ROWS);
   const year = (url.searchParams.get('year') || '').trim();
   const from = (url.searchParams.get('from') || '').trim();
   const to = (url.searchParams.get('to') || '').trim();
@@ -2697,7 +2733,12 @@ async function handleAccountsJournal(request, env, corsHeaders, url) {
     ORDER BY je.entry_date DESC, je.id DESC, jl.id ASC`;
 
   const q = env.DB.prepare(sql);
-  const rows = await (binds.length ? q.bind(...binds, limit) : q.bind(limit)).all();
+  const countQ = env.DB.prepare(`SELECT COUNT(*) AS n FROM journal_entries ${entryWhere}`);
+  const [rows, countRow] = await Promise.all([
+    (binds.length ? q.bind(...binds, limit) : q.bind(limit)).all(),
+    (binds.length ? countQ.bind(...binds) : countQ).first()
+  ]);
+  const totalEntries = Number(countRow?.n || 0);
 
   // Group flat rows into entry objects with nested lines arrays.
   const entriesMap = new Map();
@@ -2728,7 +2769,7 @@ async function handleAccountsJournal(request, env, corsHeaders, url) {
     });
   }
   const out = entryOrder.map(id => entriesMap.get(id));
-  return json({ ok: true, entries: out }, 200, corsHeaders);
+  return json({ ok: true, entries: out, total_entries: totalEntries, complete: out.length === totalEntries }, 200, corsHeaders);
 }
 
 async function handleAccountsStatements(request, env, corsHeaders, url) {

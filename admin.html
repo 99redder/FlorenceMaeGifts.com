@@ -203,6 +203,10 @@
     .tax-summary-pct { font-size:.85em; opacity:.75; min-width:3.4em; text-align:right; }
     /* Fixed-width amount slot so the percentages line up in a column. */
     .tax-summary-amt strong { min-width:5em; text-align:right; }
+    /* Ledger completeness check (loadTaxYear): a quiet confirmation, or a red warning. */
+    .ledger-check { margin:.5rem 0 0; font-size:.85rem; color:var(--muted); }
+    .ledger-check.bad { margin:.5rem 0; padding:.6rem .75rem; border:1px solid #dc2626; border-radius:8px; background:rgba(220,38,38,.12); color:var(--text); font-size:.95rem; }
+    .ledger-check.bad strong { color:#dc2626; }
     .tax-summary-line.tax-summary-total { color:var(--text); font-weight:700; font-size:1.08rem; border-bottom:1px solid var(--line); padding-bottom:.35rem; margin-bottom:.3rem; }
     .tax-entry-wrap { margin-top:1rem; }
 
@@ -336,6 +340,7 @@
                 <select id="stats-year" style="max-width:160px;"></select>
                 <button type="button" class="btn" id="stats-refresh-btn">Refresh Stats</button>
               </div>
+              <div class="ledger-check bad" id="stats-integrity-warning" role="alert" hidden></div>
               <div class="admin-calendar-wrap" style="margin:0 0 .65rem; background:rgba(254,102,102,.08); border:1px solid rgba(254,102,102,.35);">
                 <div class="admin-calendar-title" style="color:var(--text);">LLC Cutover Note</div>
                 <p style="margin:.35rem 0 0; font-size:.92rem; color:var(--muted);">Official LLC cutover date: <strong style="color:var(--text);">March 18, 2026</strong>. Treat this as the first day operating as Florence Mae Gifts, LLC for admin/bookkeeping purposes.</p>
@@ -424,6 +429,7 @@
                     </div>
                   </div>
                   <div class="tax-summary-grid" id="tax-summary-list">No data yet.</div>
+                  <div class="ledger-check" id="tax-summary-check" hidden></div>
                 </div>
 
                 <div class="tax-ledger-action-row">
@@ -1512,6 +1518,81 @@
     const ADMIN_VERIFY_SESSION_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/verify-session');
     const ADMIN_LOGOUT_API_URL = CONTACT_API_URL.replace('/api/contact', '/api/admin/logout');
 
+    // ===== Complete-ledger loading =====
+    // Every screen that adds up ledger rows (Tax Ledger snapshot, Stats, CSV export, audit
+    // package, reconciliation, Etsy/Mercari import dedupe) loads a year through loadTaxYear().
+    // The worker sends the database's own row count and total for each list; if the rows that
+    // arrived don't add up to them, the numbers would be silently wrong, so loading stops with
+    // an error instead. (Until 2026-11-08 the worker capped this list at 500 rows and the 2026
+    // snapshot quietly left out ~560 expenses.)
+    class TaxDataIncompleteError extends Error {}
+    const LEGACY_TAX_ROW_CAP = 500;
+    // Asked for explicitly so an older worker (which defaulted to 200) still sends its maximum.
+    const FULL_YEAR_ROW_LIMIT = 50000;
+
+    function taxDataIntegrity(data) {
+      const problems = [];
+      const totals = data && data.totals;
+      const labels = { expenses: 'Expenses', income: 'Income' };
+      if (!totals) {
+        // Worker older than this check: the only thing to go on is the old 500-row cap.
+        for (const k of ['expenses', 'income']) {
+          const n = (data?.[k] || []).length;
+          if (n >= LEGACY_TAX_ROW_CAP) problems.push(`${labels[k]}: ${n} rows loaded and the server didn't say how many exist`);
+        }
+        return { ok: !problems.length, checked: false, problems, totals: null };
+      }
+      for (const k of ['expenses', 'income']) {
+        const want = totals[k];
+        if (!want) continue;
+        const rows = data[k] || [];
+        const cents = rows.reduce((s, r) => s + Number(r.amount_cents || 0), 0);
+        if (rows.length !== Number(want.count) || cents !== Number(want.cents)) {
+          problems.push(`${labels[k]}: loaded ${rows.length} of ${want.count} rows ($${(cents / 100).toFixed(2)} of $${(Number(want.cents) / 100).toFixed(2)})`);
+        }
+      }
+      return { ok: !problems.length, checked: true, problems, totals };
+    }
+
+    function taxIncompleteMessage(year, integrity) {
+      return `The ${year} ledger didn't load completely, so totals would be wrong. ${integrity.problems.join('; ')}. Reload the page and try again.`;
+    }
+
+    async function loadTaxYear(year, { allowIncomplete = false } = {}) {
+      const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(String(year))}&type=all&limit=${FULL_YEAR_ROW_LIMIT}`, { credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Failed loading the ${year} ledger`);
+      data.integrity = taxDataIntegrity(data);
+      if (!data.integrity.ok && !allowIncomplete) throw new TaxDataIncompleteError(taxIncompleteMessage(year, data.integrity));
+      return data;
+    }
+
+    // Every year an import file touches, fully loaded, for the "already imported?" checks. The
+    // imports used to compare against whatever year the Tax Ledger tab had loaded (and only the
+    // newest 500 rows of it), so re-importing an older statement could have duplicated it.
+    async function loadLedgerForDates(isoDates) {
+      const years = [...new Set(isoDates.map(d => String(d || '').slice(0, 4)).filter(y => /^\d{4}$/.test(y)))];
+      const parts = await Promise.all(years.map(y => loadTaxYear(y)));
+      return {
+        income: parts.flatMap(p => p.income || []),
+        expenses: parts.flatMap(p => p.expenses || [])
+      };
+    }
+
+    // Journal entries for a year, all of them, or an error if the server sent fewer than it has.
+    async function loadFullJournal(year) {
+      const res = await fetch(`${ACCOUNTS_JOURNAL_API_URL}?year=${encodeURIComponent(String(year))}&limit=${FULL_YEAR_ROW_LIMIT}`, { credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Failed loading the ${year} journal`);
+      const got = (data.entries || []).length;
+      const incomplete = data.complete === false
+        || (data.total_entries === undefined && got >= LEGACY_TAX_ROW_CAP);
+      if (incomplete) {
+        throw new TaxDataIncompleteError(`The ${year} journal didn't load completely (${got} of ${data.total_entries ?? 'unknown'} entries). Reload the page and try again.`);
+      }
+      return data;
+    }
+
     // ===== DOM Refs =====
     const adminLock = document.getElementById('admin-lock');
     const adminControls = document.getElementById('admin-controls');
@@ -1968,9 +2049,7 @@
       const aggregate = cloneItemStatsBaseline();
       const startYear = 2026;
       for (let y = startYear; y <= selectedYear; y += 1) {
-        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(String(y))}&type=all&limit=5000`, { credentials: 'same-origin' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `Failed loading item stats for ${y}`);
+        const data = await loadTaxYear(y);
         let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && isStatsSaleIncomeRow(r));
         incomeRows = incomeRows.filter((r) => String(r.date || '') >= '2026-03-18');
         for (const row of incomeRows) {
@@ -2034,9 +2113,7 @@
       const yearsToFetch = [2023, 2024, 2025, 2026];
       const cutoverDate = '2026-03-18';
       for (const year of yearsToFetch) {
-        const res = await fetch(`${TAX_TX_API_URL}?year=${year}&type=all&limit=5000`, { credentials: 'same-origin' });
-        if (!res.ok) continue;
-        const data = await res.json();
+        const data = await loadTaxYear(year);
         const incomeRows = (data.income || []).filter(r =>
           Number(r.is_owner_funded || 0) !== 1 &&
           !String(r.category||'').toLowerCase().includes('owner funded') &&
@@ -2062,8 +2139,21 @@
       return out;
     }
 
+    // Stats are shown only when every ledger row loaded; otherwise a red warning says why.
     async function loadStatsData() {
       if (!adminUnlocked) return;
+      const warnEl = document.getElementById('stats-integrity-warning');
+      try {
+        await renderStatsData();
+        if (warnEl) { warnEl.hidden = true; warnEl.textContent = ''; }
+      } catch (e) {
+        if (!warnEl) throw e;
+        warnEl.innerHTML = `<strong>Stats not updated.</strong> ${escHtml(e.message || String(e))}`;
+        warnEl.hidden = false;
+      }
+    }
+
+    async function renderStatsData() {
       const selectedYear = Number(statsYearEl?.value || taxYearEl?.value || String(new Date().getFullYear()));
 
       const seeded = {
@@ -2130,9 +2220,8 @@
           };
           // Layer any DB imports on top of the seeded baseline
           try {
-            const dbRes = await fetch(`${TAX_TX_API_URL}?year=${yearNum}&type=all&limit=5000`, { credentials: 'same-origin' });
-            const dbData = await dbRes.json();
-            if (dbRes.ok) {
+            const dbData = await loadTaxYear(yearNum);
+            {
               const dbIncome = (dbData.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && isStatsSaleIncomeRow(r));
               const dbExpenses = dbData.expenses || [];
               base.salesCount += dbIncome.length;
@@ -2151,14 +2240,15 @@
                 else base.etsyFeesCents += cents;
               }
             }
-          } catch (e) { /* fall back to seeded-only */ }
+          } catch (e) {
+            // A failed request falls back to the seeded numbers, but a partial ledger must not.
+            if (e instanceof TaxDataIncompleteError) throw e;
+          }
           base.feesCostsCents = base.etsyFeesCents + base.shippingCostsCents + base.suppliesCostsCents + base.advertisingCostsCents;
           return base;
         }
 
-        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(String(yearNum))}&type=all&limit=5000`, { credentials: 'same-origin' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `Failed loading stats for ${yearNum}`);
+        const data = await loadTaxYear(yearNum);
 
         let incomeRows = (data.income || []).filter(r => Number(r.is_owner_funded || 0) !== 1 && !String(r.category||'').toLowerCase().includes('owner funded') && isStatsSaleIncomeRow(r));
         let expenseRows = data.expenses || [];
@@ -2385,16 +2475,16 @@
         const zip = new JSZip();
         const root = zip.folder(`audit-package-${year}`);
 
-        const [txRes, summaryRes, statementsRes, journalRes] = await Promise.all([
-          fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, { credentials: 'same-origin' }),
+        // The ledger and journal loaders throw if either came back short, so an audit package
+        // is never built from part of the year.
+        const [txData, summaryRes, statementsRes, journalData] = await Promise.all([
+          loadTaxYear(year),
           fetch(`${ACCOUNTS_SUMMARY_API_URL}?year=${encodeURIComponent(year)}`, { credentials: 'same-origin' }),
           fetch(`${ACCOUNTS_STATEMENTS_API_URL}?year=${encodeURIComponent(year)}`, { credentials: 'same-origin' }),
-          fetch(`${ACCOUNTS_JOURNAL_API_URL}?year=${encodeURIComponent(year)}&limit=5000`, { credentials: 'same-origin' })
+          loadFullJournal(year)
         ]);
-        const txData = await txRes.json();
         const summaryData = await summaryRes.json();
         const stData = await statementsRes.json();
-        const journalData = await journalRes.json();
 
         const money = (c) => {
           const v = Number(c || 0) / 100;
@@ -3025,6 +3115,10 @@
             openErrorModal('That category name already exists.');
             return;
           }
+          if (loadedTaxData.integrity && !loadedTaxData.integrity.ok) {
+            openErrorModal('The ledger didn\'t load completely, so it can\'t tell which categories are in use. Reload the page and try again.');
+            return;
+          }
           const rows = type === 'income' ? (loadedTaxData.income || []) : (loadedTaxData.expenses || []);
           if (rows.some(r => String(r.category || '') === oldName)) {
             openErrorModal(`Can't rename "${oldName}" because records already use it. Reclassify those transactions first.`);
@@ -3046,6 +3140,10 @@
         btn.addEventListener('click', async () => {
           const type = btn.getAttribute('data-cat-del');
           const name = decodeURIComponent(btn.getAttribute('data-cat-name') || '');
+          if (loadedTaxData.integrity && !loadedTaxData.integrity.ok) {
+            openErrorModal('The ledger didn\'t load completely, so it can\'t tell which categories are in use. Reload the page and try again.');
+            return;
+          }
           const rows = type === 'income' ? (loadedTaxData.income || []) : (loadedTaxData.expenses || []);
           if (rows.some(r => String(r.category || '') === name)) {
             openErrorModal(`Can't delete "${name}". Reclassify transactions in this category before deleting it.`);
@@ -3264,23 +3362,41 @@
       });
     }
 
+    // Under the Year Totals Snapshot: "Checked against the database: N income and N expense
+    // entries", or a red warning when the rows that loaded don't match the database's totals.
+    function renderLedgerCheck(summaryYear, integrity, listCheck) {
+      const el = document.getElementById('tax-summary-check');
+      if (!el) return;
+      const bad = [];
+      if (!integrity.ok) bad.push(taxIncompleteMessage(summaryYear, integrity));
+      if (listCheck && !listCheck.integrity.ok) bad.push(taxIncompleteMessage(listCheck.year, listCheck.integrity));
+      if (bad.length) {
+        el.className = 'ledger-check bad';
+        el.setAttribute('role', 'alert');
+        el.innerHTML = `<strong>These totals are incomplete.</strong> ${escHtml(bad.join(' '))}`;
+      } else if (integrity.checked) {
+        const t = integrity.totals;
+        el.className = 'ledger-check';
+        el.removeAttribute('role');
+        el.textContent = `✓ Checked against the database: ${t.income.count.toLocaleString()} income and ${t.expenses.count.toLocaleString()} expense entries for ${summaryYear}.`;
+      } else {
+        el.hidden = true;
+        return;
+      }
+      el.hidden = false;
+    }
+
     async function loadTaxTransactions() {
       if (!adminUnlocked) return;
       const year = taxYearEl.value;
       const summaryYear = taxSummaryYearEl?.value || year;
       try {
-        const [res, summaryRes] = await Promise.all([
-          fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, {
-            credentials: 'same-origin'
-          }),
-          fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(summaryYear)}&type=all&limit=5000`, {
-            credentials: 'same-origin'
-          })
-        ]);
-        const data = await res.json();
-        const summaryData = await summaryRes.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
-        if (!summaryRes.ok) throw new Error(summaryData.error || 'Failed to load summary');
+        // allowIncomplete: the ledger still lists what did load, but the snapshot shows a red
+        // warning in place of its quiet "checked" line, and imports refuse to run (see below).
+        const [data, summaryData] = await Promise.all([
+          loadTaxYear(year, { allowIncomplete: true }),
+          summaryYear === year ? null : loadTaxYear(summaryYear, { allowIncomplete: true })
+        ]).then(([d, sd]) => [d, sd || d]);
 
         const items = [
           ...(data.income || []).map(r => ({ type: 'income', ...r })),
@@ -3346,6 +3462,7 @@
             <div class="tax-summary-line" style="margin-top:.4rem; border-top:1px solid var(--line); padding-top:.4rem;"><span>Net</span><strong class="money-blur-target">$${((incomeTotal - expenseTotal)/100).toFixed(2)}</strong></div>
           </div>
         `;
+        renderLedgerCheck(summaryYear, summaryData.integrity, year === summaryYear ? null : { year, integrity: data.integrity });
         allTxItems = items;
         loadedTaxData = data;
         txCategoryFilterEl.innerHTML = '<option value="">All Categories</option>' +
@@ -3353,7 +3470,9 @@
         renderTxList();
         markMoneyBlurTargets();
       } catch (e) {
-        taxSummaryListEl.innerHTML = `<div class="tax-summary-col"><h4>Summary</h4><div class="tax-summary-line"><span>Error</span><strong>${(e.message || e)}</strong></div></div>`;
+        taxSummaryListEl.innerHTML = `<div class="tax-summary-col"><h4>Summary</h4><div class="tax-summary-line"><span>Error</span><strong>${escHtml(e.message || String(e))}</strong></div></div>`;
+        const checkEl = document.getElementById('tax-summary-check');
+        if (checkEl) checkEl.hidden = true;
         taxListEl.textContent = `Error loading tax transactions: ${e.message || e}`;
       }
     }
@@ -3713,14 +3832,7 @@
       const quarter = taxExportQuarterEl?.value || 'all';
       const quarterSuffix = quarter && quarter !== 'all' ? `-Q${quarter}` : '';
       try {
-        const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=10000`, {
-          credentials: 'same-origin'
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || 'Export failed');
-        }
-        const data = await res.json();
+        const data = await loadTaxYear(year);
         const [startDate, endDate] = getTaxQuarterRange(year, quarter);
         const rows = [
           ...(data.income || []).map(r => ({
@@ -3885,6 +3997,14 @@
         parsed.push({ isoDate, type, title, info, amount, fee, net });
       }
 
+      let ledger;
+      try {
+        ledger = await loadLedgerForDates(parsed.map(p => p.isoDate));
+      } catch (e) {
+        openErrorModal(`Import preview stopped before checking for rows already imported. ${e.message || e}`);
+        return;
+      }
+
       const extractOrderId = (...vals) => {
         for (const txt of vals) {
           const m = String(txt || '').match(/Order\s*#(\d+)/i);
@@ -3901,7 +4021,7 @@
       ].join('|');
       const existingSaleOrderIds = new Set();
       const existingRefundOrderIds = new Set();
-      for (const row of (loadedTaxData.income || [])) {
+      for (const row of (ledger.income || [])) {
         const text = `${row.source || ''} ${row.notes || ''}`;
         const oid = extractOrderId(text);
         if (!oid) continue;
@@ -3909,7 +4029,7 @@
         else existingSaleOrderIds.add(oid);
       }
       const existingExpenseCounts = new Map();
-      for (const row of (loadedTaxData.expenses || [])
+      for (const row of (ledger.expenses || [])
         .filter(row => String(row.vendor || '').toLowerCase() === 'etsy')) {
         const key = expenseDedupeKey({
           date: row.expense_date || row.date,
@@ -4153,11 +4273,19 @@
       pendingMercariImportExpenses = [];
       const skippedMercariRows = [];
 
+      let ledger;
+      try {
+        ledger = await loadLedgerForDates(rows.slice(1).map(r => mercariDateToIso(String(r[idxSoldDate] || '').trim())));
+      } catch (e) {
+        openErrorModal(`Import preview stopped before checking for rows already imported. ${e.message || e}`);
+        return;
+      }
+
       // Already-imported Mercari sales: matched by item ID in notes, or by date/title/amount for
       // rows imported before item IDs were recorded.
       const existingMercariItemIds = new Set();
       const existingMercariSaleKeys = new Set();
-      for (const row of (loadedTaxData.income || [])) {
+      for (const row of (ledger.income || [])) {
         if (!/mercari/i.test(row.notes || '')) continue;
         const m = String(row.notes || '').match(/Mercari Item (\w+)/i);
         if (m) existingMercariItemIds.add(m[1].toLowerCase());
@@ -4286,11 +4414,13 @@
       }
       if (!statementRows.length) { openErrorModal('No statement rows found for the selected period.'); return; }
 
-      const res = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, {
-        credentials: 'same-origin'
-      });
-      const data = await res.json();
-      if (!res.ok) { openErrorModal(data.error || 'Failed to load ledger data.'); return; }
+      let data;
+      try {
+        data = await loadTaxYear(year);
+      } catch (e) {
+        openErrorModal(e.message || 'Failed to load ledger data.');
+        return;
+      }
 
       let ledger = [
         ...(data.expenses || []).map(r => ({ type: 'expense', date: r.date, amountCents: Number(r.amount_cents || 0), label: `${r.category || ''} ${r.vendor || ''}`.trim() })),
@@ -4439,8 +4569,13 @@
         }
 
         const entries = journal.entries || [];
+        // This list only shows the newest 200 entries; say so, so it isn't read as the whole period.
+        const totalEntries = Number(journal.total_entries ?? entries.length);
+        const journalNote = entries.length < totalEntries
+          ? `<div class="ledger-check" style="margin:0 0 .4rem;">Showing the newest ${entries.length.toLocaleString()} of ${totalEntries.toLocaleString()} journal entries. The Trial Balance and statements above use all of them; the audit package's journal CSV has the full list.</div>`
+          : '';
         accountsJournalListEl.innerHTML = entries.length
-          ? entries.map((e) => {
+          ? journalNote + entries.map((e) => {
               const lines = (e.lines || []).map(l => `<div style="display:flex; justify-content:space-between;"><span>${l.code} — ${escHtml(l.name || '')}</span><span>Dr $${(Number(l.debit_cents||0)/100).toFixed(2)} | Cr $${(Number(l.credit_cents||0)/100).toFixed(2)}</span></div>`).join('');
               const notesHtml = e.notes ? `<div style="color:var(--muted); font-size:0.85rem; margin-top:0.25rem;">${escHtml(e.notes)}</div>` : '';
               return `<div style="padding:.45rem 0; border-bottom:1px dashed var(--line);"><div><strong>${e.entry_date}</strong> — ${escHtml(e.memo || '(no memo)')}</div>${lines}${notesHtml}</div>`;
@@ -5592,10 +5727,7 @@
           if (!csvRes.ok) throw new Error('CSV fetch failed');
           folder.file(`florence-mae-gifts-tax-${year}.csv`, await csvRes.blob());
 
-          const txRes = await fetch(`${TAX_TX_API_URL}?year=${encodeURIComponent(year)}&type=all&limit=5000`, {
-            credentials: 'same-origin'
-          });
-          const txData = await txRes.json();
+          const txData = await loadTaxYear(year);
           const allRecords = [
             ...(txData.expenses || []).map(r => ({ ...r, recType: 'expense' })),
             ...(txData.income || []).map(r => ({ ...r, recType: 'income' }))

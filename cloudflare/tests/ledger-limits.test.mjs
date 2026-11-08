@@ -1,0 +1,207 @@
+// Ledger completeness: the admin adds up whatever /api/tax/transactions and /api/accounts/journal
+// return, so those lists must hold the whole year (until 2026-11-08 they stopped at 500 rows and
+// the 2026 Tax Ledger snapshot left out ~560 expenses), and the admin's loader must refuse a
+// partial year. These tests run a year bigger than the old cap through the worker and through
+// the loader code copied out of admin.html.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import worker from '../src/worker.js';
+import { createD1 } from './d1.mjs';
+
+const MIGRATIONS = new URL('../migrations/', import.meta.url);
+const TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
+const SITE = 'https://www.florencemaegifts.com';
+const ctx = { waitUntil() {} };
+
+function baseEnv() {
+  const DB = createD1();
+  for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).sort()) {
+    DB.sqlite.exec(readFileSync(new URL(file, MIGRATIONS), 'utf8'));
+  }
+  return {
+    DB,
+    ALLOWED_ORIGINS: SITE,
+    ADMIN_PASS: 'admin-test-password',
+    ADMIN_SESSION_SECRET: 'session-secret-test-only-0123456789',
+    TOTP_SECRET
+  };
+}
+
+function totp(secret, now = Date.now()) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = 0, value = 0; const bytes = [];
+  for (const ch of secret) { value = (value << 5) | alphabet.indexOf(ch); bits += 5; if (bits >= 8) { bits -= 8; bytes.push((value >>> bits) & 0xff); } }
+  const step = Math.floor(now / 1000 / 30);
+  const counter = new DataView(new ArrayBuffer(8));
+  counter.setUint32(0, Math.floor(step / 2 ** 32)); counter.setUint32(4, step >>> 0);
+  return crypto.subtle.importKey('raw', new Uint8Array(bytes), { name: 'HMAC', hash: 'SHA-1' }, false, ['sign'])
+    .then((key) => crypto.subtle.sign('HMAC', key, counter.buffer))
+    .then((mac) => { const s = new Uint8Array(mac); const o = s[s.length - 1] & 0x0f; const n = ((s[o] & 0x7f) << 24) | (s[o + 1] << 16) | (s[o + 2] << 8) | s[o + 3]; return String(n % 1e6).padStart(6, '0'); });
+}
+
+async function adminCookie(env) {
+  const res = await worker.fetch(new Request('https://worker.example/api/admin/login', {
+    method: 'POST',
+    headers: { Origin: SITE, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'admin', password: 'admin-test-password', code: await totp(TOTP_SECRET) })
+  }), env, ctx);
+  assert.equal(res.status, 200, await res.clone().text());
+  return (res.headers.get('Set-Cookie') || '').split(';')[0];
+}
+
+function quietConsole(t) {
+  for (const level of ['error', 'warn', 'log']) {
+    const original = console[level];
+    console[level] = () => {};
+    t.after(() => { console[level] = original; });
+  }
+}
+
+const EXPENSES_2026 = 1200; // well past the old 500-row cap
+const INCOME_2026 = 40;
+const expenseCents = (i) => 20 + (i % 7) * 113; // varied amounts, so a dropped row changes the total
+
+function seedLedger(env) {
+  const db = env.DB.sqlite;
+  const addExpense = db.prepare('INSERT INTO tax_expenses (expense_date, vendor, category, amount_cents, paid_via, notes) VALUES (?, ?, ?, ?, ?, ?)');
+  for (let i = 0; i < EXPENSES_2026; i++) {
+    const day = String(1 + (i % 28)).padStart(2, '0');
+    const month = String(1 + (i % 12)).padStart(2, '0');
+    addExpense.run(`2026-${month}-${day}`, 'Etsy', i % 2 ? 'Etsy Listing Fees' : 'Shipping Costs', expenseCents(i), 'etsy', `Fee ${i}`);
+  }
+  addExpense.run('2025-12-31', 'Etsy', 'Etsy Listing Fees', 20, 'etsy', 'Other year');
+  const addIncome = db.prepare('INSERT INTO tax_income (income_date, source, category, amount_cents, notes) VALUES (?, ?, ?, ?, ?)');
+  for (let i = 0; i < INCOME_2026; i++) addIncome.run(`2026-06-${String(1 + (i % 28)).padStart(2, '0')}`, 'Etsy', 'Product Sale', 2500 + i, `Order #${4000000000 + i}`);
+  const expected = { count: EXPENSES_2026, cents: 0 };
+  for (let i = 0; i < EXPENSES_2026; i++) expected.cents += expenseCents(i);
+  return expected;
+}
+
+function seedJournal(env, entries) {
+  const db = env.DB.sqlite;
+  const [a, b] = db.prepare('SELECT id FROM accounts ORDER BY id LIMIT 2').all().map((r) => r.id);
+  const addEntry = db.prepare("INSERT INTO journal_entries (entry_date, memo, source_type, source_id) VALUES (?, ?, 'tax_expense', ?)");
+  const addLine = db.prepare('INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?, ?, ?, ?)');
+  for (let i = 0; i < entries; i++) {
+    const { lastInsertRowid } = addEntry.run(`2026-${String(1 + (i % 12)).padStart(2, '0')}-15`, `Entry ${i}`, i + 1);
+    addLine.run(lastInsertRowid, a, 100, 0);
+    addLine.run(lastInsertRowid, b, 0, 100);
+  }
+}
+
+const get = (path, cookie) => new Request(`https://worker.example${path}`, { headers: { Origin: SITE, Cookie: cookie } });
+
+test('tax transactions return the whole year, with database totals, past the old 500-row cap', async (t) => {
+  quietConsole(t);
+  const env = baseEnv();
+  const expected = seedLedger(env);
+  const cookie = await adminCookie(env);
+
+  let res = await worker.fetch(get('/api/tax/transactions?year=2026&type=all', cookie), env, ctx);
+  let body = await res.json();
+  assert.equal(res.status, 200, JSON.stringify(body));
+  assert.equal(body.expenses.length, EXPENSES_2026);
+  assert.equal(body.income.length, INCOME_2026);
+  assert.deepEqual(body.totals.expenses, expected);
+  assert.equal(body.totals.income.count, INCOME_2026);
+  assert.equal(body.expenses.reduce((s, r) => s + r.amount_cents, 0), expected.cents);
+  assert.deepEqual(body.complete, { expenses: true, income: true });
+
+  // The admin used to ask for limit=5000 and silently get 500; a big limit now means what it says.
+  res = await worker.fetch(get('/api/tax/transactions?year=2026&type=all&limit=5000', cookie), env, ctx);
+  body = await res.json();
+  assert.equal(body.expenses.length, EXPENSES_2026);
+
+  // A deliberate small limit is still honoured, and the response says it is partial.
+  res = await worker.fetch(get('/api/tax/transactions?year=2026&type=expense&limit=100', cookie), env, ctx);
+  body = await res.json();
+  assert.equal(body.expenses.length, 100);
+  assert.equal(body.totals.expenses.count, EXPENSES_2026);
+  assert.equal(body.complete.expenses, false);
+  assert.equal(body.complete.income, true, 'income was not asked for, so it is not "missing"');
+
+  // Other years stay out of the totals.
+  res = await worker.fetch(get('/api/tax/transactions?year=2025&type=all', cookie), env, ctx);
+  body = await res.json();
+  assert.deepEqual(body.totals.expenses, { count: 1, cents: 20 });
+});
+
+test('journal list returns every entry by default and reports the total when limited', async (t) => {
+  quietConsole(t);
+  const env = baseEnv();
+  seedJournal(env, 650);
+  const cookie = await adminCookie(env);
+
+  let res = await worker.fetch(get('/api/accounts/journal?year=2026', cookie), env, ctx);
+  let body = await res.json();
+  assert.equal(res.status, 200, JSON.stringify(body));
+  assert.equal(body.entries.length, 650);
+  assert.equal(body.total_entries, 650);
+  assert.equal(body.complete, true);
+  assert.ok(body.entries.every((e) => e.lines.length === 2));
+
+  res = await worker.fetch(get('/api/accounts/journal?year=2026&limit=200', cookie), env, ctx);
+  body = await res.json();
+  assert.equal(body.entries.length, 200);
+  assert.equal(body.total_entries, 650);
+  assert.equal(body.complete, false);
+});
+
+// The loader block from admin.html, run against the worker (or a stand-in for an old one).
+function adminLoaders(fetchImpl) {
+  const html = readFileSync(new URL('../../admin.html', import.meta.url), 'utf8');
+  const start = html.indexOf('    // ===== Complete-ledger loading =====');
+  const end = html.indexOf('    // ===== DOM Refs =====');
+  assert.ok(start > 0 && end > start, 'loader block found in admin.html');
+  const code = html.slice(start, end);
+  return new Function('fetch', 'TAX_TX_API_URL', 'ACCOUNTS_JOURNAL_API_URL',
+    `${code}\nreturn { TaxDataIncompleteError, taxDataIntegrity, loadTaxYear, loadLedgerForDates, loadFullJournal };`
+  )(fetchImpl, 'https://worker.example/api/tax/transactions', 'https://worker.example/api/accounts/journal');
+}
+
+test("admin loader accepts a complete year and refuses a partial one", async (t) => {
+  quietConsole(t);
+  const env = baseEnv();
+  seedLedger(env);
+  seedJournal(env, 650);
+  const cookie = await adminCookie(env);
+  const viaWorker = (url) => worker.fetch(get(new URL(url).pathname + new URL(url).search, cookie), env, ctx);
+
+  const live = adminLoaders(viaWorker);
+  const data = await live.loadTaxYear(2026);
+  assert.equal(data.expenses.length, EXPENSES_2026);
+  assert.equal(data.integrity.ok, true);
+  assert.equal(data.integrity.checked, true);
+  const journal = await live.loadFullJournal(2026);
+  assert.equal(journal.entries.length, 650);
+
+  // Imports check every year their file touches, not just the year on screen.
+  const both = await live.loadLedgerForDates(['2026-03-01', '2025-12-31', '', null, '2026-07-04']);
+  assert.equal(both.expenses.length, EXPENSES_2026 + 1);
+
+  // A response that is short of the database's totals (here, one row quietly dropped).
+  const dropsARow = adminLoaders(async (url) => {
+    const res = await viaWorker(url);
+    const body = await res.json();
+    body.expenses = body.expenses.slice(1);
+    return Response.json(body);
+  });
+  await assert.rejects(dropsARow.loadTaxYear(2026), (e) => e instanceof dropsARow.TaxDataIncompleteError && /loaded 1199 of 1200 rows/.test(e.message));
+  const partial = await dropsARow.loadTaxYear(2026, { allowIncomplete: true });
+  assert.equal(partial.integrity.ok, false);
+
+  // A worker from before this check: 500 rows and no totals is treated as cut off.
+  const oldWorker = adminLoaders(async () => Response.json({
+    ok: true,
+    expenses: Array.from({ length: 500 }, (_, i) => ({ id: i, amount_cents: 20 })),
+    income: []
+  }));
+  await assert.rejects(oldWorker.loadTaxYear(2026), oldWorker.TaxDataIncompleteError);
+  const oldJournal = adminLoaders(async () => Response.json({ ok: true, entries: Array.from({ length: 500 }, (_, i) => ({ id: i, lines: [] })) }));
+  await assert.rejects(oldJournal.loadFullJournal(2026), oldJournal.TaxDataIncompleteError);
+
+  // Journal limited below its total.
+  const shortJournal = adminLoaders(async () => Response.json({ ok: true, entries: [{ id: 1, lines: [] }], total_entries: 650, complete: false }));
+  await assert.rejects(shortJournal.loadFullJournal(2026), /1 of 650 entries/);
+});
