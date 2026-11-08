@@ -23,22 +23,22 @@ test('business days skip weekends and U.S. federal holidays, including observed 
 test('each listing has its own handling time, found by price ID or item name', () => {
   const priceFor = (item) => Object.entries(PRICES).find(([, v]) => v.item === item)[0];
   const hat = 'Crochet Shadow Monster Baby Hat';
-  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Anything', price_id: priceFor(hat) }), { minDays: 5, maxDays: 7 });
-  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Monster Diaper Cover Baby Set Costume', price_id: 'price_retired_by_a_price_change' }), { minDays: 7, maxDays: 9 }, 'an old price ID falls back to the item name');
-  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Togepi Inspired Baby Photo Set', price_id: null }), { minDays: 5, maxDays: 10 });
+  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Anything', price_id: priceFor(hat) }), { minDays: 3, maxDays: 5 });
+  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Monster Diaper Cover Baby Set Costume', price_id: 'price_retired_by_a_price_change' }), { minDays: 5, maxDays: 7 }, 'an old price ID falls back to the item name');
+  assert.deepEqual(handlingFor({ ...ORDER, item_name: 'Togepi Inspired Baby Photo Set', price_id: null }), { minDays: 7, maxDays: 10 });
   assert.deepEqual(handlingFor({ ...ORDER, item_name: 'A listing since deleted', price_id: null }), LONGEST_HANDLING);
 });
 
 test('a seasonal rush covers orders placed through its last day, then the listing time returns', () => {
   const rush = HANDLING_RUSHES[0];
   assert.deepEqual(handlingFor({ ...ORDER, order_date: rush.through }), rush);
-  assert.deepEqual(handlingFor({ ...ORDER, order_date: addBusinessDays(rush.through, 1) }), { minDays: 5, maxDays: 7 });
+  assert.deepEqual(handlingFor({ ...ORDER, order_date: addBusinessDays(rush.through, 1) }), { minDays: 3, maxDays: 5 });
 });
 
 test('ship estimates count from the order date using the listing time', () => {
   const est = shipEstimate(ORDER);
-  assert.equal(est.shipFrom, addBusinessDays(ORDER.order_date, 5));
-  assert.equal(est.shipBy, addBusinessDays(ORDER.order_date, 7));
+  assert.equal(est.shipFrom, addBusinessDays(ORDER.order_date, 3));
+  assert.equal(est.shipBy, addBusinessDays(ORDER.order_date, 5));
   assert.ok(est.deliverBy > est.shipBy);
 });
 
