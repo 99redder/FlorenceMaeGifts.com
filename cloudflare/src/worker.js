@@ -3015,9 +3015,16 @@ async function handleAccountsYearClose(request, env, corsHeaders, url) {
       COALESCE(SUM(jl.credit_cents),0) AS credit_total
     FROM accounts a
     LEFT JOIN journal_lines jl ON jl.account_id = a.id
-    LEFT JOIN journal_entries je ON je.id = jl.entry_id AND je.entry_date >= ?1 AND je.entry_date <= ?2
+      AND jl.entry_id IN (
+        SELECT id FROM journal_entries
+        WHERE entry_date >= ?1 AND entry_date <= ?2
+          AND NOT (source_type = 'year_close' AND source_id = ?3)
+      )
     GROUP BY a.id, a.code, a.name, a.account_type, a.normal_side
-    ORDER BY a.code ASC`).bind(from, to).all();
+    ORDER BY a.code ASC`).bind(from, to, Number(year)).all();
+  // Only this year's lines count, and this year's own earlier close entries are left out, so a
+  // re-run replaces the close instead of netting it to zero. (Until 2026-11-08 the date test sat
+  // on the entries join, so lines from every year were summed.)
 
   const accounts = (rows.results || []).map((r) => {
     const debits = Number(r.debit_total || 0);

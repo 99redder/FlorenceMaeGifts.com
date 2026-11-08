@@ -231,3 +231,43 @@ test('tax summary leaves owner-funded income out of income and net', async (t) =
   assert.equal(body.netCents, 9000);
   assert.equal((await summary('wrong-token')).status, 401);
 });
+
+test('year-end close sums only its own year and a re-run replaces it', async (t) => {
+  quietConsole(t);
+  const env = baseEnv();
+  const cookie = await adminCookie(env);
+  const db = env.DB.sqlite;
+  // The migrations only add a few accounts (production's chart was seeded by the worker), so add
+  // the ones this test posts to.
+  db.exec(`INSERT OR IGNORE INTO accounts (code, name, account_type, normal_side, is_system, active) VALUES
+    ('1000', 'Cash on Hand', 'asset', 'debit', 1, 1), ('4000', 'Sales Revenue', 'income', 'credit', 1, 1)`);
+  const id = (code) => db.prepare('SELECT id FROM accounts WHERE code = ?').get(code).id;
+  const entry = (date, debitCode, creditCode, cents) => {
+    const { lastInsertRowid } = db.prepare("INSERT INTO journal_entries (entry_date, memo, source_type, source_id) VALUES (?, 'test', 'manual', 0)").run(date);
+    db.prepare('INSERT INTO journal_lines (entry_id, account_id, debit_cents, credit_cents) VALUES (?, ?, ?, 0), (?, ?, 0, ?)')
+      .run(lastInsertRowid, id(debitCode), cents, lastInsertRowid, id(creditCode), cents);
+  };
+  entry('2026-06-01', '1000', '4000', 80000); // 2026 sale
+  entry('2026-06-02', '5800', '1000', 30000); // 2026 shipping
+  entry('2027-01-05', '1000', '4000', 99900); // January 2027 sale: not part of the 2026 close
+  entry('2027-01-06', '5800', '1000', 11100);
+
+  const close = async (apply) => {
+    const res = await worker.fetch(new Request('https://worker.example/api/accounts/year-close', {
+      method: 'POST',
+      headers: { Origin: SITE, Cookie: cookie, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year: '2026', apply })
+    }), env, ctx);
+    const body = await res.json();
+    assert.equal(res.status, 200, JSON.stringify(body));
+    return Object.fromEntries(body.preview.steps.map((s) => [s.step, s.amount_cents]));
+  };
+  assert.deepEqual(await close(false), { 1: 80000, 2: 30000, 3: 50000 });
+  assert.deepEqual(await close(true), { 1: 80000, 2: 30000, 3: 50000 });
+  assert.deepEqual(await close(true), { 1: 80000, 2: 30000, 3: 50000 }, 'a re-run sees the same balances');
+  const open = db.prepare(`
+    SELECT SUM(jl.debit_cents - jl.credit_cents) AS net FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl.entry_id JOIN accounts a ON a.id = jl.account_id
+    WHERE je.entry_date BETWEEN '2026-01-01' AND '2026-12-31' AND a.account_type IN ('income', 'expense')`).get();
+  assert.equal(open.net, 0, '2026 revenue and expenses closed to zero, once');
+});
