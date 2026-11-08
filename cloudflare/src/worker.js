@@ -1989,6 +1989,15 @@ function csvEscape(v) {
   return s;
 }
 
+// Income rows that are the owner's own money (test purchases, owner-funded checkouts), not
+// revenue. Same rule upsertTaxIncomeJournal uses to post them to Owner Contributions (3100), so
+// /api/tax/summary's net matches the Income Statement. Change both together.
+const OWNER_FUNDED_INCOME_SQL = `(COALESCE(is_owner_funded, 0) = 1
+  OR lower(COALESCE(category, '')) LIKE '%owner funded%'
+  OR lower(COALESCE(category, '')) LIKE '%non-revenue%'
+  OR lower(COALESCE(source, '')) LIKE '%owner funded%'
+  OR lower(COALESCE(source, '')) LIKE '%test%')`;
+
 /**
  * GET /api/tax/summary — Service-to-service annual totals. The dedicated token
  * cannot authorize transaction reads, exports, receipt access, or any writes.
@@ -2011,7 +2020,8 @@ async function handleTaxSummary(request, env, corsHeaders, url) {
        FROM tax_expenses WHERE substr(expense_date, 1, 4) = ?1`
     ).bind(year).first(),
     env.DB.prepare(
-      `SELECT COALESCE(SUM(amount_cents), 0) AS total_cents
+      `SELECT COALESCE(SUM(CASE WHEN ${OWNER_FUNDED_INCOME_SQL} THEN 0 ELSE amount_cents END), 0) AS total_cents,
+              COALESCE(SUM(CASE WHEN ${OWNER_FUNDED_INCOME_SQL} THEN amount_cents ELSE 0 END), 0) AS owner_funded_cents
        FROM tax_income WHERE substr(income_date, 1, 4) = ?1`
     ).bind(year).first(),
     env.DB.prepare(
@@ -2022,7 +2032,9 @@ async function handleTaxSummary(request, env, corsHeaders, url) {
        WHERE a.code = '3210' AND substr(je.entry_date, 1, 4) = ?1`
     ).bind(year).first(),
   ]);
+  // incomeCents is revenue only: owner-funded rows are left out (reported as ownerFundedCents).
   const incomeCents = Number(incomeTotal?.total_cents || 0);
+  const ownerFundedCents = Number(incomeTotal?.owner_funded_cents || 0);
   const expenseCents = Number(expenseTotal?.total_cents || 0);
   const ownerRetirementContributionCents = Number(ownerRetirementTotal?.total_cents || 0);
   return json({
@@ -2031,6 +2043,7 @@ async function handleTaxSummary(request, env, corsHeaders, url) {
     incomeCents,
     expenseCents,
     netCents: incomeCents - expenseCents,
+    ownerFundedCents,
     ownerRetirementContributionCents,
   }, 200, corsHeaders);
 }

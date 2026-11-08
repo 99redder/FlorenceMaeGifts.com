@@ -205,3 +205,29 @@ test("admin loader accepts a complete year and refuses a partial one", async (t)
   const shortJournal = adminLoaders(async () => Response.json({ ok: true, entries: [{ id: 1, lines: [] }], total_entries: 650, complete: false }));
   await assert.rejects(shortJournal.loadFullJournal(2026), /1 of 650 entries/);
 });
+
+test('tax summary leaves owner-funded income out of income and net', async (t) => {
+  quietConsole(t);
+  const env = { ...baseEnv(), TAX_READ_TOKEN: 'tax-read-test-token' };
+  const db = env.DB.sqlite;
+  const addIncome = db.prepare('INSERT INTO tax_income (income_date, source, category, amount_cents, notes, is_owner_funded) VALUES (?, ?, ?, ?, ?, ?)');
+  addIncome.run('2026-05-01', 'Etsy', 'Product Sale', 10000, 'sale', 0);
+  addIncome.run('2026-05-02', 'Card issuer', 'Credit Card Bonus', 2000, 'bonus', 0);
+  addIncome.run('2026-02-14', 'Stripe', 'Owner Funded (Non-Revenue)', 1000, 'test purchase', 1);      // flagged
+  addIncome.run('2026-02-15', 'Stripe', 'Owner Funded (Non-Revenue)', 500, 'unflagged category', 0);  // by category
+  addIncome.run('2026-02-16', 'Stripe (owner test payment)', 'Service Revenue', 100, 'by source', 0); // by source
+  addIncome.run('2025-12-31', 'Etsy', 'Product Sale', 9999, 'other year', 0);
+  db.prepare('INSERT INTO tax_expenses (expense_date, vendor, category, amount_cents) VALUES (?, ?, ?, ?)').run('2026-05-03', 'Store', 'Supplies', 3000);
+
+  const summary = (token) => worker.fetch(new Request('https://worker.example/api/tax/summary?year=2026', {
+    headers: { Origin: SITE, 'X-Tax-Read-Token': token }
+  }), env, ctx);
+  const res = await summary('tax-read-test-token');
+  const body = await res.json();
+  assert.equal(res.status, 200, JSON.stringify(body));
+  assert.equal(body.incomeCents, 12000, 'sale + card bonus, no owner money');
+  assert.equal(body.ownerFundedCents, 1600);
+  assert.equal(body.expenseCents, 3000);
+  assert.equal(body.netCents, 9000);
+  assert.equal((await summary('wrong-token')).status, 401);
+});
